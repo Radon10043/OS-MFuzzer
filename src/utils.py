@@ -1,3 +1,6 @@
+import time
+
+
 #######################
 ### Terminal Colors ###
 #######################
@@ -20,28 +23,51 @@ class TerminalColors:
     cBRI = "\033[1;97m"
     cRST = "\033[0m"
 
+
 ###############################
 ### Debug & error functions ###
 ###############################
 def SAYF(msg: str):
     print(msg, end="")
 
+
 def WARNF(msg: str):
     SAYF(TerminalColors.cYEL + "[!] " + TerminalColors.cRST + msg + "\n")
+
 
 def ACTF(msg: str):
     SAYF(TerminalColors.cLBL + "[*] " + TerminalColors.cRST + msg + "\n")
 
+
 def OKF(msg: str):
     SAYF(TerminalColors.cLGN + "[+] " + TerminalColors.cRST + msg + "\n")
 
+
 def BADF(msg: str):
     SAYF(TerminalColors.cLRD + "[-] " + TerminalColors.cRST + msg + "\n")
+
 
 def FATAL(msg: str):
     SAYF(TerminalColors.cLRD + "[-] PROGRAM ABORT :  " + TerminalColors.cRST + msg + "\n")
     exit(1)
 
+
 def PFATAL(msg: str):
     SAYF(TerminalColors.cLRD + "\n[-] SYSTEM ERROR : " + TerminalColors.cBRI + msg + TerminalColors.cRST + "\n")
     exit(1)
+
+
+def get_cur_time() -> str:
+    """获取当前时间
+
+    Returns
+    -------
+    str
+        返回当前时间, 格式为"年月日时分秒"
+
+    Notes
+    -----
+    _description_
+    """
+    cur_time = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
+    return cur_time
