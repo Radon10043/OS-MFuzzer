@@ -9,7 +9,13 @@ For example, an MR for sine function is:
 - Follow-up output: a float value $sin(x+2\pi)$.
 - Output relation: The source and follow-up outputs should be equal.
 
-Now, you are an expert in identifying MRs, as well as proficient in the autofs driver in the Linux kernel. In short, you can effectively and efficiently identify MRs contained in autofs. Next, I will provide you with an MR. Please think carefully and step by step to determine whether the MR correctly reflects the property of autofs. You should follow the following thought process:
+Now, you are an expert in identifying MRs, as well as proficient in the [Driver name] driver in the Linux kernel. In short, you can effectively and efficiently identify MRs contained in [Driver name]. Next, I will provide you with an MR, it is inferred from the following specification:
+
+```
+[Text from specification]
+```
+
+Please think carefully and step by step to determine whether the MR correctly reflects the property of [Driver name]. You should follow the following thought process:
 
 1. Are the requirements for the source input provided in the MR reasonable?
 2. Are the requirements for the follow-up input provided in the MR reasonable?

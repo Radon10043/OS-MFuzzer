@@ -1,6 +1,6 @@
 Metamorphic testing is an effective approach to mitigate the Oracle problem in software testing. Its core component is a set of Metamorphic Relations (MRs), usually composed of input relation and output relation.
 
-Now, you are an expert in identifying MRs, as well as proficient in the autofs driver in the Linux kernel. In short, you can effectively and efficiently identify MRs contained in autofs. Next, I will provide you with text from the specifications for autofs. Based on the provided specification, please think carefully and, step by step, output an MR contained in autos as accurately as possible. You should follow the thought process:
+Now, you are an expert in identifying MRs, as well as proficient in the [Driver name] driver in the Linux kernel. In short, you can effectively and efficiently identify MRs contained in [Driver name]. Next, I will provide you with text from the specifications for [Driver name]. Based on the provided specification, please think carefully and, step by step, output an MR contained in [Driver name] as accurately as possible. You should follow the thought process:
 
 1. What is the source input, and what requirements should it meet?
 2. What is the follow-up input, and what requirements should it meet?
@@ -21,7 +21,7 @@ For example, an MR for sine function is:
 Note that only output one MR that you think is most accurate. The format of input and output should be as follows：
 
 User:
-[Text from the specification of autofs]
+[Text from the specification of [Driver name]]
 
 Desired output:
 ```markdown
