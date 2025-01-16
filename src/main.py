@@ -195,14 +195,19 @@ def main(args: argparse.Namespace):
     # 读取配置文件
     config = json.load(open(args.config, "r"))
 
+    # 初始化模型字典, 用于根据配置文件中base_model的值初始化相应的模型
+    setup_model_dict = {
+        "deepseek": setup_deepseek_model
+    }
+
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
     ACTF("Initializing identifier model ...")
-    identifier = setup_deepseek_model(config["identifier"])
+    identifier = setup_model_dict[config["identifier"]["base_model"].lower()](config["identifier"])
     OKF("Identifier model successfully initialized!")
 
     # 初始化calibrator模型, 该模型主要用于校准蜕变关系
     ACTF("Initializing calibrator model ...")
-    calibrator = setup_deepseek_model(config["calibrator"])
+    calibrator = setup_model_dict[config["calibrator"]["base_model"].lower()](config["calibrator"])
     OKF("Calibrator model successfully initialized!")
 
     # 开始通过两个模型之间的讨论来识别和校准蜕变关系
