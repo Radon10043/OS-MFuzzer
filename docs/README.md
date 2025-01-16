@@ -63,7 +63,7 @@ Explanation of each parameters is as follows:
 - identifier: store the settings of identifier model, specifically:
   - base_url: base URL for access model, such as DeepSeek.
   - api_key: your API key for accessing model, usally prefix with "sk-".
-  - base_model: based on which series of models to query, such as DeepSeek, GPT (TODO).
+  - base_model: based on which series of models to query, such as DeepSeek, GPT (case insensitive).
   - temperature: the temperature wanna used, the lower temperature, the more stable and accurate the LLM's response.
   - prompts: prompts that will send to LLM, categorized into system prompt and user prompt. Each prompt is stored in a markdown file and its path is presented in the json file, the script will read and load each prompt's content.
 - calibrator: store the settings of calibrator model, its content is same as identifier.
