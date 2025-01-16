@@ -54,7 +54,8 @@ Create a json file (e.g. `config.json`), write the following content:
     },
     "max_iter": 10,
     "output": "data/output",
-    "specification": "data/specifications/autofs/example.md"
+    "specification": "data/specifications/autofs/example.md",
+    "driver_name": "autofs"
 }
 ```
 
@@ -69,4 +70,5 @@ Explanation of each parameters is as follows:
 - calibrator: store the settings of calibrator model, its content is same as identifier.
 - max_iter: maximum iteration for discussing.
 - output: output directory that stores query messages, discussion result, etc.
-- specification: specification that used in the LLM query.
+- specification: path of specification file that used in the LLM query.
+- driver_name: Name of driver under test.
