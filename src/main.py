@@ -53,7 +53,7 @@ def setup_deepseek_model(config: dict, role: str) -> DeepSeek:
     # 初始化DeepSeek聊天模型
     deepseek = DeepSeek(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
 
-    driver_name = config["driver_name"] # 待测驱动程序名称
+    driver_name = config["driver_name"]  # 待测驱动程序名称
     spec = read_file(config["specification"])  # 规约说明文件的内容
 
     # 设置模型的系统提示信息
@@ -119,8 +119,8 @@ def setup_claude_model(config: dict, role: str) -> Claude:
     # 初始化Claude聊天模型
     claude = Claude(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
 
-    driver_name = config["driver_name"] # 待测驱动程序名称
-    spec = read_file(config["specification"])   # 规约说明文件的内容
+    driver_name = config["driver_name"]  # 待测驱动程序名称
+    spec = read_file(config["specification"])  # 规约说明文件的内容
 
     # 设置模型的系统提示信息
     fn = config[role]["prompts"]["system"]
@@ -275,11 +275,13 @@ def main(args: argparse.Namespace):
     config = json.load(open(args.config, "r"))
 
     # 初始化模型字典, 用于根据配置文件中base_model的值初始化相应的模型
+    # fmt:off
     setup_model_dict = {
         "deepseek": setup_deepseek_model,
         "gpt": setup_gpt_model,
         "claude": setup_claude_model
     }
+    # fmt:on
 
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
     ACTF("Initializing identifier model ...")
