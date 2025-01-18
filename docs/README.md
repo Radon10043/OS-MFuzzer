@@ -4,7 +4,8 @@ Try to identify metamorphic relations via large languge models for drivers in li
 
 ## Dependices
 
-Python 3.12.3
+- Ubuntu 22.04
+- Python 3.12.3
 
 ## Install
 
@@ -29,11 +30,11 @@ Create a json file (e.g. `config.json`), write the following content:
         "temperature": 0.5,
         "prompts": {
             "system": [
-                "data/prompts/identifier/system.md"
+                "./data/prompts/identifier/system.md"
             ],
             "user": [
-                "data/prompts/identifier/init.md",
-                "data/prompts/identifier/follow.md"
+                "./data/prompts/identifier/init.md",
+                "./data/prompts/identifier/follow.md"
             ]
         }
     },
@@ -45,16 +46,16 @@ Create a json file (e.g. `config.json`), write the following content:
         "temperature": 0.2,
         "prompts": {
             "system": [
-                "data/prompts/calibrator/system.md"
+                "./data/prompts/calibrator/system.md"
             ],
             "user": [
-                "data/prompts/calibrator/vanilla.md"
+                "./data/prompts/calibrator/vanilla.md"
             ]
         }
     },
     "max_iter": 10,
-    "output": "data/output",
-    "specification": "data/specifications/autofs/example.md",
+    "output": "./data/output",
+    "specification": "./data/specifications/autofs/example.md",
     "driver_name": "autofs"
 }
 ```
