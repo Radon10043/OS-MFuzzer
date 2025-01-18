@@ -8,6 +8,7 @@ from marko.md_renderer import MarkdownRenderer
 from utils import *
 from DeepSeek import DeepSeek
 from GPT import GPT
+from Claude import Claude
 
 
 def check_config(args: argparse.Namespace):
@@ -98,6 +99,39 @@ def setup_gpt_model(config: dict, role: str) -> GPT:
     gpt.set_sys_prompt(sys_prompt)
 
     return gpt
+
+
+def setup_claude_model(config: dict, role: str) -> Claude:
+    """初始化Claude聊天模型
+
+    Parameters
+    ----------
+    config : dict
+        用户输入的配置信息
+    role : str
+        Claude模型的角色, 可以是identifier或calibrator
+
+    Returns
+    -------
+    Claude
+        Claude聊天模型
+    """
+    # 初始化Claude聊天模型
+    claude = Claude(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+
+    driver_name = config["driver_name"] # 待测驱动程序名称
+    spec = read_file(config["specification"])   # 规约说明文件的内容
+
+    # 设置模型的系统提示信息
+    fn = config[role]["prompts"]["system"]
+    sys_prompt = str()
+    with open(fn, "r", encoding="utf-8") as f:
+        sys_prompt = f.read()
+    sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
+    sys_prompt = sys_prompt.replace("[Text from specification]", spec)
+    claude.set_sys_prompt(sys_prompt)
+
+    return claude
 
 
 def read_file(path: str) -> str:
@@ -243,7 +277,8 @@ def main(args: argparse.Namespace):
     # 初始化模型字典, 用于根据配置文件中base_model的值初始化相应的模型
     setup_model_dict = {
         "deepseek": setup_deepseek_model,
-        "gpt": setup_gpt_model
+        "gpt": setup_gpt_model,
+        "claude": setup_claude_model
     }
 
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
