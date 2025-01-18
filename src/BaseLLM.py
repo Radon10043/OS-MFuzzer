@@ -20,8 +20,8 @@ class BaseLLM:
         """
         FATAL("BaseLLM is an abstract class, please use other class instead.")
 
-    def append_sys_prompt(self, sys_prompt: str):
-        """设置系统提示信息, 感觉大部分情况下系统提示一条就够了...?
+    def set_sys_prompt(self, sys_prompt: str):
+        """设置系统提示信息, 只需要设置一次
 
         Parameters
         ----------

@@ -56,13 +56,13 @@ def setup_deepseek_model(config: dict, role: str) -> DeepSeek:
     spec = read_file(config["specification"])  # 规约说明文件的内容
 
     # 设置模型的系统提示信息
-    for fn in config[role]["prompts"]["system"]:
-        sys_prompt = str()
-        with open(fn, "r", encoding="utf-8") as f:
-            sys_prompt = f.read()
-        sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
-        sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-        deepseek.append_sys_prompt(sys_prompt)
+    fn = config[role]["prompts"]["system"]
+    sys_prompt = str()
+    with open(fn, "r", encoding="utf-8") as f:
+        sys_prompt = f.read()
+    sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
+    sys_prompt = sys_prompt.replace("[Text from specification]", spec)
+    deepseek.set_sys_prompt(sys_prompt)
 
     return deepseek
 
@@ -89,13 +89,13 @@ def setup_gpt_model(config: dict, role: str) -> GPT:
     spec = read_file(config["specification"])  # 规约说明文件的内容
 
     # 设置模型的系统提示信息
-    for fn in config[role]["prompts"]["system"]:
-        sys_prompt = str()
-        with open(fn, "r", encoding="utf-8") as f:
-            sys_prompt = f.read()
-        sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
-        sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-        gpt.append_sys_prompt(sys_prompt)
+    fn = config[role]["prompts"]["system"]
+    sys_prompt = str()
+    with open(fn, "r", encoding="utf-8") as f:
+        sys_prompt = f.read()
+    sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
+    sys_prompt = sys_prompt.replace("[Text from specification]", spec)
+    gpt.set_sys_prompt(sys_prompt)
 
     return gpt
 

@@ -32,17 +32,17 @@ class DeepSeek(BaseLLM):
 
         # 查看用户指定的模型是否可用
         if self.model not in self.avaliable_models():
-            FATAL(f"Model not avaliable: {self.model}\n{" "*21}Avaliable models: {self.avaliable_models()}")
+            FATAL(f"Model not avaliable: {self.model}\n\nAvaliable models: {self.avaliable_models()}")
 
-    def append_sys_prompt(self, sys_prompt: str):
-        """设置系统提示信息, 感觉大部分情况下系统提示一条就够了...?
+    def set_sys_prompt(self, sys_prompt: str):
+        """设置系统提示信息, 通常只需要设置一次
 
         Parameters
         ----------
         sys_prompt : str
             系统提示信息
         """
-        self.messages.append({"role": "system", "content": sys_prompt})
+        self.messages = [{"role": "system", "content": sys_prompt}]
 
     def chat(self, user_prompt: str) -> str:
         """对话
