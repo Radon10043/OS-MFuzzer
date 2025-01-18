@@ -5,6 +5,7 @@ from openai import OpenAI
 from utils import *
 from BaseLLM import BaseLLM
 
+
 class GPT(BaseLLM):
     """GPT API Client"""
 
@@ -113,4 +114,3 @@ class GPT(BaseLLM):
         # 不支持的文件后缀名
         else:
             FATAL(f"Unsupported file extension: {ext_name}")
-
