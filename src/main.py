@@ -286,12 +286,16 @@ def main(args: argparse.Namespace):
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
     ACTF("Initializing identifier model ...")
     base_model = config["identifier"]["base_model"].lower()
+    if base_model not in setup_model_dict.keys():
+        FATAL(f"Unsupported model: {base_model}\n\nSupported models: {setup_model_dict.keys()}")
     identifier = setup_model_dict[base_model](config, "identifier")
     OKF("Identifier model successfully initialized!")
 
     # 初始化calibrator模型, 该模型主要用于校准蜕变关系
     ACTF("Initializing calibrator model ...")
     base_model = config["calibrator"]["base_model"].lower()
+    if base_model not in setup_model_dict.keys():
+        FATAL(f"Unsupported model: {base_model}\n\nSupported models: {setup_model_dict.keys()}")
     calibrator = setup_model_dict[base_model](config, "calibrator")
     OKF("Calibrator model successfully initialized!")
 
