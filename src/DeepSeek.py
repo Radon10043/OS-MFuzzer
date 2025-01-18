@@ -3,9 +3,10 @@ import json
 
 from openai import OpenAI
 from utils import *
+from BaseLLM import BaseLLM
 
 
-class DeepSeek:
+class DeepSeek(BaseLLM):
     """DeepSeek API Client"""
 
     def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.5):
