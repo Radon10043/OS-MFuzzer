@@ -179,4 +179,5 @@ pyrightconfig.json
 data/*
 !data/README.md
 !data/prompts/
+!data/specifications/
 .vscode/*

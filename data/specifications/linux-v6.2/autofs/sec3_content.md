@@ -1,0 +1,11 @@
+An autofs filesystem can contain 3 sorts of objects: directories, symbolic links and mount traps. Mount traps are directories with extra properties as described in the next section.
+
+Objects can only be created by the automount daemon: symlinks are created with a regular symlink system call, while directories and mount traps are created with mkdir. The determination of whether a directory should be a mount trap is based on a master map. This master map is consulted by autofs to determine which directories are mount points. Mount points can be *direct/indirect/offset*. On most systems, the default master map is located at */etc/auto.master*.
+
+If neither the *direct* or *offset* mount options are given (so the mount is considered to be *indirect*), then the root directory is always a regular directory, otherwise it is a mount trap when it is empty and a regular directory when not empty. Note that *direct* and *offset* are treated identically so a concise summary is that the root directory is a mount trap only if the filesystem is mounted *direct* and the root is empty.
+
+Directories created in the root directory are mount traps only if the filesystem is mounted *indirect* and they are empty.
+
+Directories further down the tree depend on the *maxproto* mount option and particularly whether it is less than five or not. When *maxproto* is five, no directories further down the tree are ever mount traps, they are always regular directories. When the *maxproto* is four (or three), these directories are mount traps precisely when they are empty.
+
+So: non-empty (i.e. non-leaf) directories are never mount traps. Empty directories are sometimes mount traps, and sometimes not depending on where in the tree they are (root, top level, or lower), the *maxproto*, and whether the mount was *indirect* or not.
