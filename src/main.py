@@ -9,6 +9,7 @@ from utils import *
 from DeepSeek import DeepSeek
 from GPT import GPT
 from Claude import Claude
+from Gemini import Gemini
 
 
 def check_config(args: argparse.Namespace):
@@ -132,6 +133,39 @@ def setup_claude_model(config: dict, role: str) -> Claude:
     claude.set_sys_prompt(sys_prompt)
 
     return claude
+
+
+def setup_gemini_model(config: dict, role: str) -> Gemini:
+    """初始化Gemini聊天模型
+
+    Parameters
+    ----------
+    config : dict
+        用户输入的配置信息
+    role : str
+        Gemini模型的角色, 可以是identifier或calibrator
+
+    Returns
+    -------
+    Gemini
+        Gemini聊天模型
+    """
+    # 初始化Gemini聊天模型
+    gemini = Gemini(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+
+    driver_name = config["driver_name"]  # 待测驱动程序名称
+    spec = read_file(config["specification"])  # 规约说明文件的内容
+
+    # 设置模型的系统提示信息
+    fn = config[role]["prompts"]["system"]
+    sys_prompt = str()
+    with open(fn, "r", encoding="utf-8") as f:
+        sys_prompt = f.read()
+    sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
+    sys_prompt = sys_prompt.replace("[Text from specification]", spec)
+    gemini.set_sys_prompt(sys_prompt)
+
+    return gemini
 
 
 def read_file(path: str) -> str:
@@ -279,7 +313,8 @@ def main(args: argparse.Namespace):
     setup_model_dict = {
         "deepseek": setup_deepseek_model,
         "gpt": setup_gpt_model,
-        "claude": setup_claude_model
+        "claude": setup_claude_model,
+        "gemini": setup_gemini_model
     }
     # fmt:on
 
