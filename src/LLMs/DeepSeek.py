@@ -1,23 +1,23 @@
 import os
 import json
-import anthropic
 
+from openai import OpenAI
 from utils import *
-from BaseLLM import BaseLLM
+from LLMs.BaseLLM import BaseLLM
 
 
-class Claude(BaseLLM):
-    """Claude API Client"""
+class DeepSeek(BaseLLM):
+    """DeepSeek API Client"""
 
     def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.5):
-        """构造函数, 初始化Claude对象
+        """构造函数, 初始化DeepSeek对象
 
         Parameters
         ----------
         base_url : str
             API的基础URL
         api_key : str
-            Claude API Key
+            OpenAI API Key
         model : str
             要调用的模型
         temperature : float, optional
@@ -25,10 +25,9 @@ class Claude(BaseLLM):
         """
         self.model = model  # 设置要调用的模型
         self.base_url = base_url  # 设置API的基础URL
-        self.api_key = api_key  # 设置Anthropic API Key
-        self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url)  # 初始化Anthropic客户端
-        self.sys_prompts = str()  # Anthropic的系统提示发送和OpenAI的存在不同, 需要单独建一个存系统提示的变量
-        self.messages = list()  # 初始化消息列表, 用户提示专用
+        self.api_key = api_key  # 设置OpenAI API Key
+        self.client = OpenAI(api_key=api_key, base_url=base_url)  # 初始化OpenAI客户端
+        self.messages = list()  # 初始化消息列表
         self.temperature = temperature  # 设置温度参数
 
         # 查看用户指定的模型是否可用
@@ -36,14 +35,14 @@ class Claude(BaseLLM):
             FATAL(f"Model not avaliable: {self.model}\n\nAvaliable models: {self.avaliable_models()}")
 
     def set_sys_prompt(self, sys_prompt: str):
-        """设置系统提示信息, 感觉大部分情况下系统提示一条就够了...?
+        """设置系统提示信息, 通常只需要设置一次
 
         Parameters
         ----------
         sys_prompt : str
             系统提示信息
         """
-        self.sys_prompts = sys_prompt
+        self.messages = [{"role": "system", "content": sys_prompt}]
 
     def chat(self, user_prompt: str) -> str:
         """对话
@@ -63,16 +62,14 @@ class Claude(BaseLLM):
 
         # 调用对话模型, 获取回复信息
         # fmt:off
-        response = self.client.messages.create(
-            max_tokens=1024,    # 沿用anthropic的api docs中的数值, REF: https://docs.anthropic.com/en/api/messages
+        response = self.client.chat.completions.create(
             model=self.model,
-            system=self.sys_prompts,
             messages=self.messages,
             temperature=self.temperature,
             stream=False
         )
         # fmt:on
-        content = response.content[0].text
+        content = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": content})
 
         # 返回本次对话回复的信息

@@ -6,10 +6,10 @@ import marko
 
 from marko.md_renderer import MarkdownRenderer
 from utils import *
-from DeepSeek import DeepSeek
-from GPT import GPT
-from Claude import Claude
-from Gemini import Gemini
+from LLMs.DeepSeek import DeepSeek
+from LLMs.GPT import GPT
+from LLMs.Claude import Claude
+from LLMs.Gemini import Gemini
 
 
 def check_config(args: argparse.Namespace):

@@ -3,7 +3,7 @@ import json
 
 from openai import OpenAI
 from utils import *
-from BaseLLM import BaseLLM
+from LLMs.BaseLLM import BaseLLM
 
 
 class GPT(BaseLLM):
