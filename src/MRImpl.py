@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-17 21:03:27
+LastEditTime : 2025-02-17 21:37:52
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -58,6 +58,7 @@ def check_config(args: argparse.Namespace):
     shutil.rmtree(out_dir, ignore_errors=True)  # NOTE: Just for testing ...
     if os.path.exists(out_dir):
         FATAL(f"Output directory already exists: {out_dir}, please remove it first.")
+    os.makedirs(config["output"])
 
     # 将用户的输入配置文件复制到输出目录下
     shutil.copy(args.config, os.path.join(out_dir, "config.json"))
@@ -77,14 +78,19 @@ def setup_deepseek_model(config: dict) -> DeepSeek:
         DeepSeek模型
     """
     # 初始化DeepSeek模型
-    deepseek = DeepSeek(base_url=config["base_url"], api_key=config["api_key"], model_name=config["model"], temperature=config["temperature"])
+    deepseek = DeepSeek(
+        base_url=config["base_url"],
+        api_key=config["api_key"],
+        model=config["model"],
+        temperature=config["temperature"],
+    )
 
     # 设置模型的系统提示信息
     fn = config["prompts"]["system"]
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
         sys_prompt = f.read()
-    deepseek.set_system_prompt(sys_prompt)
+    deepseek.set_sys_prompt(sys_prompt)
 
     # 返回初始化后的DeepSeek模型
     return deepseek
@@ -104,7 +110,12 @@ def setup_gpt_model(config: dict) -> GPT:
         GPT模型
     """
     # 初始化GPT聊天模型
-    gpt = GPT(base_url=config["base_url"], api_key=config["api_key"], model=config["model"], temperature=config["temperature"])
+    gpt = GPT(
+        base_url=config["base_url"],
+        api_key=config["api_key"],
+        model=config["model"],
+        temperature=config["temperature"],
+    )
 
     # 设置模型的系统提示信息
     fn = config["prompts"]["system"]
@@ -131,7 +142,12 @@ def setup_claude_model(config: dict) -> Claude:
         Claude模型
     """
     # 初始化Claude模型
-    claude = Claude(base_url=config["base_url"], api_key=config["api_key"], model=config["model"], temperature=config["temperature"])
+    claude = Claude(
+        base_url=config["base_url"],
+        api_key=config["api_key"],
+        model=config["model"],
+        temperature=config["temperature"],
+    )
 
     # 设置模型的系统提示信息
     fn = config["prompts"]["system"]
@@ -158,7 +174,12 @@ def setup_gemini_model(config: dict) -> Gemini:
         Gemini模型
     """
     # 初始化Gemini模型
-    gemini = Gemini(base_url=config["base_url"], api_key=config["api_key"], model=config["model"], temperature=config["temperature"])
+    gemini = Gemini(
+        base_url=config["base_url"],
+        api_key=config["api_key"],
+        model=config["model"],
+        temperature=config["temperature"],
+    )
 
     # 设置模型的系统提示信息
     fn = config["prompts"]["system"]
@@ -232,7 +253,7 @@ def loop(programmer, config: dict):
         FATAL(f"No MRC description found in the {config["mrc_desc"]}!")
 
     # 进行多轮对话, 持续迭代, 直到MRC对应的代码成功生成并编译不报错, 或者达到最大迭代次数
-    while not gen_success and iterations < config["max_iterations"]:
+    while not gen_success and iterations < config["max_iter"]:
         prompt = usr_prompts[index]
         prompt = prompt.replace("[MR rendered in markdown]", mrc_desc)
         prompt = prompt.replace("[Errors reported by compiler]", err_msgs)
@@ -277,7 +298,6 @@ def main(args: argparse.Namespace):
     config = dict()
     with open(args.config, "r") as f:
         config = json.load(f)
-    os.makedirs(config["output"])
 
     # 模型字典, 用于根据配置文件中的base_model字段选择对应的模型初始化函数
     # fmt:off
@@ -295,7 +315,7 @@ def main(args: argparse.Namespace):
     if base_model not in setup_model_dict:
         FATAL(f"Unsupported model: {base_model}, Supported models: {setup_model_dict.keys()}")
     programmer = setup_model_dict[base_model](config)
-    ACTF("Programmer model successfully initislized!.")
+    OKF("Programmer model successfully initislized!.")
 
     # 让programmer模型迭代地生成用C语言实现的MRC
     ACTF("Generating C code implementation of MRC ...")

@@ -61,7 +61,7 @@ def PFATAL(msg: str):
 
 
 ###############################
-### miscellaneous functions ###
+### Miscellaneous functions ###
 ###############################
 def read_file(path: str) -> str:
     """读取指定文件的内容
@@ -118,10 +118,10 @@ def get_first_code_block(md_text: str, langs: set) -> str:
     md_ast = md_instance.parse(md_text)
     code_list = list()
 
-    # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个代码块后就退出
+    # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个指定语言的代码块后就退出
     for child in md_ast.children:
         child_type = child.get_type()
-        if child_type == "FencedCode":
+        if child_type == "FencedCode" and child.lang in langs:
             code_list.extend(md_instance.render(child).split("\n"))
             break
 
