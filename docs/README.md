@@ -16,7 +16,9 @@ pip install -r requirements.txt
 ## Run
 
 > [!Note]
-> If no extra instructions are provided, the execution directory is the root of repository.
+> If no extra instructions are provided, the execution directory is the `src` folder of repository.
+
+### MR Identification
 
 Create a json file (e.g. `config.json`), write the following content:
 
@@ -69,3 +71,29 @@ Explanation of each parameters is as follows:
 - output: output directory that stores query messages, discussion result, etc.
 - specification: path of specification file that used in the LLM query.
 - driver_name: Name of driver under test.
+
+### MR Implementation
+
+Create a json file (e.g. `MRImpl.json`), write the following content:
+
+```json
+{
+    "base_url": "https://api.deepseek.com",
+    "api_key": "sk-xxx",
+    "base_model": "deepseek",
+    "model": "deepseek-chat",
+    "temperature": 0.5,
+    "prompts": {
+        "system": "/path/to/data/prompts/programmer/system.md",
+        "user": [
+            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/init.md",
+            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/follow.md"
+        ]
+    },
+    "mrc_desc": "/path/to/kernel-driver-MR-identify/data/MRCs/mrc1.md",
+    "max_iter": 10,
+    "output": "/path/to/kernel-driver-MR-identify/data/output/MRImpl",
+    "compiler": "gcc",
+    "cflags": "-static"
+}
+```
