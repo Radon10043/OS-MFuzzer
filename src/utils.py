@@ -1,4 +1,7 @@
 import time
+import marko
+
+from marko.md_renderer import MarkdownRenderer
 
 
 #######################
@@ -57,6 +60,28 @@ def PFATAL(msg: str):
     exit(1)
 
 
+###############################
+### miscellaneous functions ###
+###############################
+def read_file(path: str) -> str:
+    """读取指定文件的内容
+
+    Parameters
+    ----------
+    path : str
+        文件路径
+
+    Returns
+    -------
+    str
+        文件的内容
+    """
+    content = str()
+    with open(path, "r") as f:
+        content = f.read()
+    return content
+
+
 def get_cur_time() -> str:
     """获取当前时间
 
@@ -71,3 +96,34 @@ def get_cur_time() -> str:
     """
     cur_time = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
     return cur_time
+
+
+def get_first_code_block(md_text: str, langs: set) -> str:
+    """从markdown文本中获取第一个指定语言(langs中存在的语言)的代码块内容
+
+    Parameters
+    ----------
+    md_text : str
+        markdown文本
+    langs: set
+        指定语言集合
+
+    Returns
+    -------
+    str
+        makrdonw中代码块的内容, 包含表示代码块开头和结尾的标志
+    """
+    # 初始化markdown解析器, 将markdown文本解析为AST
+    md_instance = marko.Markdown(renderer=MarkdownRenderer)
+    md_ast = md_instance.parse(md_text)
+    code_list = list()
+
+    # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个代码块后就退出
+    for child in md_ast.children:
+        child_type = child.get_type()
+        if child_type == "FencedCode":
+            code_list.extend(md_instance.render(child).split("\n"))
+            break
+
+    # 返回代码块内容, 包含开头的```xxx和结尾的```
+    return "\n".join(code_list)

@@ -23,7 +23,11 @@ def check_config(args: argparse.Namespace):
     # 检查配置文件是否存在
     if not os.path.exists(args.config):
         FATAL(f"File not found: {args.config}")
-    config = json.load(open(args.config, "r"))
+
+    # 读取配置文件
+    config = dict()
+    with open(args.config, "r") as f:
+        config = json.load(f)
 
     # 检查输出目录是否存在, 如果存在则报错, 提示用户需要先删掉该目录
     out_dir = config["output"]
@@ -52,7 +56,12 @@ def setup_deepseek_model(config: dict, role: str) -> DeepSeek:
         DeepSeek聊天模型
     """
     # 初始化DeepSeek聊天模型
-    deepseek = DeepSeek(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+    deepseek = DeepSeek(
+        base_url=config[role]["base_url"],
+        api_key=config[role]["api_key"],
+        model=config[role]["model"],
+        temperature=config[role]["temperature"],
+    )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
     spec = read_file(config["specification"])  # 规约说明文件的内容
@@ -85,7 +94,12 @@ def setup_gpt_model(config: dict, role: str) -> GPT:
         GPT聊天模型
     """
     # 初始化GPT聊天模型
-    gpt = GPT(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+    gpt = GPT(
+        base_url=config[role]["base_url"],
+        api_key=config[role]["api_key"],
+        model=config[role]["model"],
+        temperature=config[role]["temperature"],
+    )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
     spec = read_file(config["specification"])  # 规约说明文件的内容
@@ -118,7 +132,12 @@ def setup_claude_model(config: dict, role: str) -> Claude:
         Claude聊天模型
     """
     # 初始化Claude聊天模型
-    claude = Claude(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+    claude = Claude(
+        base_url=config[role]["base_url"],
+        api_key=config[role]["api_key"],
+        model=config[role]["model"],
+        temperature=config[role]["temperature"],
+    )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
     spec = read_file(config["specification"])  # 规约说明文件的内容
@@ -151,7 +170,12 @@ def setup_gemini_model(config: dict, role: str) -> Gemini:
         Gemini聊天模型
     """
     # 初始化Gemini聊天模型
-    gemini = Gemini(base_url=config[role]["base_url"], api_key=config[role]["api_key"], model=config[role]["model"])
+    gemini = Gemini(
+        base_url=config[role]["base_url"],
+        api_key=config[role]["api_key"],
+        model=config[role]["model"],
+        temperature=config[role]["temperature"],
+    )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
     spec = read_file(config["specification"])  # 规约说明文件的内容
@@ -166,25 +190,6 @@ def setup_gemini_model(config: dict, role: str) -> Gemini:
     gemini.set_sys_prompt(sys_prompt)
 
     return gemini
-
-
-def read_file(path: str) -> str:
-    """读取指定文件的内容
-
-    Parameters
-    ----------
-    path : str
-        文件路径
-
-    Returns
-    -------
-    str
-        文件的内容
-    """
-    content = str()
-    with open(path, "r") as f:
-        content = f.read()
-    return content
 
 
 def get_code_block(md_text: str) -> str:
@@ -283,10 +288,10 @@ def loop(identifier, calibrator, config: dict):
         iter += 1
 
     # 将和identifier及calibrator的对话记录保存至markdown和json文件, 并将两个LLM的最终讨论结果保存至output下的mrc_final.md
-    identifier.save_messages(os.path.join(config["output"], f"iden_messages.md"))
-    identifier.save_messages(os.path.join(config["output"], f"iden_messages.json"))
-    calibrator.save_messages(os.path.join(config["output"], f"cali_messages.md"))
-    calibrator.save_messages(os.path.join(config["output"], f"cali_messages.json"))
+    identifier.save_messages(os.path.join(config["output"], "iden_messages.md"))
+    identifier.save_messages(os.path.join(config["output"], "iden_messages.json"))
+    calibrator.save_messages(os.path.join(config["output"], "cali_messages.md"))
+    calibrator.save_messages(os.path.join(config["output"], "cali_messages.json"))
     with open(os.path.join(config["output"], "mrc_final.md"), "w") as f:
         f.write(f"### FINAL DISCUSSIN RESULT\n\n{prev_mrc}\n\nITERATIONS: {iter + 1}")
     OKF(f"Discussion finished! Check the output directory {config["output"]} for details.")
@@ -306,17 +311,17 @@ def main(args: argparse.Namespace):
     OKF("Arguments are valid.")
 
     # 读取配置文件
-    config = json.load(open(args.config, "r"))
+    config = dict()
+    with open(args.config, "r") as f:
+        config = json.load(f)
 
     # 初始化模型字典, 用于根据配置文件中base_model的值初始化相应的模型
-    # fmt:off
     setup_model_dict = {
         "deepseek": setup_deepseek_model,
         "gpt": setup_gpt_model,
         "claude": setup_claude_model,
-        "gemini": setup_gemini_model
+        "gemini": setup_gemini_model,
     }
-    # fmt:on
 
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
     ACTF("Initializing identifier model ...")
