@@ -61,15 +61,13 @@ class Gemini(BaseLLM):
         str
             LLM回复的信息
         """
-        # fmt:off
         response = self.inst.send_message(
             message=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=self.sys_prompt,
-                temperature=self.temperature
-            )
+                temperature=self.temperature,
+            ),
         )
-        # fmt:on
         return response.text
 
     def avaliable_models(self) -> list:

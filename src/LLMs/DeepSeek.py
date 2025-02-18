@@ -61,14 +61,12 @@ class DeepSeek(BaseLLM):
         self.messages.append({"role": "user", "content": user_prompt})
 
         # 调用对话模型, 获取回复信息
-        # fmt:off
         response = self.client.chat.completions.create(
             model=self.model,
             messages=self.messages,
             temperature=self.temperature,
-            stream=False
+            stream=False,
         )
-        # fmt:on
         content = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": content})
 

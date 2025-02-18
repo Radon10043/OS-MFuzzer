@@ -62,16 +62,14 @@ class Claude(BaseLLM):
         self.messages.append({"role": "user", "content": user_prompt})
 
         # 调用对话模型, 获取回复信息
-        # fmt:off
         response = self.client.messages.create(
             max_tokens=1024,    # 沿用anthropic的api docs中的数值, REF: https://docs.anthropic.com/en/api/messages
             model=self.model,
             system=self.sys_prompts,
             messages=self.messages,
             temperature=self.temperature,
-            stream=False
+            stream=False,
         )
-        # fmt:on
         content = response.content[0].text
         self.messages.append({"role": "assistant", "content": content})
 
