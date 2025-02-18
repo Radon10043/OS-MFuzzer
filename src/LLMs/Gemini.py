@@ -75,7 +75,7 @@ class Gemini(BaseLLM):
         str
             LLM回复的信息
         """
-        content = str() # LLM回复的信息
+        content = str()  # LLM回复的信息
 
         # 获取LLM的回复, 如果启用流式对话的话就逐字词输出回复
         if self.stream:
@@ -130,13 +130,16 @@ class Gemini(BaseLLM):
 
         # 将聊天记录转换为字典列表
         messages = list()
+        content = str()
+        prev_role = "user"
         for msg in self.inst._curated_history:
-            messages.append(
-                {
-                    "role": msg.role,
-                    "content": msg.parts[0].text,
-                }
-            )
+            if msg.role == prev_role:
+                content += msg.parts[0].text
+            else:
+                messages.append({"role": prev_role, "content": content})
+                content = msg.parts[0].text
+                prev_role = msg.role
+        messages.append({"role": prev_role, "content": content})
 
         # 保存为json文件
         if ext_name == ".json":

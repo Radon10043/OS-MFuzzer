@@ -88,6 +88,7 @@ class DeepSeek(BaseLLM):
             SAYF(f"Response of {self.model}\n--------------------\n")
             for chunk in response:
                 token = chunk.choices[0].delta.content
+                if token is None: break
                 content += token
                 print(token, end="")
         else:
