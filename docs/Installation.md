@@ -4,7 +4,7 @@ Dependencies:
 - Python 3.12.3
 
 Command for installing Python-3.12.3:
-> ![!Warning]
+> [!Warning]
 > It is recommended that do not to put python-3.12.3 in the project directory.
 ```sh
 # Prepare the install environment
