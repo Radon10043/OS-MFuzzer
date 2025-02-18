@@ -9,7 +9,14 @@ from LLMs.BaseLLM import BaseLLM
 class DeepSeek(BaseLLM):
     """DeepSeek API Client"""
 
-    def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.5):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        temperature: float = 0.5,
+        stream=False,
+    ):
         """构造函数, 初始化DeepSeek对象
 
         Parameters
@@ -22,6 +29,8 @@ class DeepSeek(BaseLLM):
             要调用的模型
         temperature : float, optional
             温度参数, by default 0.5
+        stream : bool, optional
+            是否使用流式API, by default False
         """
         self.model = model  # 设置要调用的模型
         self.base_url = base_url  # 设置API的基础URL
@@ -29,10 +38,15 @@ class DeepSeek(BaseLLM):
         self.client = OpenAI(api_key=api_key, base_url=base_url)  # 初始化OpenAI客户端
         self.messages = list()  # 初始化消息列表
         self.temperature = temperature  # 设置温度参数
+        self.stream = stream  # 设置是否使用流式响应
 
         # 查看用户指定的模型是否可用
         if self.model not in self.avaliable_models():
             FATAL(f"Model not avaliable: {self.model}\n\nAvaliable models: {self.avaliable_models()}")
+
+        # 如果使用流式响应, 提示用户会逐字词返回结果
+        if self.stream:
+            WARNF("Stream mode is enabled, response will be displayed word by word.")
 
     def set_sys_prompt(self, sys_prompt: str):
         """设置系统提示信息, 通常只需要设置一次
@@ -65,9 +79,21 @@ class DeepSeek(BaseLLM):
             model=self.model,
             messages=self.messages,
             temperature=self.temperature,
-            stream=False,
+            stream=self.stream,
         )
-        content = response.choices[0].message.content
+
+        # 处理回复信息
+        content = str()
+        if self.stream:
+            SAYF(f"Response of {self.model}\n--------------------\n")
+            for chunk in response:
+                token = chunk.choices[0].delta.content
+                content += token
+                print(token, end="")
+        else:
+            content = response.choices[0].message.content
+
+        # 添加回复信息至messages, 实现迭代对话
         self.messages.append({"role": "assistant", "content": content})
 
         # 返回本次对话回复的信息

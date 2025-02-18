@@ -10,7 +10,14 @@ from LLMs.BaseLLM import BaseLLM
 class Gemini(BaseLLM):
     """Gemini API Client"""
 
-    def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.5):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        temperature: float = 0.5,
+        stream: bool = False,
+    ):
         """构造函数, 初始化Gemini对象
 
         Parameters
@@ -23,6 +30,8 @@ class Gemini(BaseLLM):
             要调用的模型
         temperature : float, optional
             温度参数, by default 0.5
+        stream : bool, optional
+            是否启用流式对话, by default False
         """
         self.model = model  # 设置要调用的模型
         self.base_url = base_url  # 设置API的基础URL
@@ -30,10 +39,15 @@ class Gemini(BaseLLM):
         self.client = genai.Client(api_key=api_key)  # 初始化Google genai客户端
         self.messages = list()  # 初始化消息列表
         self.temperature = temperature  # 设置温度参数
+        self.stream = stream  # 设置是否启用流式对话
 
         # 查看用户指定的模型是否可用
         if self.model not in self.avaliable_models():
             FATAL(f"Model not avaliable: {self.model}\n\nAvaliable models: {self.avaliable_models()}")
+
+        # 如果开启流式对话, 提示用户会逐字词返回回复
+        if self.stream:
+            WARNF("Stream mode enabled, response will be returned word by word.")
 
         self.inst = self.client.chats.create(model=self.model)  # 创建对话实例
         self.sys_prompt = "请你扮演猫娘."  # 系统提示信息, 这里随便写点东西占位置用, 在对话开始前调用set_sys_prompt()覆盖掉现在的内容
@@ -61,14 +75,33 @@ class Gemini(BaseLLM):
         str
             LLM回复的信息
         """
-        response = self.inst.send_message(
-            message=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=self.sys_prompt,
-                temperature=self.temperature,
-            ),
-        )
-        return response.text
+        content = str() # LLM回复的信息
+
+        # 获取LLM的回复, 如果启用流式对话的话就逐字词输出回复
+        if self.stream:
+            SAYF(f"Response from {self.model}\n--------------------\n")
+            response = self.inst.send_message_stream(
+                message=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.sys_prompt,
+                    temperature=self.temperature,
+                ),
+            )
+            for chunk in response:
+                token = chunk.text
+                content += token
+                SAYF(token)
+        else:
+            response = self.inst.send_message(
+                message=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self.sys_prompt,
+                    temperature=self.temperature,
+                ),
+            )
+            content = response.text
+
+        return content
 
     def avaliable_models(self) -> list:
         """列出所有可用的模型

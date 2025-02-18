@@ -4,7 +4,14 @@ from utils import *
 class BaseLLM:
     """Base LLM Class"""
 
-    def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.5):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        temperature: float = 0.5,
+        stream: bool = False,
+    ):
         """构造函数, 初始化LLM对象
 
         Parameters
@@ -17,6 +24,8 @@ class BaseLLM:
             要调用的模型
         temperature : float, optional
             温度参数, by default 0.5
+        stream : bool, optional
+            是否使用流式响应, by default False
         """
         FATAL("BaseLLM is an abstract class, please use other class instead.")
 

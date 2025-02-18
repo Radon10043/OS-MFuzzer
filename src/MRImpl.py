@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-18 11:00:39
+LastEditTime : 2025-02-18 15:19:46
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -115,6 +115,7 @@ def setup_gpt_model(config: dict) -> GPT:
         api_key=config["api_key"],
         model=config["model"],
         temperature=config["temperature"],
+        stream=config["stream"],
     )
 
     # 设置模型的系统提示信息
@@ -147,6 +148,7 @@ def setup_claude_model(config: dict) -> Claude:
         api_key=config["api_key"],
         model=config["model"],
         temperature=config["temperature"],
+        stream=config["stream"],
     )
 
     # 设置模型的系统提示信息
@@ -179,6 +181,7 @@ def setup_gemini_model(config: dict) -> Gemini:
         api_key=config["api_key"],
         model=config["model"],
         temperature=config["temperature"],
+        stream=config["stream"],
     )
 
     # 设置模型的系统提示信息
