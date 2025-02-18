@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-17 21:37:52
+LastEditTime : 2025-02-18 11:00:39
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -257,8 +257,15 @@ def loop(programmer, config: dict):
         prompt = usr_prompts[index]
         prompt = prompt.replace("[MR rendered in markdown]", mrc_desc)
         prompt = prompt.replace("[Errors reported by compiler]", err_msgs)
+
+        # 与programmer模型进行对话, 生成MRC的C代码
+        ACTF(f"Iter {iterations + 1}: Prompting {config["model"]} to generate C code implementation of MRC ...")
         response = programmer.chat(prompt)
         c_code = get_first_code_block(response, {"c"})
+
+        # 如果生成的C代码为空, 认为生成失败
+        if len(c_code) == 0:
+            FATAL(f"{config["model"]} generated empty C code implementation of MRC.")
 
         # 编译构建C代码, 同时获取错误信息
         ret_code, err_msgs = build_c_program(c_code, config["compiler"], config["cflags"])
@@ -279,7 +286,7 @@ def loop(programmer, config: dict):
     programmer.save_messages(os.path.join(config["output"], "messages.md"))
     with open(os.path.join(config["output"], "mrc.c"), "w", encoding="utf-8") as f:
         f.write(c_code)
-    OKF(f"Successfully generated C code implementation of MRC after {iterations} iterations.")
+    OKF(f"Successfully generated C code implementation of MRC after {iterations + 1} iterations.")
 
 
 def main(args: argparse.Namespace):
