@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ### MR Identification
 
-Create a json file (e.g. `config.json`), write the following content:
+Create a json file (e.g. `MRIden.json`), write the following content:
 
 ```json
 {
@@ -58,7 +58,7 @@ Create a json file (e.g. `config.json`), write the following content:
 }
 ```
 
-Explanation of each parameters is as follows:
+MRIden.py is used to identify and calibrate MR via LLMs. Explanation of each parameters is as follows:
 
 - identifier: store the settings of identifier model, specifically:
   - base_url: base URL for access model, such as DeepSeek.
@@ -97,3 +97,10 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
     "cflags": "-static"
 }
 ```
+
+MRImpl.py is used to generate C code of an MRC. Explanation of each parameters is as follows:
+
+- Meaning of base_url, api_key, base_model, temperature, prompts, and max_iter are same as MR Identification.
+- mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
+- compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
+- cflags: compile options.
