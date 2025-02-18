@@ -95,8 +95,8 @@ class Gemini(BaseLLM):
         # 检查获取要保存的文件的后缀名
         ext_name = os.path.splitext(path)[-1]
 
-        # 将聊天记录转换为字典
-        messages = dict()
+        # 将聊天记录转换为字典列表
+        messages = list()
         for msg in self.inst._curated_history:
             messages.append(
                 {

@@ -262,6 +262,7 @@ def loop(programmer, config: dict):
         ACTF(f"Iter {iterations + 1}: Prompting {config["model"]} to generate C code implementation of MRC ...")
         response = programmer.chat(prompt)
         c_code = get_first_code_block(response, {"c"})
+        c_code = c_code.lstrip("```c\n").rstrip("```\n")
 
         # 如果生成的C代码为空, 认为生成失败
         if len(c_code) == 0:
@@ -270,6 +271,7 @@ def loop(programmer, config: dict):
         # 编译构建C代码, 同时获取错误信息
         ret_code, err_msgs = build_c_program(c_code, config["compiler"], config["cflags"])
         if ret_code == 0:  # 如果编译成功, 跳出循环
+            gen_success = True
             break
 
         # 更新迭代次数和提示词下标
