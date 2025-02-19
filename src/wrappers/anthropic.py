@@ -1,13 +1,14 @@
 import os
 import json
 
-from openai import OpenAI
 from utils import *
-from LLMs.BaseLLM import BaseLLM
+from wrappers.wrapper import Wrapper
+
+from anthropic import Anthropic as OfficalAnthropic
 
 
-class DeepSeek(BaseLLM):
-    """DeepSeek API Client"""
+class Anthropic(Wrapper):
+    """Anthropic Client"""
 
     def __init__(
         self,
@@ -15,48 +16,49 @@ class DeepSeek(BaseLLM):
         api_key: str,
         model: str,
         temperature: float = 0.5,
-        stream=False,
+        stream: bool = False,
     ):
-        """构造函数, 初始化DeepSeek对象
+        """构造函数, 初始化Anthropic对象
 
         Parameters
         ----------
         base_url : str
             API的基础URL
         api_key : str
-            OpenAI API Key
+            Anthropic API Key
         model : str
             要调用的模型
         temperature : float, optional
             温度参数, by default 0.5
         stream : bool, optional
-            是否使用流式API, by default False
+            是否启用流式响应, by default False
         """
         self.model = model  # 设置要调用的模型
         self.base_url = base_url  # 设置API的基础URL
-        self.api_key = api_key  # 设置OpenAI API Key
-        self.client = OpenAI(api_key=api_key, base_url=base_url)  # 初始化OpenAI客户端
-        self.messages = list()  # 初始化消息列表
+        self.api_key = api_key  # 设置Anthropic API Key
+        self.client = OfficalAnthropic(api_key=api_key, base_url=base_url)  # 初始化Anthropic客户端
+        self.sys_prompts = str()  # Anthropic的系统提示发送和OpenAI的存在不同, 需要单独建一个存系统提示的变量
+        self.messages = list()  # 初始化消息列表, 用户提示专用
         self.temperature = temperature  # 设置温度参数
-        self.stream = stream  # 设置是否使用流式响应
+        self.stream = stream  # 设置是否启用流式响应
 
         # 查看用户指定的模型是否可用
         if self.model not in self.avaliable_models():
             FATAL(f"Model not avaliable: {self.model}\n\nAvaliable models: {self.avaliable_models()}")
 
-        # 如果使用流式响应, 提示用户会逐字词返回结果
+        # Anthropic框架暂时没调整好流式回应
         if self.stream:
-            WARNF("Stream mode is enabled, response will be displayed word by word.")
+            WARNF("Stream mode are not supported by Anthropic framework.")
 
     def set_sys_prompt(self, sys_prompt: str):
-        """设置系统提示信息, 通常只需要设置一次
+        """设置系统提示信息, 感觉大部分情况下系统提示一条就够了...?
 
         Parameters
         ----------
         sys_prompt : str
             系统提示信息
         """
-        self.messages = [{"role": "system", "content": sys_prompt}]
+        self.sys_prompts = sys_prompt
 
     def chat(self, user_prompt: str) -> str:
         """对话
@@ -75,24 +77,15 @@ class DeepSeek(BaseLLM):
         self.messages.append({"role": "user", "content": user_prompt})
 
         # 调用对话模型, 获取回复信息
-        response = self.client.chat.completions.create(
+        response = self.client.messages.create(
+            max_tokens=1024,  # 沿用anthropic的api docs中的数值, REF: https://docs.anthropic.com/en/api/messages
             model=self.model,
+            system=self.sys_prompts,
             messages=self.messages,
             temperature=self.temperature,
-            stream=self.stream,
+            stream=False,
         )
-
-        # 处理回复信息
-        content = str()
-        if self.stream:
-            SAYF(f"Response of {self.model}\n--------------------\n")
-            for chunk in response:
-                token = chunk.choices[0].delta.content
-                if token is None: break
-                content += token
-                print(token, end="")
-        else:
-            content = response.choices[0].message.content
+        content = response.content[0].text
 
         # 添加回复信息至messages, 实现迭代对话
         self.messages.append({"role": "assistant", "content": content})

@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-02-17 21:21:56
+LastEditTime : 2025-02-19 10:50:29
 Description  : 提示两个LLM进行MR识别和校对
 """
 
@@ -12,10 +12,9 @@ import shutil
 import json
 
 from utils import *
-from LLMs.DeepSeek import DeepSeek
-from LLMs.GPT import GPT
-from LLMs.Claude import Claude
-from LLMs.Gemini import Gemini
+from wrappers.openai import OpenAI
+from wrappers.anthropic import Anthropic
+from wrappers.googleai import GoogleAI
 
 
 def check_config(args: argparse.Namespace):
@@ -46,46 +45,8 @@ def check_config(args: argparse.Namespace):
     shutil.copy(args.config, os.path.join(out_dir, "config.json"))
 
 
-def setup_deepseek_model(config: dict, role: str) -> DeepSeek:
-    """初始化DeepSeek聊天模型
-
-    Parameters
-    ----------
-    config : dict
-        用户输入的配置信息
-    role : str
-        DeepSeek模型的角色, 可以是identifier或calibrator
-
-    Returns
-    -------
-    DeepSeek
-        DeepSeek聊天模型
-    """
-    # 初始化DeepSeek聊天模型
-    deepseek = DeepSeek(
-        base_url=config[role]["base_url"],
-        api_key=config[role]["api_key"],
-        model=config[role]["model"],
-        temperature=config[role]["temperature"],
-    )
-
-    driver_name = config["driver_name"]  # 待测驱动程序名称
-    spec = read_file(config["specification"])  # 规约说明文件的内容
-
-    # 设置模型的系统提示信息
-    fn = config[role]["prompts"]["system"]
-    sys_prompt = str()
-    with open(fn, "r", encoding="utf-8") as f:
-        sys_prompt = f.read()
-    sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
-    sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-    deepseek.set_sys_prompt(sys_prompt)
-
-    return deepseek
-
-
-def setup_gpt_model(config: dict, role: str) -> GPT:
-    """初始化GPT聊天模型
+def setup_openai(config: dict, role: str) -> OpenAI:
+    """初始化以OpenAI为框架的聊天对象, 主要是GPT, DeepSeek等系列模型
 
     Parameters
     ----------
@@ -96,15 +57,16 @@ def setup_gpt_model(config: dict, role: str) -> GPT:
 
     Returns
     -------
-    GPT
-        GPT聊天模型
+    OpenAI
+        封装的OpenAI聊天对象
     """
-    # 初始化GPT聊天模型
-    gpt = GPT(
+    # 初始化以OpenAI为框架的聊天对象
+    openai_obj = OpenAI(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
         model=config[role]["model"],
         temperature=config[role]["temperature"],
+        stream=config[role]["stream"],
     )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
@@ -117,32 +79,33 @@ def setup_gpt_model(config: dict, role: str) -> GPT:
         sys_prompt = f.read()
     sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
     sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-    gpt.set_sys_prompt(sys_prompt)
+    openai_obj.set_sys_prompt(sys_prompt)
 
-    return gpt
+    return openai_obj
 
 
-def setup_claude_model(config: dict, role: str) -> Claude:
-    """初始化Claude聊天模型
+def setup_anthropic(config: dict, role: str) -> Anthropic:
+    """初始化以Anthropic为框架的聊天对象, 主要是Claude系列模型
 
     Parameters
     ----------
     config : dict
         用户输入的配置信息
     role : str
-        Claude模型的角色, 可以是identifier或calibrator
+        以Anthropic为框架的角色, 可以是identifier或calibrator
 
     Returns
     -------
-    Claude
-        Claude聊天模型
+    Anthropic
+        封装的Anthropic聊天对象
     """
-    # 初始化Claude聊天模型
-    claude = Claude(
+    # 初始化以Anthropic为框架的聊天对象
+    anthropic_obj = Anthropic(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
         model=config[role]["model"],
         temperature=config[role]["temperature"],
+        stream=config[role]["stream"],
     )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
@@ -155,32 +118,34 @@ def setup_claude_model(config: dict, role: str) -> Claude:
         sys_prompt = f.read()
     sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
     sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-    claude.set_sys_prompt(sys_prompt)
+    anthropic_obj.set_sys_prompt(sys_prompt)
 
-    return claude
+    return anthropic_obj
 
 
-def setup_gemini_model(config: dict, role: str) -> Gemini:
-    """初始化Gemini聊天模型
+def setup_googleai(config: dict, role: str) -> GoogleAI:
+    """初始化以GoogleAI为框架的聊天对象, 主要是调用Gemini等模型
+    官方库名为google.genai
 
     Parameters
     ----------
     config : dict
         用户输入的配置信息
     role : str
-        Gemini模型的角色, 可以是identifier或calibrator
+        对象的角色, 可以是identifier或calibrator
 
     Returns
     -------
-    Gemini
-        Gemini聊天模型
+    GoogleAI
+        封装的以GoogleAI为框架的聊天对象
     """
     # 初始化Gemini聊天模型
-    gemini = Gemini(
+    googleai_obj = GoogleAI(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
         model=config[role]["model"],
         temperature=config[role]["temperature"],
+        stream=config[role]["stream"],
     )
 
     driver_name = config["driver_name"]  # 待测驱动程序名称
@@ -193,9 +158,9 @@ def setup_gemini_model(config: dict, role: str) -> Gemini:
         sys_prompt = f.read()
     sys_prompt = sys_prompt.replace("[Driver name]", driver_name)
     sys_prompt = sys_prompt.replace("[Text from specification]", spec)
-    gemini.set_sys_prompt(sys_prompt)
+    googleai_obj.set_sys_prompt(sys_prompt)
 
-    return gemini
+    return googleai_obj
 
 
 def loop(identifier, calibrator, config: dict):
@@ -293,28 +258,27 @@ def main(args: argparse.Namespace):
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    # 初始化模型字典, 用于根据配置文件中base_model的值初始化相应的模型
-    setup_model_dict = {
-        "deepseek": setup_deepseek_model,
-        "gpt": setup_gpt_model,
-        "claude": setup_claude_model,
-        "gemini": setup_gemini_model,
+    # 初始化模型字典, 用于根据配置文件中framework的值初始化相应的模型
+    setup_func_dict = {
+        "openai": setup_openai,
+        "anthropic": setup_anthropic,
+        "googleai": setup_googleai,
     }
 
     # 初始化identifier模型, 该模型主要用于识别蜕变关系
     ACTF("Initializing identifier model ...")
-    base_model = config["identifier"]["base_model"].lower()
-    if base_model not in setup_model_dict.keys():
-        FATAL(f"Unsupported model: {base_model}\n\nSupported models: {setup_model_dict.keys()}")
-    identifier = setup_model_dict[base_model](config, "identifier")
+    framework = config["identifier"]["framework"].lower()
+    if framework not in setup_func_dict.keys():
+        FATAL(f"Unsupported model: {framework}\n\nSupported models: {setup_func_dict.keys()}")
+    identifier = setup_func_dict[framework](config, "identifier")
     OKF("Identifier model successfully initialized!")
 
     # 初始化calibrator模型, 该模型主要用于校准蜕变关系
     ACTF("Initializing calibrator model ...")
-    base_model = config["calibrator"]["base_model"].lower()
-    if base_model not in setup_model_dict.keys():
-        FATAL(f"Unsupported model: {base_model}\n\nSupported models: {setup_model_dict.keys()}")
-    calibrator = setup_model_dict[base_model](config, "calibrator")
+    framework = config["calibrator"]["framework"].lower()
+    if framework not in setup_func_dict.keys():
+        FATAL(f"Unsupported model: {framework}\n\nSupported models: {setup_func_dict.keys()}")
+    calibrator = setup_func_dict[framework](config, "calibrator")
     OKF("Calibrator model successfully initialized!")
 
     # 开始通过两个模型之间的讨论来识别和校准蜕变关系

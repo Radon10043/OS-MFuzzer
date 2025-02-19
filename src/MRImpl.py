@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-18 15:19:46
+LastEditTime : 2025-02-19 10:44:06
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -14,10 +14,9 @@ import subprocess
 
 from typing import Tuple
 from utils import *
-from LLMs.DeepSeek import DeepSeek
-from LLMs.GPT import GPT
-from LLMs.Claude import Claude
-from LLMs.Gemini import Gemini
+from wrappers.openai import OpenAI
+from wrappers.anthropic import Anthropic
+from wrappers.googleai import GoogleAI
 
 
 def check_config(args: argparse.Namespace):
@@ -64,8 +63,8 @@ def check_config(args: argparse.Namespace):
     shutil.copy(args.config, os.path.join(out_dir, "config.json"))
 
 
-def setup_deepseek_model(config: dict) -> DeepSeek:
-    """初始化DeepSeek模型
+def setup_openai(config: dict) -> OpenAI:
+    """初始化以OpenAI为框架的聊天对象, 主要是GPT, DeepSeek等模型
 
     Parameters
     ----------
@@ -74,43 +73,11 @@ def setup_deepseek_model(config: dict) -> DeepSeek:
 
     Returns
     -------
-    DeepSeek
-        DeepSeek模型
+    OpenAI
+        封装的以OpenAI为框架的聊天对象
     """
-    # 初始化DeepSeek模型
-    deepseek = DeepSeek(
-        base_url=config["base_url"],
-        api_key=config["api_key"],
-        model=config["model"],
-        temperature=config["temperature"],
-    )
-
-    # 设置模型的系统提示信息
-    fn = config["prompts"]["system"]
-    sys_prompt = str()
-    with open(fn, "r", encoding="utf-8") as f:
-        sys_prompt = f.read()
-    deepseek.set_sys_prompt(sys_prompt)
-
-    # 返回初始化后的DeepSeek模型
-    return deepseek
-
-
-def setup_gpt_model(config: dict) -> GPT:
-    """初始化GPT模型
-
-    Parameters
-    ----------
-    config : dict
-        用户输入的配置信息
-
-    Returns
-    -------
-    GPT
-        GPT模型
-    """
-    # 初始化GPT聊天模型
-    gpt = GPT(
+    # 初始化OpenAI聊天对象
+    openai_obj = OpenAI(
         base_url=config["base_url"],
         api_key=config["api_key"],
         model=config["model"],
@@ -123,14 +90,14 @@ def setup_gpt_model(config: dict) -> GPT:
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
         sys_prompt = f.read()
-    gpt.set_sys_prompt(sys_prompt)
+    openai_obj.set_sys_prompt(sys_prompt)
 
     # 返回初始化后的GPT模型
-    return gpt
+    return openai_obj
 
 
-def setup_claude_model(config: dict) -> Claude:
-    """初始化Claude模型
+def setup_anthropic(config: dict) -> Anthropic:
+    """初始化以Anthropic为框架的聊天对象, 主要是Claude等系列模型
 
     Parameters
     ----------
@@ -139,11 +106,11 @@ def setup_claude_model(config: dict) -> Claude:
 
     Returns
     -------
-    Claude
-        Claude模型
+    Anthropic
+        封装的以Anthropic为框架的聊天对象
     """
-    # 初始化Claude模型
-    claude = Claude(
+    # 初始化Anthropic聊天对象
+    anthropic_obj = Anthropic(
         base_url=config["base_url"],
         api_key=config["api_key"],
         model=config["model"],
@@ -156,14 +123,15 @@ def setup_claude_model(config: dict) -> Claude:
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
         sys_prompt = f.read()
-    claude.set_sys_prompt(sys_prompt)
+    anthropic_obj.set_sys_prompt(sys_prompt)
 
     # 返回初始化后的Claude模型
-    return claude
+    return anthropic_obj
 
 
-def setup_gemini_model(config: dict) -> Gemini:
-    """初始化Gemini模型
+def setup_googleai(config: dict) -> GoogleAI:
+    """初始化以GooelAI为框架的聊天对象, 主要是Gemini等模型
+    官方库的名称是google.genai
 
     Parameters
     ----------
@@ -172,11 +140,11 @@ def setup_gemini_model(config: dict) -> Gemini:
 
     Returns
     -------
-    Gemini
+    GoogleAI
         Gemini模型
     """
     # 初始化Gemini模型
-    gemini = Gemini(
+    googleai_obj = GoogleAI(
         base_url=config["base_url"],
         api_key=config["api_key"],
         model=config["model"],
@@ -189,10 +157,10 @@ def setup_gemini_model(config: dict) -> Gemini:
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
         sys_prompt = f.read()
-    gemini.set_sys_prompt(sys_prompt)
+    googleai_obj.set_sys_prompt(sys_prompt)
 
     # 返回初始化后的Gemini模型
-    return gemini
+    return googleai_obj
 
 
 def build_c_program(c_code: str, compiler: str, cflags: str) -> Tuple[int, str]:
@@ -313,20 +281,19 @@ def main(args: argparse.Namespace):
 
     # 模型字典, 用于根据配置文件中的base_model字段选择对应的模型初始化函数
     # fmt:off
-    setup_model_dict = {
-        "deepseek": setup_deepseek_model,
-        "gpt": setup_gpt_model,
-        "claude": setup_claude_model,
-        "gemini": setup_gemini_model
+    setup_func_dict = {
+        "openai": setup_openai,
+        "anthropic": setup_anthropic,
+        "googleai": setup_googleai,
     }
     # fmt:on
 
     # 初始化programmer模型, 该模型用于将MRC的自然语言描述转换为C语言实现
     ACTF("Initializing programmer model ...")
-    base_model = config["base_model"].lower()
-    if base_model not in setup_model_dict:
-        FATAL(f"Unsupported model: {base_model}, Supported models: {setup_model_dict.keys()}")
-    programmer = setup_model_dict[base_model](config)
+    framework = config["framework"].lower()
+    if framework not in setup_func_dict:
+        FATAL(f"Unsupported model: {framework}, Supported models: {setup_func_dict.keys()}")
+    programmer = setup_func_dict[framework](config)
     OKF("Programmer model successfully initislized!.")
 
     # 让programmer模型迭代地生成用C语言实现的MRC

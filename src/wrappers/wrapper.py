@@ -1,8 +1,8 @@
 from utils import *
 
 
-class BaseLLM:
-    """Base LLM Class"""
+class Wrapper:
+    """Wrapper Class"""
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class BaseLLM:
         stream : bool, optional
             是否使用流式响应, by default False
         """
-        FATAL("BaseLLM is an abstract class, please use other class instead.")
+        FATAL("Wrapper is an abstract class, please use other class instead.")
 
     def set_sys_prompt(self, sys_prompt: str):
         """设置系统提示信息, 只需要设置一次
@@ -37,7 +37,7 @@ class BaseLLM:
         sys_prompt : str
             系统提示信息
         """
-        FATAL("BaseLLM is an abstract class, please use other class instead.")
+        FATAL("Wrapper is an abstract class, please use other class instead.")
 
     def chat(self, user_prompt: str) -> str:
         """对话
@@ -52,7 +52,7 @@ class BaseLLM:
         str
             LLM回复的信息
         """
-        FATAL("BaseLLM is an abstract class, please use other class instead.")
+        FATAL("Wrapper is an abstract class, please use other class instead.")
 
     def avaliable_models(self) -> list:
         """列出所有可用的模型
@@ -62,7 +62,7 @@ class BaseLLM:
         list
             可用的模型列表
         """
-        FATAL("BaseLLM is an abstract class, please use other class instead.")
+        FATAL("Wrapper is an abstract class, please use other class instead.")
 
     def save_messages(self, path: str):
         """保存对话信息, 支持保存为json文件或md文件
@@ -72,4 +72,4 @@ class BaseLLM:
         path : str
             消息记录保存路径
         """
-        FATAL("BaseLLM is an abstract class, please use other class instead.")
+        FATAL("Wrapper is an abstract class, please use other class instead.")
