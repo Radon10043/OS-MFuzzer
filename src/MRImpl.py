@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-19 10:44:06
+LastEditTime : 2025-02-19 12:05:03
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -204,7 +204,7 @@ def loop(programmer, config: dict):
     iterations = 0  # 迭代次数
     usr_prompts = list()  # 用户提示列表
     err_msgs = str()  # 编译器报告的错误信息
-    c_code = str()  # 生成的C代码
+    mrc_code = str()  # 实现MRC的C代码
 
     # 读取包含MRC自然语言描述的markdown文件
     md_text = str()
@@ -232,14 +232,16 @@ def loop(programmer, config: dict):
         # 与programmer模型进行对话, 生成MRC的C代码
         ACTF(f"Iter {iterations + 1}: Prompting {config["model"]} to generate C code implementation of MRC ...")
         response = programmer.chat(prompt)
-        c_code = get_first_code_block(response, {"c"})
-        c_code = c_code.lstrip("```c\n").rstrip("```\n")
+        mrc_code = get_first_code_block(response, {"c"})
+        mrc_code = mrc_code.lstrip("```c\n").rstrip("```\n")
 
         # 如果生成的C代码为空, 认为生成失败
-        if len(c_code) == 0:
+        if len(mrc_code) == 0:
             FATAL(f"{config["model"]} generated empty C code implementation of MRC.")
 
+        # 加一段main函数调用MR(void)的代码, 与MRC代码结合形成完整C代码
         # 编译构建C代码, 同时获取错误信息
+        c_code = f"{mrc_code}\n\nint main() {{ MR(); return 0; }}"
         ret_code, err_msgs = build_c_program(c_code, config["compiler"], config["cflags"])
         if ret_code == 0:  # 如果编译成功, 跳出循环
             gen_success = True
@@ -257,8 +259,8 @@ def loop(programmer, config: dict):
     # 保存交互记录, 将生成的C代码写入文件
     programmer.save_messages(os.path.join(config["output"], "messages.json"))
     programmer.save_messages(os.path.join(config["output"], "messages.md"))
-    with open(os.path.join(config["output"], "mrc.c"), "w", encoding="utf-8") as f:
-        f.write(c_code)
+    with open(os.path.join(config["output"], "mrc.h"), "w", encoding="utf-8") as f:
+        f.write(mrc_code)
     OKF(f"Successfully generated C code implementation of MRC after {iterations + 1} iterations.")
 
 
