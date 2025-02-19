@@ -92,7 +92,8 @@ class OpenAI(Wrapper):
                 if token is None:
                     break
                 content += token
-                print(token, end="")
+                SAYF(token)
+            SAYF("\n")
         else:
             content = response.choices[0].message.content
 

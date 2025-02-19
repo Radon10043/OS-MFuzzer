@@ -91,6 +91,7 @@ class GoogleAI(Wrapper):
                 token = chunk.text
                 content += token
                 SAYF(token)
+            SAYF("\n")
         else:
             response = self.inst.send_message(
                 message=user_prompt,
