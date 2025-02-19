@@ -29,8 +29,8 @@ Create a json file (e.g. `MRIden.cfg.json`), write the following content:
         "api_key": "sk-xxx",
         "framework": "openai",
         "model": "deepseek-chat",
-        "temperature": 0.5,
-        "stream": true,
+        "temperature": 0.5,     // Optional, default as 0.5
+        "stream": true,         // Optional, default as false
         "prompts": {
             "system": "/path/to/kernel-driver-MR-identify/data/prompts/identifier/system.md",
             "user": [
@@ -44,8 +44,8 @@ Create a json file (e.g. `MRIden.cfg.json`), write the following content:
         "api_key": "sk-xxx",
         "framework": "openai",
         "model": "gpt-4o-mini",
-        "temperature": 0.2,
-        "stream": true,
+        "temperature": 0.2,     // Optional, default as 0.5
+        "stream": true,         // Optional, default as false
         "prompts": {
             "system": "/path/to/kernel-driver-MR-identify/data/prompts/calibrator/system.md",
             "user": [
@@ -85,8 +85,8 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
     "api_key": "sk-xxx",
     "framework": "openai",
     "model": "deepseek-chat",
-    "stream": true,
-    "temperature": 0.5,
+    "temperature": 0.5,     // Optional, default as 0.5
+    "stream": true,         // Optional, default as false
     "prompts": {
         "system": "/path/to/kernel-driver-MR-identify/data/prompts/programmer/system.md",
         "user": [
