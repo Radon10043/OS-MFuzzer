@@ -129,7 +129,7 @@ class GoogleAI(Wrapper):
         ext_name = os.path.splitext(path)[-1]
 
         # 将聊天记录转换为字典列表
-        messages = list()
+        messages = [{"role": "system", "content": self.sys_prompt}]
         content = str()
         prev_role = "user"
         for msg in self.inst._curated_history:
