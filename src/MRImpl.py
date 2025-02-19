@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-19 12:05:03
+LastEditTime : 2025-02-19 14:09:19
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -281,14 +281,22 @@ def main(args: argparse.Namespace):
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    # 模型字典, 用于根据配置文件中的base_model字段选择对应的模型初始化函数
-    # fmt:off
+    # 检查配置文件中是否包含temperature字段, 如果没有则使用默认值0.5
+    if "temperature" not in config.keys():
+        WARNF('Key "temperature" not found in config file, using default value: 0.5')
+        config["temperature"] = 0.5
+
+    # 检查配置文件中是否包含stream字段, 如果没有则使用默认值False
+    if "stream" not in config.keys():
+        WARNF('Key "stream" not found in config file, using default value: False')
+        config["stream"] = False
+
+    # 根据配置文件中的framework字段的值选择对应的框架初始化函数
     setup_func_dict = {
         "openai": setup_openai,
         "anthropic": setup_anthropic,
         "googleai": setup_googleai,
     }
-    # fmt:on
 
     # 初始化programmer模型, 该模型用于将MRC的自然语言描述转换为C语言实现
     ACTF("Initializing programmer model ...")
@@ -303,7 +311,6 @@ def main(args: argparse.Namespace):
     loop(programmer, config)
 
 
-# TODO: Need to test to ensure the correctness
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path of configuration file")

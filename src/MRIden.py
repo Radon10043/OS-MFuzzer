@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-02-19 10:50:29
+LastEditTime : 2025-02-19 14:08:06
 Description  : 提示两个LLM进行MR识别和校对
 """
 
@@ -33,6 +33,22 @@ def check_config(args: argparse.Namespace):
     config = dict()
     with open(args.config, "r") as f:
         config = json.load(f)
+
+    # 如果config中没有temperature字段, 使用默认值0.5
+    if "temperature" not in config["identifier"].keys():
+        WARNF('Key "temperature" not found in config file for "identifier", using default value: 0.5')
+        config["identifier"]["temperature"] = 0.5
+    if "temperature" not in config["calibrator"].keys():
+        WARNF('Key "temperature" not found in config file for "calibrator", using default value: 0.5')
+        config["calibrator"]["temperature"] = 0.5
+
+    # 如果config中没有stream字段, 使用默认值False
+    if "stream" not in config["identifier"].keys():
+        WARNF('Key "stream" not found in config file for "identifier", using default value: False')
+        config["identifier"]["stream"] = False
+    if "stream" not in config["calibrator"].keys():
+        WARNF('Key "stream" not found in config file for "calibrator", using default value: False')
+        config["calibrator"]["stream"] = False
 
     # 检查输出目录是否存在, 如果存在则报错, 提示用户需要先删掉该目录
     out_dir = config["output"]
