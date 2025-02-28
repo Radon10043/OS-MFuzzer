@@ -6,11 +6,29 @@ Try to identify metamorphic relations via large languge models for drivers in li
 
 - Ubuntu 22.04
 - Python 3.12.3
+- LLVM 15.0.0
 
 ## Install
 
 ```sh
 pip install -r requirements.txt
+```
+
+### Install LLVM & Clang from source code
+
+Please run the following commands in the root path of the repository。
+
+```sh
+sudo apt update
+sudo apt install ninja-build cmake
+mkdir build && pushd build
+git clone --depth 1 -b llvmorg-15.0.0 https://github.com/llvm/llvm-project.git
+mkdir build-clang && pushd build-clang
+cmake -G Ninja ../llvm-project/llvm -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DCMAKE_BUILD_TYPE=Release -DLLVM_BUILD_TESTS=ON
+ninja
+ninja check       # Test LLVM only.
+ninja clang-test  # Test Clang only.
+ninja install
 ```
 
 ## Run
@@ -108,3 +126,7 @@ MRImpl.py is used to generate C code of an MRC. Explanation of each parameters i
 - mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
 - compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
 - cflags: compile options.
+
+## References
+
+[1] [https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html](https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html)
