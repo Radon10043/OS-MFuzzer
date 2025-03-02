@@ -6,7 +6,7 @@ Try to identify metamorphic relations via large languge models for drivers in li
 
 - Ubuntu 22.04
 - Python 3.12.3
-- LLVM 15.0.0
+- LLVM 19.1.7
 
 ## Install
 
@@ -22,7 +22,7 @@ Please run the following commands in the root path of the repository。
 sudo apt update
 sudo apt install ninja-build cmake
 mkdir build && pushd build
-git clone --depth 1 -b llvmorg-15.0.0 https://github.com/llvm/llvm-project.git
+git clone --depth 1 -b llvmorg-19.1.7 https://github.com/llvm/llvm-project.git
 mkdir build-clang && pushd build-clang
 cmake -G Ninja ../llvm-project/llvm -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DCMAKE_BUILD_TYPE=Release -DLLVM_BUILD_TESTS=ON
 ninja
