@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/seehuhn/mt19937"
 )
@@ -127,6 +128,110 @@ func buildProgram(srcSlice []byte, binPath string, compiler string) {
 	}
 }
 
+func runQemu() error {
+	debug := false
+	qemuBin := "qemu-system-x86_64"
+	kernelObj := "/home/radon/Documents/kernel-fuzzing/linux-v6.2"
+	kernelBin := filepath.Join(kernelObj, "arch", "x86", "boot", "bzImage")
+	imageFile := "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.img"
+	// vmlinuxBin := filepath.Join(kernelObj, "vmlinux")
+	sshKey := "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa"
+	port := 10021
+	qemuArgs := []string{"-m", "2048", "-smp", "2", "-chardev", "socket,id=SOCKSYZ,server=on,wait=off,host=localhost,port=13952", "-mon", "chardev=SOCKSYZ,mode=control", "-display", "none", "-serial", "stdio", "-no-reboot", "-name", "VM-0", "-device", "virtio-rng-pci", "-enable-kvm", "-cpu", "host,migratable=off", "-device", "e1000,netdev=net0", "-netdev", "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:" + fmt.Sprint(port) + "-:22", "-hda", imageFile, "-snapshot", "-kernel", kernelBin, "-append", "root=/dev/sda console=ttyS0"}
+
+	// 启动QEMU
+	fmt.Printf("QEMU start command: %s %s\n", qemuBin, strings.Join(qemuArgs, " "))
+	cmd := exec.Command(qemuBin, qemuArgs...)
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start QEMU: %v", err)
+	}
+
+	// 将qemu进程ID写入文件
+	qemuPid := cmd.Process.Pid
+	pidFile := filepath.Join("/home/radon/Documents/projects/kernel-driver-MR-identify/qemu.pid")
+	if err := os.WriteFile(pidFile, []byte(fmt.Sprint(qemuPid)), 0666); err != nil {
+		return fmt.Errorf("failed to write QEMU PID to file: %v", err)
+	}
+	fmt.Printf("QEMU PID: %d\n", qemuPid)
+
+	// 尝试运行ssh与QEMU通信
+	time.Sleep(5 * time.Second) // 等待5秒
+	sshArgs := []string{
+		"-p", fmt.Sprint(port),
+		"-F", "/dev/null",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", "IdentitiesOnly=yes",
+		"-o", "BatchMode=yes",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ConnectTimeout=10",
+		"-i", sshKey,
+		"-v",
+		"root@localhost",
+		"pwd",
+	}
+	fmt.Printf("SSH command: ssh %s\n", strings.Join(sshArgs, " "))
+	cmd = exec.Command("ssh", sshArgs...)
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to communicate with QEMU via ssh: %v", err)
+	}
+	fmt.Printf("Successfully connected to QEMU via ssh on port %d\n", port)
+
+	// 将syzkaller的hello文件拷贝到QEMU中, 测试用
+	scpArgs := []string{
+		"-P", "10021",
+		"-F", "/dev/null",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", "IdentitiesOnly=yes",
+		"-o", "BatchMode=yes",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ConnectTimeout=10",
+		"-i", sshKey,
+		"/home/radon/Documents/projects/kernel-driver-MR-identify/bin/hello",
+		"root@localhost:/hello",
+	}
+	cmd = exec.Command("scp", scpArgs...)
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	fmt.Printf("Run SCP command: scp %s\n", strings.Join(scpArgs, " "))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to copy file to qemu: %v", err)
+	}
+
+	// 运行一下hello, 获取其输出
+	sshArgs = []string{
+		"-p", fmt.Sprint(port),
+		"-F", "/dev/null",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", "IdentitiesOnly=yes",
+		"-o", "BatchMode=yes",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ConnectTimeout=10",
+		"-i", sshKey,
+		"-v",
+		"root@localhost",
+		"/hello",
+	}
+	cmd = exec.Command("ssh", sshArgs...)
+	tmp := cmd.Stdout
+	fmt.Printf("Run SSH command: ssh %s\n", strings.Join(sshArgs, " "))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run hello via ssh: %v", err)
+	}
+	fmt.Printf("Output of hello: %s\n", tmp)
+
+	return nil
+}
+
 func main() {
 	// 命令行参数相关变量
 	var (
@@ -161,6 +266,11 @@ func main() {
 	// 若out目录不存在则递归创建
 	if _, err := os.Stat(*flagOut); os.IsNotExist(err) {
 		os.MkdirAll(*flagOut, 0755)
+	}
+
+	err := runQemu()
+	if err != nil {
+		panic(err)
 	}
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
