@@ -97,6 +97,13 @@ func insertMRImpl(csrcPath string, mrPath string, lSlice []int) []byte {
 	return []byte(strings.Join(csrcSlice, "\n"))
 }
 
+// 将插入MR后的C代码编译为可执行文件
+//
+// Parameters:
+//
+//	srcSlice: 插入MR后的C代码内容
+//	binPath: 可执行文件路径
+//	compiler: 编译器
 func buildProgram(srcSlice []byte, binPath string, compiler string) {
 	// 写入修改后的C代码
 	cPath := binPath + ".c"
@@ -105,14 +112,16 @@ func buildProgram(srcSlice []byte, binPath string, compiler string) {
 		panic(err)
 	}
 
+	// 延迟删除插入MR后的源文件
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+		os.Remove(cPath)
+	}()
+
 	// 编译新的C代码为可执行文件
 	_, err = exec.Command(compiler, "-static", "-o", binPath, cPath).Output()
-	if err != nil {
-		panic(err)
-	}
-
-	// 删除文件
-	err = os.Remove(cPath)
 	if err != nil {
 		panic(err)
 	}
@@ -124,6 +133,7 @@ func main() {
 		flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
 		flagCSrc     = flag.String("csrc", "", "C source file (.c)")
 		flagCDir     = flag.String("cdir", "", "C source file directory (Conflicts with -csrc)")
+		flagOut      = flag.String("out", "", "Directory that stores binaries.")
 		flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
 	)
 
@@ -136,7 +146,7 @@ func main() {
 	flag.Parse()
 
 	// 检查命令行参数, 若不符合要求则退出程序
-	if *flagMR == "" || (*flagCSrc == "" && *flagCDir == "") {
+	if *flagMR == "" || (*flagCSrc == "" && *flagCDir == "") || *flagOut == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -146,6 +156,11 @@ func main() {
 		fmt.Println("Error: -csrc and -cdir cannot be used together")
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// 若out目录不存在则递归创建
+	if _, err := os.Stat(*flagOut); os.IsNotExist(err) {
+		os.MkdirAll(*flagOut, 0755)
 	}
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
@@ -175,10 +190,12 @@ func main() {
 		nsrcSlice := insertMRImpl(srcPath, *flagMR, lSlice)
 
 		// 将修改后的C文件编译为可执行文件
-		binPath := strings.TrimSuffix(srcPath, ".c") + "-mr"
+		bn := filepath.Base(srcPath)
+		bn = strings.TrimSuffix(bn, ".c") + "-mr"
+		binPath := filepath.Join(*flagOut, bn)
 		compiler := *flagCompiler
 		buildProgram(nsrcSlice, binPath, compiler)
 		fmt.Printf("\rBuild successfully: [%d/%d]", i+1, len(srcPaths))
 	}
-	fmt.Println("\nAll done!")
+	fmt.Println("\n\nAll done!")
 }
