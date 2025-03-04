@@ -1,3 +1,4 @@
+// Description: Insert MR implementation into C source code and build the program
 package main
 
 import (
@@ -13,16 +14,9 @@ import (
 	"github.com/seehuhn/mt19937"
 )
 
-// 命令行参数相关变量
+// 全局变量
 var (
-	flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
-	flagCSrc     = flag.String("csrc", "", "C source file (.c)")
-	flagOut      = flag.String("out", "", "Output file (Binary file)")
-	flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
-)
-
-var (
-	rng = rand.New(mt19937.New())
+	rng = rand.New(mt19937.New()) // 随机数生成器
 )
 
 // 获取C代码main函数中的系统调用最后的位置
@@ -125,6 +119,14 @@ func buildProgram(srcSlice []byte, binPath string, compiler string) {
 }
 
 func main() {
+	// 命令行参数相关变量
+	var (
+		flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
+		flagCSrc     = flag.String("csrc", "", "C source file (.c)")
+		flagOut      = flag.String("out", "", "Output file (Binary file)")
+		flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
+	)
+
 	// 解析命令行参数
 	flag.Usage = func() {
 		fmt.Println("Description: Insert MR implementation into C source code")
