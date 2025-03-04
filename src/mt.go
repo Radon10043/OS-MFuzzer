@@ -123,7 +123,7 @@ func main() {
 	var (
 		flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
 		flagCSrc     = flag.String("csrc", "", "C source file (.c)")
-		flagOut      = flag.String("out", "", "Output file (Binary file)")
+		flagCDir     = flag.String("cdir", "", "C source file directory (Conflicts with -csrc)")
 		flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
 	)
 
@@ -136,22 +136,49 @@ func main() {
 	flag.Parse()
 
 	// 检查命令行参数, 若不符合要求则退出程序
-	if *flagMR == "" || *flagCSrc == "" || *flagOut == "" {
+	if *flagMR == "" || (*flagCSrc == "" && *flagCDir == "") {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// 获取main函数中系统调用行号切片
-	lSlice := getSyscallLinenos(*flagCSrc)
-	lSlice = lSlice[3:] // syz-prog2c前3个系统调用固定是syscall(__NR_mmap, ...), 去掉前三个系统调用
+	// 检查-csrc和-cdir参数是否同时存在
+	if *flagCSrc != "" && *flagCDir != "" {
+		fmt.Println("Error: -csrc and -cdir cannot be used together")
+		flag.Usage()
+		os.Exit(1)
+	}
 
-	// 将MR实现插入syzkaller生成的C代码中
-	nsrcSlice := insertMRImpl(*flagCSrc, *flagMR, lSlice)
+	// 获取C源代码文件路径, 加入srcPaths切片中
+	srcPaths := make([]string, 0)
+	if *flagCSrc != "" {
+		srcPaths = append(srcPaths, *flagCSrc)
+	} else {
+		// 获取目录下所有.c文件
+		files, err := os.ReadDir(*flagCDir)
+		if err != nil {
+			panic(err)
+		}
+		for _, file := range files {
+			if strings.HasSuffix(file.Name(), ".c") {
+				srcPaths = append(srcPaths, filepath.Join(*flagCDir, file.Name()))
+			}
+		}
+	}
 
-	// 将修改后的C文件编译为可执行文件
-	binPath := *flagOut
-	compiler := *flagCompiler
-	buildProgram(nsrcSlice, binPath, compiler)
-	fmt.Println("Build program successfully")
-	fmt.Println("Binary Path:", binPath)
+	// 遍历所有C源代码文件, 为每个文件插入MR实现并编译为可执行文件
+	for i, srcPath := range srcPaths {
+		// 获取main函数中系统调用行号切片
+		lSlice := getSyscallLinenos(srcPath)
+		lSlice = lSlice[3:] // 使用syz-prog2c后前3个系统调用固定是syscall(__NR_mmap, ...), 去掉前三个系统调用
+
+		// 将MR实现插入syzkaller生成的C代码中
+		nsrcSlice := insertMRImpl(srcPath, *flagMR, lSlice)
+
+		// 将修改后的C文件编译为可执行文件
+		binPath := strings.TrimSuffix(srcPath, ".c") + "-mr"
+		compiler := *flagCompiler
+		buildProgram(nsrcSlice, binPath, compiler)
+		fmt.Printf("\rBuild successfully: [%d/%d]", i+1, len(srcPaths))
+	}
+	fmt.Println("\nAll done!")
 }
