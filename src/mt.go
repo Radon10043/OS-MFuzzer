@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -15,10 +16,146 @@ import (
 	"github.com/seehuhn/mt19937"
 )
 
+type Qemu struct {
+	bin  string   // qemu-system-x86_64
+	args []string // qemu启动参数
+	pid  int      // qemu进程ID
+	pidf string   // qemu进程ID文件路径
+}
+
+type SSH struct {
+	bin  string   // ssh
+	args []string // ssh启动参数
+}
+
+type SCP struct {
+	bin  string   // scp
+	args []string // scp启动参数
+}
+
+type VM struct {
+	qemu *Qemu
+	ssh  *SSH
+	scp  *SCP
+}
+
+// 命令行参数相关变量
+var (
+	flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
+	flagCSrc     = flag.String("csrc", "", "C source file (.c)")
+	flagCDir     = flag.String("cdir", "", "C source file directory (Conflicts with -csrc)")
+	flagOut      = flag.String("out", "", "Directory that stores binaries.")
+	flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
+)
+
 // 全局变量
 var (
 	rng = rand.New(mt19937.New()) // 随机数生成器
 )
+
+// 启动qemu
+func (qemu *Qemu) boot() error {
+	// 启动qemu
+	cmd := exec.Command(qemu.bin, qemu.args...)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start QEMU: %v", err)
+	}
+
+	// 将qemu进程ID写入文件
+	qemu.pid = cmd.Process.Pid
+	qemu.pidf = filepath.Join(*flagOut, "qemu.pid")
+	if err := os.WriteFile(qemu.pidf, []byte(fmt.Sprint(qemu.pid)), 0666); err != nil {
+		return fmt.Errorf("failed to write QEMU PID to file: %v", err)
+	}
+	return nil
+}
+
+// 运行SSH命令, 返回标准输出, 标准错误和错误
+func (ssh *SSH) run(command string) (bytes.Buffer, bytes.Buffer, error) {
+	var stdout, stderr bytes.Buffer
+	sshArgs := append(ssh.args, command)
+	cmd := exec.Command(ssh.bin, sshArgs...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return stdout, stderr, fmt.Errorf("failed to run SSH command: %v", err)
+	}
+	return stdout, stderr, nil
+}
+
+// 运行SCP命令, 将src路径文件拷贝到dst路径
+func (scp *SCP) run(src string, dst string) error {
+	scpArgs := append(scp.args, src, dst)
+	cmd := exec.Command(scp.bin, scpArgs...)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run SCP command: %v", err)
+	}
+	return nil
+}
+
+// 创建VM实例, 包含Qemu, SSH, SCP
+func create() (*VM, error) {
+	qemu := &Qemu{
+		bin: "qemu-system-x86_64",
+		args: []string{
+			"-m", "2048",
+			"-smp", "2",
+			"-chardev", "socket,id=SOCKSYZ,server=on,wait=off,host=localhost,port=13952",
+			"-mon", "chardev=SOCKSYZ,mode=control",
+			"-display", "none",
+			"-serial", "stdio",
+			"-no-reboot",
+			"-name", "VM-0",
+			"-device", "virtio-rng-pci",
+			"-enable-kvm",
+			"-cpu", "host,migratable=off",
+			"-device", "e1000,netdev=net0",
+			"-netdev", "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:10021-:22",
+			"-hda", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.img",
+			"-snapshot",
+			"-kernel", "/home/radon/Documents/kernel-fuzzing/linux-v6.2/arch/x86/boot/bzImage",
+			"-append", "root=/dev/sda console=ttyS0",
+		},
+	}
+
+	ssh := &SSH{
+		bin: "ssh",
+		args: []string{
+			"-p", "10021",
+			"-F", "/dev/null",
+			"-o", "UserKnownHostsFile=/dev/null",
+			"-o", "IdentitiesOnly=yes",
+			"-o", "BatchMode=yes",
+			"-o", "StrictHostKeyChecking=no",
+			"-o", "ConnectTimeout=10",
+			"-i", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa",
+			"-v",
+			"root@localhost",
+		},
+	}
+
+	scp := &SCP{
+		bin: "scp",
+		args: []string{
+			"-P", "10021",
+			"-F", "/dev/null",
+			"-o", "UserKnownHostsFile=/dev/null",
+			"-o", "IdentitiesOnly=yes",
+			"-o", "BatchMode=yes",
+			"-o", "StrictHostKeyChecking=no",
+			"-o", "ConnectTimeout=10",
+			"-i", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa",
+		},
+	}
+
+	vm := &VM{
+		qemu: qemu,
+		ssh:  ssh,
+		scp:  scp,
+	}
+
+	return vm, nil
+}
 
 // 获取C代码main函数中的系统调用最后的位置
 // 返回行号切片, 目的是为了后续插入MR实现
@@ -128,120 +265,106 @@ func buildProgram(srcSlice []byte, binPath string, compiler string) {
 	}
 }
 
-func runQemu() error {
-	debug := false
-	qemuBin := "qemu-system-x86_64"
-	kernelObj := "/home/radon/Documents/kernel-fuzzing/linux-v6.2"
-	kernelBin := filepath.Join(kernelObj, "arch", "x86", "boot", "bzImage")
-	imageFile := "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.img"
-	// vmlinuxBin := filepath.Join(kernelObj, "vmlinux")
-	sshKey := "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa"
-	port := 10021
-	qemuArgs := []string{"-m", "2048", "-smp", "2", "-chardev", "socket,id=SOCKSYZ,server=on,wait=off,host=localhost,port=13952", "-mon", "chardev=SOCKSYZ,mode=control", "-display", "none", "-serial", "stdio", "-no-reboot", "-name", "VM-0", "-device", "virtio-rng-pci", "-enable-kvm", "-cpu", "host,migratable=off", "-device", "e1000,netdev=net0", "-netdev", "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:" + fmt.Sprint(port) + "-:22", "-hda", imageFile, "-snapshot", "-kernel", kernelBin, "-append", "root=/dev/sda console=ttyS0"}
+// 获取目录下所有.c文件, 返回文件路径切片
+func getSrcPaths(cDir string) []string {
+	files, err := os.ReadDir(cDir)
+	if err != nil {
+		panic(err)
+	}
+	srcPaths := make([]string, 0)
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".c") {
+			srcPaths = append(srcPaths, filepath.Join(cDir, file.Name()))
+		}
+	}
+	return srcPaths
+}
 
-	// 启动QEMU
-	fmt.Printf("QEMU start command: %s %s\n", qemuBin, strings.Join(qemuArgs, " "))
-	cmd := exec.Command(qemuBin, qemuArgs...)
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start QEMU: %v", err)
-	}
+// 将MR实现插入syzkaller生成的C代码中并进行编译, 返回可执行文件路径切片
+func buildMRPrograms(srcPaths []string, mrPath string, outDir string, compiler string) []string {
+	binPaths := make([]string, 0)
+	for i, srcPath := range srcPaths {
+		// 获取main函数中系统调用行号切片
+		lSlice := getSyscallLinenos(srcPath)
+		lSlice = lSlice[3:] // 使用syz-prog2c后前3个系统调用固定是syscall(__NR_mmap, ...), 去掉前三个系统调用
 
-	// 将qemu进程ID写入文件
-	qemuPid := cmd.Process.Pid
-	pidFile := filepath.Join("/home/radon/Documents/projects/kernel-driver-MR-identify/qemu.pid")
-	if err := os.WriteFile(pidFile, []byte(fmt.Sprint(qemuPid)), 0666); err != nil {
-		return fmt.Errorf("failed to write QEMU PID to file: %v", err)
-	}
-	fmt.Printf("QEMU PID: %d\n", qemuPid)
+		// 将MR实现插入syzkaller生成的C代码中
+		nsrcSlice := insertMRImpl(srcPath, mrPath, lSlice)
 
-	// 尝试运行ssh与QEMU通信
-	time.Sleep(5 * time.Second) // 等待5秒
-	sshArgs := []string{
-		"-p", fmt.Sprint(port),
-		"-F", "/dev/null",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "IdentitiesOnly=yes",
-		"-o", "BatchMode=yes",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "ConnectTimeout=10",
-		"-i", sshKey,
-		"-v",
-		"root@localhost",
-		"pwd",
+		// 将修改后的C文件编译为可执行文件
+		bn := filepath.Base(srcPath)
+		bn = strings.TrimSuffix(bn, ".c") + "-mr"
+		binPath := filepath.Join(outDir, bn)
+		buildProgram(nsrcSlice, binPath, compiler)
+		fmt.Printf("\rBuild binary contain MR: [%d/%d]", i+1, len(srcPaths))
+		binPaths = append(binPaths, binPath)
 	}
-	fmt.Printf("SSH command: ssh %s\n", strings.Join(sshArgs, " "))
-	cmd = exec.Command("ssh", sshArgs...)
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to communicate with QEMU via ssh: %v", err)
-	}
-	fmt.Printf("Successfully connected to QEMU via ssh on port %d\n", port)
+	fmt.Printf("\n\n")
+	return binPaths
+}
 
-	// 将syzkaller的hello文件拷贝到QEMU中, 测试用
-	scpArgs := []string{
-		"-P", "10021",
-		"-F", "/dev/null",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "IdentitiesOnly=yes",
-		"-o", "BatchMode=yes",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "ConnectTimeout=10",
-		"-i", sshKey,
-		"/home/radon/Documents/projects/kernel-driver-MR-identify/bin/hello",
-		"root@localhost:/hello",
-	}
-	cmd = exec.Command("scp", scpArgs...)
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	fmt.Printf("Run SCP command: scp %s\n", strings.Join(scpArgs, " "))
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to copy file to qemu: %v", err)
+// 在vm中运行所有可执行文件
+func runPrograms(binPaths []string) error {
+	// 创建VM实例
+	vm, err := create()
+	if err != nil {
+		return err
 	}
 
-	// 运行一下hello, 获取其输出
-	sshArgs = []string{
-		"-p", fmt.Sprint(port),
-		"-F", "/dev/null",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "IdentitiesOnly=yes",
-		"-o", "BatchMode=yes",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "ConnectTimeout=10",
-		"-i", sshKey,
-		"-v",
-		"root@localhost",
-		"/hello",
+	// 启动qemu
+	err = vm.qemu.boot()
+	if err != nil {
+		return err
 	}
-	cmd = exec.Command("ssh", sshArgs...)
-	tmp := cmd.Stdout
-	fmt.Printf("Run SSH command: ssh %s\n", strings.Join(sshArgs, " "))
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run hello via ssh: %v", err)
+
+	// 与qemu进行交互, 查看能否连接成功
+	time.Sleep(5 * time.Second)
+	_, _, err = vm.ssh.run("pwd")
+	if err != nil {
+		return err
 	}
-	fmt.Printf("Output of hello: %s\n", tmp)
+
+	// 将kcovtrace拷贝到qemu中
+	mtBin, _ := os.Executable()
+	kcovtraceBin := filepath.Join(filepath.Dir(mtBin), "kcovtrace")
+	err = vm.scp.run(kcovtraceBin, "localhost:/kcovtrace")
+	if err != nil {
+		return err
+	}
+
+	// 将所有可执行文件拷贝到qemu中
+	for _, binPath := range binPaths {
+		err = vm.scp.run(binPath, "/"+filepath.Base(binPath))
+		if err != nil {
+			return err
+		}
+	}
+
+	// 在qemu中运行所有可执行文件
+	for i, binPath := range binPaths {
+		fmt.Printf("\rRunning & Collecting pcs [%d/%d]", i+1, len(binPaths))
+
+		// 运行可执行文件
+		// FIXME: No file?
+		command := fmt.Sprintf("/kcovtrace /%s 2>&1", filepath.Base(binPath))
+		stdout, _, err := vm.ssh.run(command)
+		if err != nil {
+			return err
+		}
+
+		// 将PC写入文件
+		pcPath := binPath + "-pc"
+		err = os.WriteFile(pcPath, stdout.Bytes(), 0666)
+		if err != nil {
+			return fmt.Errorf("failed to write PC to file: %v", err)
+		}
+	}
+	fmt.Println("\n\nDone.")
 
 	return nil
 }
 
 func main() {
-	// 命令行参数相关变量
-	var (
-		flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
-		flagCSrc     = flag.String("csrc", "", "C source file (.c)")
-		flagCDir     = flag.String("cdir", "", "C source file directory (Conflicts with -csrc)")
-		flagOut      = flag.String("out", "", "Directory that stores binaries.")
-		flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
-	)
-
 	// 解析命令行参数
 	flag.Usage = func() {
 		fmt.Println("Description: Insert MR implementation into C source code")
@@ -268,44 +391,12 @@ func main() {
 		os.MkdirAll(*flagOut, 0755)
 	}
 
-	err := runQemu()
-	if err != nil {
-		panic(err)
-	}
-
 	// 获取C源代码文件路径, 加入srcPaths切片中
-	srcPaths := make([]string, 0)
-	if *flagCSrc != "" {
-		srcPaths = append(srcPaths, *flagCSrc)
-	} else {
-		// 获取目录下所有.c文件
-		files, err := os.ReadDir(*flagCDir)
-		if err != nil {
-			panic(err)
-		}
-		for _, file := range files {
-			if strings.HasSuffix(file.Name(), ".c") {
-				srcPaths = append(srcPaths, filepath.Join(*flagCDir, file.Name()))
-			}
-		}
-	}
+	srcPaths := getSrcPaths(*flagCDir)
 
 	// 遍历所有C源代码文件, 为每个文件插入MR实现并编译为可执行文件
-	for i, srcPath := range srcPaths {
-		// 获取main函数中系统调用行号切片
-		lSlice := getSyscallLinenos(srcPath)
-		lSlice = lSlice[3:] // 使用syz-prog2c后前3个系统调用固定是syscall(__NR_mmap, ...), 去掉前三个系统调用
-
-		// 将MR实现插入syzkaller生成的C代码中
-		nsrcSlice := insertMRImpl(srcPath, *flagMR, lSlice)
-
-		// 将修改后的C文件编译为可执行文件
-		bn := filepath.Base(srcPath)
-		bn = strings.TrimSuffix(bn, ".c") + "-mr"
-		binPath := filepath.Join(*flagOut, bn)
-		compiler := *flagCompiler
-		buildProgram(nsrcSlice, binPath, compiler)
-		fmt.Printf("\rBuild successfully: [%d/%d]", i+1, len(srcPaths))
+	binPaths := buildMRPrograms(srcPaths, *flagMR, *flagOut, *flagCompiler)
+	if err := runPrograms(binPaths); err != nil {
+		panic(err)
 	}
-	fmt.Println("\n\nAll done!")
 }
