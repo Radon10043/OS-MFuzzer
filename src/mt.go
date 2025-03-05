@@ -6,6 +6,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"math/rand/v2"
 	"os"
 	"os/exec"
@@ -88,8 +90,6 @@ func (qemu *Qemu) stop() error {
 
 // 重启Qemu
 func (qemu *Qemu) restart() error {
-	fmt.Printf("Restarting QEMU...\n")
-
 	// 停止Qemu
 	if err := qemu.stop(); err != nil {
 		return fmt.Errorf("failed to restart QEMU: %v", err)
@@ -323,7 +323,7 @@ func getSrcPaths(cDir string) []string {
 func buildMRPrograms(srcPaths []string, mrPath string, outDir string, compiler string) []string {
 	binPaths := make([]string, 0)
 	for i, srcPath := range srcPaths {
-		fmt.Printf("\r[%4d/%-4d] %-30s", i+1, len(srcPaths), "Build "+filepath.Base(srcPath)+" with MR")
+		log.Printf("Building %s with MR, progress: %4d/%-4d", filepath.Base(srcPath), i+1, len(srcPaths))
 
 		// 获取main函数中系统调用行号切片
 		lSlice := getSyscallLinenos(srcPath)
@@ -376,14 +376,14 @@ func runProgram(vm *VM, binPath string) error {
 // 在vm中运行所有可执行文件
 func runPrograms(binPaths []string) error {
 	// 创建VM实例
-	fmt.Printf("Creating VM...\n")
+	log.Printf("Creating VM instance")
 	vm, err := create()
 	if err != nil {
 		return err
 	}
 
 	// 启动qemu
-	fmt.Printf("Booting VM...\n")
+	log.Printf("Booting VM instance")
 	err = vm.qemu.boot()
 	if err != nil {
 		return err
@@ -394,14 +394,14 @@ func runPrograms(binPaths []string) error {
 
 	// 与qemu进行交互, 查看能否连接成功
 	time.Sleep(5 * time.Second)
-	fmt.Printf("Handshaking with VM...\n")
+	log.Printf("Handshaking with VM via ssh")
 	_, _, err = vm.ssh.run("pwd")
 	if err != nil {
 		return err
 	}
 
 	// 将kcovtrace拷贝到qemu中
-	fmt.Printf("Copy kcovtrace to VM...\n")
+	log.Printf("Copy kcovtrace binary to VM")
 	mtBin, _ := os.Executable()
 	kcovtraceBin := filepath.Join(filepath.Dir(mtBin), "kcovtrace")
 	err = vm.scp.run(kcovtraceBin, "localhost:/kcovtrace")
@@ -411,7 +411,7 @@ func runPrograms(binPaths []string) error {
 
 	// 在qemu中运行所有可执行文件
 	for i, binPath := range binPaths {
-		fmt.Printf("\r[%4d/%-4d] %-30s", i+1, len(binPaths), "Executing "+filepath.Base(binPath))
+		log.Printf("Executing %s, progress: %4d/%-4d", filepath.Base(binPath), i+1, len(binPaths))
 
 		// 尝试运行可执行文件3次
 		progPass := false
@@ -427,6 +427,7 @@ func runPrograms(binPaths []string) error {
 		if progPass {
 			continue
 		}
+		log.Printf("Restarting qemu and retrying %s", filepath.Base(binPath))
 		vm.qemu.restart()
 		time.Sleep(5 * time.Second)
 		if _, _, err := vm.ssh.run("pwd"); err != nil {
@@ -443,10 +444,10 @@ func runPrograms(binPaths []string) error {
 
 		// 仍然失败, 跳过这个测试用例, 打印信息
 		if !progPass {
-			fmt.Printf("\nShit, Failed to run %s\n", filepath.Base(binPath))
+			log.Printf("Shit, run %s failed, skip it.", filepath.Base(binPath))
 		}
 	}
-	fmt.Printf("\nDone.\n")
+	log.Printf("Finish running.")
 
 	return nil
 }
@@ -478,9 +479,21 @@ func main() {
 		os.RemoveAll(*flagOut)
 	}
 	os.Mkdir(*flagOut, 0777)
-	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)
-	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777)
-	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)
+	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
+	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
+	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+
+	// 设置日志文件
+	logPath := filepath.Join(*flagOut, "run.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	multiWriter := io.MultiWriter(os.Stdout, logFile) // 多路输出, 同时输出到标准输出和日志文件
+	log.SetOutput(multiWriter)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.Printf("Start running.")
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
 	srcPaths := make([]string, 0)
