@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -73,13 +74,23 @@ func (qemu *Qemu) boot() error {
 // 运行SSH命令, 返回标准输出, 标准错误和错误
 func (ssh *SSH) run(command string) (bytes.Buffer, bytes.Buffer, error) {
 	var stdout, stderr bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 设置SSH命令参数并运行
 	sshArgs := append(ssh.args, command)
-	cmd := exec.Command(ssh.bin, sshArgs...)
+	cmd := exec.CommandContext(ctx, ssh.bin, sshArgs...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+
+	// 命令运行超时
+	if ctx.Err() == context.DeadlineExceeded {
+		// Timeout, it's ok
+	} else if err != nil {
 		return stdout, stderr, fmt.Errorf("failed to run SSH command: %v", err)
 	}
+
 	return stdout, stderr, nil
 }
 
@@ -299,19 +310,21 @@ func buildMRPrograms(srcPaths []string, mrPath string, outDir string, compiler s
 		fmt.Printf("\rBuild binary contain MR: [%d/%d]", i+1, len(srcPaths))
 		binPaths = append(binPaths, binPath)
 	}
-	fmt.Printf("\n\n")
+	fmt.Printf("\n")
 	return binPaths
 }
 
 // 在vm中运行所有可执行文件
 func runPrograms(binPaths []string) error {
 	// 创建VM实例
+	fmt.Printf("Creating VM...\n")
 	vm, err := create()
 	if err != nil {
 		return err
 	}
 
 	// 启动qemu
+	fmt.Printf("Booting VM...\n")
 	err = vm.qemu.boot()
 	if err != nil {
 		return err
@@ -319,12 +332,14 @@ func runPrograms(binPaths []string) error {
 
 	// 与qemu进行交互, 查看能否连接成功
 	time.Sleep(5 * time.Second)
+	fmt.Printf("Handshaking with VM...\n")
 	_, _, err = vm.ssh.run("pwd")
 	if err != nil {
 		return err
 	}
 
 	// 将kcovtrace拷贝到qemu中
+	fmt.Printf("Copy kcovtrace to VM...\n")
 	mtBin, _ := os.Executable()
 	kcovtraceBin := filepath.Join(filepath.Dir(mtBin), "kcovtrace")
 	err = vm.scp.run(kcovtraceBin, "localhost:/kcovtrace")
@@ -332,20 +347,17 @@ func runPrograms(binPaths []string) error {
 		return err
 	}
 
-	// 将所有可执行文件拷贝到qemu中
-	for _, binPath := range binPaths {
-		err = vm.scp.run(binPath, "/"+filepath.Base(binPath))
+	// 在qemu中运行所有可执行文件
+	for i, binPath := range binPaths {
+		fmt.Printf("\rCopy, execute, and collect [%d/%d]", i+1, len(binPaths))
+
+		// 拷贝可执行文件到qemu中
+		err = vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
 		if err != nil {
 			return err
 		}
-	}
-
-	// 在qemu中运行所有可执行文件
-	for i, binPath := range binPaths {
-		fmt.Printf("\rRunning & Collecting pcs [%d/%d]", i+1, len(binPaths))
 
 		// 运行可执行文件
-		// FIXME: No file?
 		command := fmt.Sprintf("/kcovtrace /%s 2>&1", filepath.Base(binPath))
 		stdout, _, err := vm.ssh.run(command)
 		if err != nil {
@@ -353,13 +365,19 @@ func runPrograms(binPaths []string) error {
 		}
 
 		// 将PC写入文件
-		pcPath := binPath + "-pc"
+		pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
 		err = os.WriteFile(pcPath, stdout.Bytes(), 0666)
 		if err != nil {
 			return fmt.Errorf("failed to write PC to file: %v", err)
 		}
+
+		// 删除可执行文件
+		_, _, err = vm.ssh.run("rm /" + filepath.Base(binPath))
+		if err != nil {
+			return err
+		}
 	}
-	fmt.Println("\n\nDone.")
+	fmt.Printf("\n\nDone.")
 
 	return nil
 }
@@ -386,16 +404,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 若out目录不存在则递归创建
-	if _, err := os.Stat(*flagOut); os.IsNotExist(err) {
-		os.MkdirAll(*flagOut, 0755)
+	// 删除原先的out目录, 创建新的out目录
+	if _, err := os.Stat(*flagOut); err == nil {
+		os.RemoveAll(*flagOut)
 	}
+	os.Mkdir(*flagOut, 0777)
+	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777)
+	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
 	srcPaths := getSrcPaths(*flagCDir)
 
 	// 遍历所有C源代码文件, 为每个文件插入MR实现并编译为可执行文件
-	binPaths := buildMRPrograms(srcPaths, *flagMR, *flagOut, *flagCompiler)
+	binOutPath := filepath.Join(*flagOut, "binaries")
+	binPaths := buildMRPrograms(srcPaths, *flagMR, binOutPath, *flagCompiler)
 	if err := runPrograms(binPaths); err != nil {
 		panic(err)
 	}
