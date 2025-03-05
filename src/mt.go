@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ type Qemu struct {
 	args []string // qemu启动参数
 	pid  int      // qemu进程ID
 	pidf string   // qemu进程ID文件路径
+	inst exec.Cmd // qemu进程实例
 }
 
 type SSH struct {
@@ -56,7 +58,6 @@ var (
 
 // 启动qemu
 func (qemu *Qemu) boot() error {
-	// 启动qemu
 	cmd := exec.Command(qemu.bin, qemu.args...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start QEMU: %v", err)
@@ -65,9 +66,40 @@ func (qemu *Qemu) boot() error {
 	// 将qemu进程ID写入文件
 	qemu.pid = cmd.Process.Pid
 	qemu.pidf = filepath.Join(*flagOut, "qemu.pid")
+	qemu.inst = *cmd
 	if err := os.WriteFile(qemu.pidf, []byte(fmt.Sprint(qemu.pid)), 0666); err != nil {
 		return fmt.Errorf("failed to write QEMU PID to file: %v", err)
 	}
+	return nil
+}
+
+// 停止Qemu
+func (qemu *Qemu) stop() error {
+	// 杀死QEMU进程
+	err := qemu.inst.Process.Kill()
+	if err != nil {
+		return fmt.Errorf("failed to stop QEMU: %v", err)
+	}
+
+	// 等待资源释放
+	qemu.inst.Wait()
+	return nil
+}
+
+// 重启Qemu
+func (qemu *Qemu) restart() error {
+	fmt.Printf("Restarting QEMU...\n")
+
+	// 停止Qemu
+	if err := qemu.stop(); err != nil {
+		return fmt.Errorf("failed to restart QEMU: %v", err)
+	}
+
+	// 启动Qemu
+	if err := qemu.boot(); err != nil {
+		return fmt.Errorf("failed to restart QEMU: %v", err)
+	}
+
 	return nil
 }
 
@@ -96,8 +128,11 @@ func (ssh *SSH) run(command string) (bytes.Buffer, bytes.Buffer, error) {
 
 // 运行SCP命令, 将src路径文件拷贝到dst路径
 func (scp *SCP) run(src string, dst string) error {
+	var stdout, stderr bytes.Buffer
 	scpArgs := append(scp.args, src, dst)
 	cmd := exec.Command(scp.bin, scpArgs...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run SCP command: %v", err)
 	}
@@ -255,19 +290,12 @@ func insertMRImpl(csrcPath string, mrPath string, lSlice []int) []byte {
 //	compiler: 编译器
 func buildProgram(srcSlice []byte, binPath string, compiler string) {
 	// 写入修改后的C代码
-	cPath := binPath + ".c"
+	bn := filepath.Base(binPath)
+	cPath := filepath.Join(*flagOut, "csrc", bn+".c")
 	err := os.WriteFile(cPath, srcSlice, 0666)
 	if err != nil {
 		panic(err)
 	}
-
-	// 延迟删除插入MR后的源文件
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-		os.Remove(cPath)
-	}()
 
 	// 编译新的C代码为可执行文件
 	_, err = exec.Command(compiler, "-static", "-o", binPath, cPath).Output()
@@ -295,6 +323,8 @@ func getSrcPaths(cDir string) []string {
 func buildMRPrograms(srcPaths []string, mrPath string, outDir string, compiler string) []string {
 	binPaths := make([]string, 0)
 	for i, srcPath := range srcPaths {
+		fmt.Printf("\r[%4d/%-4d] %-30s", i+1, len(srcPaths), "Build "+filepath.Base(srcPath)+" with MR")
+
 		// 获取main函数中系统调用行号切片
 		lSlice := getSyscallLinenos(srcPath)
 		lSlice = lSlice[3:] // 使用syz-prog2c后前3个系统调用固定是syscall(__NR_mmap, ...), 去掉前三个系统调用
@@ -307,11 +337,40 @@ func buildMRPrograms(srcPaths []string, mrPath string, outDir string, compiler s
 		bn = strings.TrimSuffix(bn, ".c") + "-mr"
 		binPath := filepath.Join(outDir, bn)
 		buildProgram(nsrcSlice, binPath, compiler)
-		fmt.Printf("\rBuild binary contain MR: [%d/%d]", i+1, len(srcPaths))
 		binPaths = append(binPaths, binPath)
 	}
 	fmt.Printf("\n")
 	return binPaths
+}
+
+func runProgram(vm *VM, binPath string) error {
+	// 拷贝可执行文件到qemu中
+	err := vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
+	if err != nil {
+		return err
+	}
+
+	// 运行可执行文件
+	command := fmt.Sprintf("/kcovtrace /%s 2>&1", filepath.Base(binPath))
+	stdout, _, err := vm.ssh.run(command)
+	if err != nil {
+		return err
+	}
+
+	// 将PC写入文件
+	pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
+	err = os.WriteFile(pcPath, stdout.Bytes(), 0666)
+	if err != nil {
+		return fmt.Errorf("failed to write PC to file\n%v", err)
+	}
+
+	// 删除可执行文件
+	_, _, err = vm.ssh.run("rm /" + filepath.Base(binPath))
+	if err != nil {
+		return fmt.Errorf("failed to delete %s in vm\n%v", filepath.Base(binPath), err)
+	}
+
+	return nil
 }
 
 // 在vm中运行所有可执行文件
@@ -329,6 +388,9 @@ func runPrograms(binPaths []string) error {
 	if err != nil {
 		return err
 	}
+
+	// 函数终止时关闭qemu
+	defer vm.qemu.stop()
 
 	// 与qemu进行交互, 查看能否连接成功
 	time.Sleep(5 * time.Second)
@@ -349,35 +411,42 @@ func runPrograms(binPaths []string) error {
 
 	// 在qemu中运行所有可执行文件
 	for i, binPath := range binPaths {
-		fmt.Printf("\rCopy, execute, and collect [%d/%d]", i+1, len(binPaths))
+		fmt.Printf("\r[%4d/%-4d] %-30s", i+1, len(binPaths), "Executing "+filepath.Base(binPath))
 
-		// 拷贝可执行文件到qemu中
-		err = vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
-		if err != nil {
-			return err
+		// 尝试运行可执行文件3次
+		progPass := false
+		for j := 0; j < 3; j++ {
+			err = runProgram(vm, binPath)
+			if err == nil {
+				progPass = true
+				break
+			}
 		}
 
-		// 运行可执行文件
-		command := fmt.Sprintf("/kcovtrace /%s 2>&1", filepath.Base(binPath))
-		stdout, _, err := vm.ssh.run(command)
-		if err != nil {
-			return err
+		// 成功了, 继续下一个测试用例; 失败了, 重启qemu后再尝试3次
+		if progPass {
+			continue
+		}
+		vm.qemu.restart()
+		time.Sleep(5 * time.Second)
+		if _, _, err := vm.ssh.run("pwd"); err != nil {
+			return fmt.Errorf("failed to handshake with VM after restart: %v", err)
 		}
 
-		// 将PC写入文件
-		pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
-		err = os.WriteFile(pcPath, stdout.Bytes(), 0666)
-		if err != nil {
-			return fmt.Errorf("failed to write PC to file: %v", err)
+		for j := 0; j < 3; j++ {
+			err = runProgram(vm, binPath)
+			if err == nil {
+				progPass = true
+				break
+			}
 		}
 
-		// 删除可执行文件
-		_, _, err = vm.ssh.run("rm /" + filepath.Base(binPath))
-		if err != nil {
-			return err
+		// 仍然失败, 跳过这个测试用例, 打印信息
+		if !progPass {
+			fmt.Printf("\nShit, Failed to run %s\n", filepath.Base(binPath))
 		}
 	}
-	fmt.Printf("\n\nDone.")
+	fmt.Printf("\nDone.\n")
 
 	return nil
 }
@@ -409,11 +478,23 @@ func main() {
 		os.RemoveAll(*flagOut)
 	}
 	os.Mkdir(*flagOut, 0777)
+	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)
 	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777)
 	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
-	srcPaths := getSrcPaths(*flagCDir)
+	srcPaths := make([]string, 0)
+	if *flagCSrc != "" {
+		srcPaths = append(srcPaths, *flagCSrc)
+	} else {
+		srcPaths = getSrcPaths(*flagCDir)
+	}
+	slices.SortFunc(srcPaths, func(a, b string) int {
+		if len(a) == len(b) {
+			return strings.Compare(a, b)
+		}
+		return len(a) - len(b)
+	})
 
 	// 遍历所有C源代码文件, 为每个文件插入MR实现并编译为可执行文件
 	binOutPath := filepath.Join(*flagOut, "binaries")
