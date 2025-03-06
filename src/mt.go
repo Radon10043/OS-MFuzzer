@@ -53,6 +53,7 @@ var (
 	flagOut       = flag.String("out", "", "Directory that stores binaries.")
 	flagCompiler  = flag.String("compiler", "gcc", "Compiler to use")
 	flagKernelObj = flag.String("kernelObj", "", "Kernel object directory")
+	// flagSkipMR    = flag.Bool("skipMR", false, "Skip MR insertion")
 )
 
 // 全局变量
@@ -361,12 +362,12 @@ func runProgram(vm *VM, binPath string) error {
 
 	// 将PC写入文件
 	pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
-	fp, err := os.Create(pcPath)
+	fd, err := os.Create(pcPath)
 	if err != nil {
 		return err
 	}
 	for pc := range pcsMap {
-		_, err := fp.WriteString(pc + "\n")
+		_, err := fd.WriteString(pc + "\n")
 		if err != nil {
 			return err
 		}
@@ -597,13 +598,13 @@ func loop(vm *VM, srcPaths []string) error {
 		// 将程序的覆盖信息分别存储至cov文件夹下
 		covFn := binFn + "-cov"
 		covPath := filepath.Join(*flagOut, "cov", covFn)
-		fp, err := os.Create(covPath)
+		fd, err := os.Create(covPath)
 		if err != nil {
 			return err
 		}
 		for elem := range cov {
 			coverageMap[elem] = struct{}{} // 更新全局覆盖
-			_, err := fp.WriteString(elem + "\n")
+			_, err := fd.WriteString(elem + "\n")
 			if err != nil {
 				return err
 			}
@@ -613,12 +614,12 @@ func loop(vm *VM, srcPaths []string) error {
 	// 将全局覆盖存储至本地
 	log.Printf("Saving global coverage ...")
 	path := filepath.Join(*flagOut, "globalCov.txt")
-	fp, err := os.Create(path)
+	fd, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	for elem := range coverageMap {
-		_, err := fp.WriteString(elem + "\n")
+		_, err := fd.WriteString(elem + "\n")
 		if err != nil {
 			return err
 		}
