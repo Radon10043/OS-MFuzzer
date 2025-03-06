@@ -421,16 +421,15 @@ func initVM() (*VM, error) {
 // Parameters:
 //
 //	logPath: 日志文件路径
-func setLog(logPath string) error {
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+func setLog(logPath string) (*os.File, error) {
+	logFd, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
+		return nil, err
 	}
-	defer logFile.Close()
-	multiWriter := io.MultiWriter(os.Stdout, logFile) // 多路输出, 同时输出到标准输出和日志文件
+	multiWriter := io.MultiWriter(os.Stdout, logFd) // 多路输出, 同时输出到标准输出和日志文件
 	log.SetOutput(multiWriter)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	return nil
+	return logFd, nil
 }
 
 // 读取pc, 收集覆盖了的对应的源码行
@@ -656,10 +655,13 @@ func main() {
 
 	// 设置日志文件
 	logPath := filepath.Join(*flagOut, "run.log")
-	if err := setLog(logPath); err != nil {
+	logFd, err := setLog(logPath)
+	if err != nil {
 		log.Fatalf("Failed to set log file: %v", err)
 		panic(err)
 	}
+	log.Printf("Get ready to start.")
+	defer logFd.Close()
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
 	srcPaths, err := listFiles(*flagDir, ".c")
