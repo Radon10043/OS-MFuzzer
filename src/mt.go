@@ -543,7 +543,7 @@ func main() {
 	// 启动一个虚拟机
 	vm, err := initVM()
 	if err != nil {
-		log.Fatalf("Failed to boot VM: %v", err)
+		log.Fatalf("Failed to init VM: %v", err)
 		panic(err)
 	}
 	defer vm.qemu.stop() // 程序退出时关闭vm
