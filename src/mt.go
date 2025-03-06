@@ -47,8 +47,7 @@ type VM struct {
 // 命令行参数相关变量
 var (
 	flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
-	flagCSrc     = flag.String("csrc", "", "C source file (.c)")
-	flagCDir     = flag.String("cdir", "", "C source file directory (Conflicts with -csrc)")
+	flagDir      = flag.String("cdir", "", "C source file directory")
 	flagOut      = flag.String("out", "", "Directory that stores binaries.")
 	flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
 )
@@ -315,19 +314,20 @@ func buildProgram(srcPath string, binPath string, compiler string) error {
 	return nil
 }
 
-// 获取目录下所有.c文件, 返回文件路径切片
-func getSrcPaths(cDir string) []string {
-	files, err := os.ReadDir(cDir)
+// 列出目录下所有指定后缀名的文件
+func listFiles(dir string, extname string) ([]string, error) {
+	files, err := os.ReadDir(dir)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
-	srcPaths := make([]string, 0)
+	fps := make([]string, 0) // File Paths
 	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".c") {
-			srcPaths = append(srcPaths, filepath.Join(cDir, file.Name()))
+		if file.IsDir() || filepath.Ext(file.Name()) != extname {
+			continue
 		}
+		fps = append(fps, filepath.Join(dir, file.Name()))
 	}
-	return srcPaths
+	return fps, nil
 }
 
 func runProgram(vm *VM, binPath string) error {
@@ -395,71 +395,34 @@ func initVM() (*VM, error) {
 	return vm, nil
 }
 
-func main() {
-	// 解析命令行参数
-	flag.Usage = func() {
-		fmt.Println("Description: Insert MR implementation into C source code")
-		fmt.Println("Usage: test [options]")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-
-	// 检查命令行参数, 若不符合要求则退出程序
-	if *flagMR == "" || (*flagCSrc == "" && *flagCDir == "") || *flagOut == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// 检查-csrc和-cdir参数是否同时存在
-	if *flagCSrc != "" && *flagCDir != "" {
-		fmt.Println("Error: -csrc and -cdir cannot be used together")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// 删除原先的out目录, 创建新的out目录
-	if _, err := os.Stat(*flagOut); err == nil {
-		os.RemoveAll(*flagOut)
-	}
-	os.Mkdir(*flagOut, 0777)
-	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
-	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
-	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
-
-	// 设置日志文件
-	logPath := filepath.Join(*flagOut, "run.log")
+// 配置日志文件
+//
+// Parameters:
+//
+//	logPath: 日志文件路径
+func setLog(logPath string) error {
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to open log file: %w", err)
 	}
 	defer logFile.Close()
 	multiWriter := io.MultiWriter(os.Stdout, logFile) // 多路输出, 同时输出到标准输出和日志文件
 	log.SetOutput(multiWriter)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	log.Printf("Start running.")
+	return nil
+}
 
-	// 获取C源代码文件路径, 加入srcPaths切片中
-	srcPaths := make([]string, 0)
-	if *flagCSrc != "" {
-		srcPaths = append(srcPaths, *flagCSrc)
-	} else {
-		srcPaths = getSrcPaths(*flagCDir)
-	}
-	slices.SortFunc(srcPaths, func(a, b string) int {
-		if len(a) == len(b) {
-			return strings.Compare(a, b)
-		}
-		return len(a) - len(b)
-	})
-
-	// 启动一个虚拟机
-	vm, err := initVM()
-	if err != nil {
-		log.Fatalf("Failed to boot VM: %v", err)
-		panic(err)
-	}
-	defer vm.qemu.stop()
-
+// 循环遍历每个源码文件, 插入MR->编译->运行
+//
+// Parameters:
+//
+//	vm: VM实例
+//	srcPaths: 源码文件路径切片
+//
+// Returns:
+//
+//	若成功, 返回nil; 否则返回错误信息
+func loop(vm *VM, srcPaths []string) error {
 	// 遍历每个源码路径, 插入MR->编译->运行
 	for i, srcPath := range srcPaths {
 		log.Printf("Insert, build, and execute. Source file: %s. Progress %d/%d.", filepath.Base(srcPath), i+1, len(srcPaths))
@@ -469,10 +432,10 @@ func main() {
 		nSrcFn := strings.TrimSuffix(filepath.Base(srcPath), ".c") + "-mr.c" // New Source Filename
 		nPath := filepath.Join(*flagOut, "csrc", nSrcFn)
 		nSrc := insertMRImpl(srcPath, *flagMR)
-		err = writeFile(nSrc, nPath)
+		err := writeFile(nSrc, nPath)
 		if err != nil {
 			log.Fatalf("Failed to insert MR into %s: %v", filepath.Base(srcPath), err)
-			panic(err)
+			return fmt.Errorf("failed to insert MR into %s: %w", filepath.Base(srcPath), err)
 		}
 
 		// 编译新的C代码为可执行文件
@@ -482,7 +445,7 @@ func main() {
 		err = buildProgram(nPath, binPath, *flagCompiler)
 		if err != nil {
 			log.Fatalf("Failed to build %s: %v", binFn, err)
-			panic(err)
+			return fmt.Errorf("failed to build %s: %w", binFn, err)
 		}
 
 		// 将编译后的可执行文件复制到vm
@@ -530,4 +493,64 @@ func main() {
 		}
 	}
 	log.Printf("All done.")
+	return nil
+}
+
+func main() {
+	// 解析命令行参数
+	flag.Usage = func() {
+		fmt.Println("Description: Insert MR implementation into C source code")
+		fmt.Println("Usage: test [options]")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+
+	// 检查命令行参数, 若不符合要求则退出程序
+	if *flagMR == "" || *flagDir == "" || *flagOut == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// 删除原先的out目录, 创建新的out目录
+	if _, err := os.Stat(*flagOut); err == nil {
+		os.RemoveAll(*flagOut)
+	}
+	os.Mkdir(*flagOut, 0777)
+	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
+	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
+	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+
+	// 设置日志文件
+	logPath := filepath.Join(*flagOut, "run.log")
+	if err := setLog(logPath); err != nil {
+		log.Fatalf("Failed to set log file: %v", err)
+		panic(err)
+	}
+
+	// 获取C源代码文件路径, 加入srcPaths切片中
+	srcPaths, err := listFiles(*flagDir, ".c")
+	if err != nil {
+		log.Fatalf("Failed to list C source files: %v", err)
+		panic(err)
+	}
+	slices.SortFunc(srcPaths, func(a, b string) int {
+		if len(a) == len(b) {
+			return strings.Compare(a, b)
+		}
+		return len(a) - len(b)
+	})
+
+	// 启动一个虚拟机
+	vm, err := initVM()
+	if err != nil {
+		log.Fatalf("Failed to boot VM: %v", err)
+		panic(err)
+	}
+	defer vm.qemu.stop() // 程序退出时关闭vm
+
+	// 循环遍历每个源码文件, 插入MR->编译->运行
+	err = loop(vm, srcPaths)
+	if err != nil {
+		panic(err)
+	}
 }
