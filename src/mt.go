@@ -612,7 +612,7 @@ func loop(vm *VM, srcPaths []string) error {
 
 	// 将全局覆盖存储至本地
 	log.Printf("Saving global coverage ...")
-	path := filepath.Join(*flagOut, "globalCov.txt")
+	path := filepath.Join(*flagOut, "globalCov")
 	fd, err := os.Create(path)
 	if err != nil {
 		return err
