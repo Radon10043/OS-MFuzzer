@@ -53,7 +53,6 @@ var (
 	flagOut       = flag.String("out", "", "Directory that stores binaries.")
 	flagCompiler  = flag.String("compiler", "gcc", "Compiler to use")
 	flagKernelObj = flag.String("kernelObj", "", "Kernel object directory")
-	// flagSkipMR    = flag.Bool("skipMR", false, "Skip MR insertion")
 )
 
 // 全局变量
