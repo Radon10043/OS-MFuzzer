@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"flag"
@@ -15,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/seehuhn/mt19937"
@@ -46,10 +48,11 @@ type VM struct {
 
 // 命令行参数相关变量
 var (
-	flagMR       = flag.String("mr", "", "MR Implementation file (.h)")
-	flagDir      = flag.String("cdir", "", "C source file directory")
-	flagOut      = flag.String("out", "", "Directory that stores binaries.")
-	flagCompiler = flag.String("compiler", "gcc", "Compiler to use")
+	flagMR        = flag.String("mr", "", "MR Implementation file (.h)")
+	flagDir       = flag.String("cdir", "", "C source file directory")
+	flagOut       = flag.String("out", "", "Directory that stores binaries.")
+	flagCompiler  = flag.String("compiler", "gcc", "Compiler to use")
+	flagKernelObj = flag.String("kernelObj", "", "Kernel object directory")
 )
 
 // 全局变量
@@ -330,6 +333,7 @@ func listFiles(dir string, extname string) ([]string, error) {
 	return fps, nil
 }
 
+// 运行可执行文件, 获得pc, 去重后保存至本地
 func runProgram(vm *VM, binPath string) error {
 	// 拷贝可执行文件到qemu中
 	err := vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
@@ -344,17 +348,34 @@ func runProgram(vm *VM, binPath string) error {
 		return err
 	}
 
+	// 获得的PC存在大量重复, 进行去重
+	pcs := strings.Split(stdout.String(), "\n")
+	pcsMap := make(map[string]struct{})
+	for _, pc := range pcs {
+		// 仅保留以0xff开头的行
+		if !strings.HasPrefix(pc, "0xff") {
+			continue
+		}
+		pcsMap[pc] = struct{}{}
+	}
+
 	// 将PC写入文件
 	pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
-	err = os.WriteFile(pcPath, stdout.Bytes(), 0666)
+	fp, err := os.Create(pcPath)
 	if err != nil {
-		return fmt.Errorf("failed to write PC to file: %w", err)
+		return err
+	}
+	for pc := range pcsMap {
+		_, err := fp.WriteString(pc + "\n")
+		if err != nil {
+			return err
+		}
 	}
 
 	// 删除可执行文件
 	_, _, err = vm.ssh.run("rm /" + filepath.Base(binPath))
 	if err != nil {
-		return fmt.Errorf("failed to delete %s in vm: %w", filepath.Base(binPath), err)
+		return err
 	}
 
 	return nil
@@ -412,6 +433,76 @@ func setLog(logPath string) error {
 	return nil
 }
 
+// 读取pc, 收集覆盖了的对应的源码行
+func collectCov(pcFile string, kernelObj string) (map[string]struct{}, error) {
+	vmlinuxBin := filepath.Join(kernelObj, "vmlinux")
+	addr2lineBin := "llvm-addr2line"
+	addr2lineArgs := []string{"-e", vmlinuxBin}
+	cov := make(map[string]struct{})
+
+	// 读取文件, 获取PC
+	bSlice, err := os.ReadFile(pcFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read pc file: %w", err)
+	}
+	pcs := strings.Split(string(bSlice), "\n")
+
+	// 调用addr2line, 获取覆盖的源码行
+	cmd := exec.Command(addr2lineBin, addr2lineArgs...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start addr2line: %w", err)
+	}
+
+	// 异步读取标准输出
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// 单独开一个goroutine读取标准输出
+	outputCh := make(chan string)
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			outputCh <- scanner.Text()
+		}
+		close(outputCh)
+	}()
+
+	// 将pc写入stdin, 获取覆盖的源码行
+	for _, pc := range pcs {
+		if _, err = fmt.Fprintln(stdin, pc); err != nil {
+			return nil, fmt.Errorf("failed to write pc to stdin: %w", err)
+		}
+		out, ok := <-outputCh
+		if !ok {
+			log.Printf("output channel closed")
+		}
+		cov[out] = struct{}{}
+	}
+
+	// 关闭stdin, 等待cmd结束
+	stdin.Close()
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to wait for addr2line: %w", err)
+	}
+
+	// 等待goroutine结束
+	wg.Wait()
+
+	// 将覆盖的源码行写入map
+	return cov, nil
+}
+
 // 循环遍历每个源码文件, 插入MR->编译->运行
 //
 // Parameters:
@@ -423,16 +514,20 @@ func setLog(logPath string) error {
 //
 //	若成功, 返回nil; 否则返回错误信息
 func loop(vm *VM, srcPaths []string) error {
+	coverageMap := make(map[string]struct{}) // 总体覆盖
+
 	// 遍历每个源码路径, 插入MR->编译->运行
 	for i, srcPath := range srcPaths {
 		log.Printf("Insert, build, and execute. Source file: %s. Progress %d/%d.", filepath.Base(srcPath), i+1, len(srcPaths))
 
 		// 将MR插入源文件
 		log.Printf("Inserting ...")
-		nSrcFn := strings.TrimSuffix(filepath.Base(srcPath), ".c") + "-mr.c" // New Source Filename
-		nPath := filepath.Join(*flagOut, "csrc", nSrcFn)
-		nSrc := insertMRImpl(srcPath, *flagMR)
-		err := writeFile(nSrc, nPath)
+		srcFn := filepath.Base(srcPath)                              // Source Filename
+		srcFnNoExt := strings.TrimSuffix(srcFn, filepath.Ext(srcFn)) // Source Filename without Extension
+		nSrcFn := srcFnNoExt + "-mr.c"                               // New Source Filename
+		nSrcPath := filepath.Join(*flagOut, "csrc", nSrcFn)          // New Souce Path
+		nSrc := insertMRImpl(srcPath, *flagMR)                       // New Source (code)
+		err := writeFile(nSrc, nSrcPath)
 		if err != nil {
 			log.Fatalf("Failed to insert MR into %s: %v", filepath.Base(srcPath), err)
 			return fmt.Errorf("failed to insert MR into %s: %w", filepath.Base(srcPath), err)
@@ -440,9 +535,9 @@ func loop(vm *VM, srcPaths []string) error {
 
 		// 编译新的C代码为可执行文件
 		log.Printf("Building ...")
-		binFn := strings.TrimSuffix(filepath.Base(srcPath), ".c") + "-mr" // Binary Filename
-		binPath := filepath.Join(*flagOut, "binaries", binFn)
-		err = buildProgram(nPath, binPath, *flagCompiler)
+		binFn := srcFnNoExt + "-mr"                           // Binary Filename
+		binPath := filepath.Join(*flagOut, "binaries", binFn) // Binary Path
+		err = buildProgram(nSrcPath, binPath, *flagCompiler)
 		if err != nil {
 			log.Fatalf("Failed to build %s: %v", binFn, err)
 			return fmt.Errorf("failed to build %s: %w", binFn, err)
@@ -467,23 +562,22 @@ func loop(vm *VM, srcPaths []string) error {
 			}
 		}
 
-		// 成功了, 继续下一个测试用例; 失败了, 重启qemu后再尝试3次
-		if pass {
-			continue
-		}
-		log.Printf("Restarting qemu and retrying %s", filepath.Base(binPath))
-		vm.qemu.restart()
-		time.Sleep(5 * time.Second)
-		if _, _, err := vm.ssh.run("pwd"); err != nil {
-			log.Fatalf("Failed to handshake with VM after restart: %v", err)
-			panic(err)
-		}
+		// 成功了, 继续下一步; 失败了, 重启qemu后再尝试3次
+		if !pass {
+			log.Printf("Restarting qemu and retrying %s", filepath.Base(binPath))
+			vm.qemu.restart()
+			time.Sleep(5 * time.Second)
+			if _, _, err := vm.ssh.run("pwd"); err != nil {
+				log.Fatalf("Failed to handshake with VM after restart: %v", err)
+				panic(err)
+			}
 
-		for j := 0; j < 3; j++ {
-			err = runProgram(vm, binPath)
-			if err == nil {
-				pass = true
-				break
+			for j := 0; j < 3; j++ {
+				err = runProgram(vm, binPath)
+				if err == nil {
+					pass = true
+					break
+				}
 			}
 		}
 
@@ -491,7 +585,46 @@ func loop(vm *VM, srcPaths []string) error {
 		if !pass {
 			log.Printf("Shit, run %s failed, skip it.", filepath.Base(binPath))
 		}
+
+		// 收集覆盖信息
+		log.Printf("Collecting coverage ...")
+		pcFile := filepath.Join(*flagOut, "pc", binFn+"-pc")
+		cov, err := collectCov(pcFile, *flagKernelObj)
+		if err != nil {
+			log.Fatalf("Failed to collect coverage for %s: %v", pcFile, err)
+			return fmt.Errorf("failed to collect coverage for %s: %w", pcFile, err)
+		}
+
+		// 将程序的覆盖信息分别存储至cov文件夹下
+		covFn := binFn + "-cov"
+		covPath := filepath.Join(*flagOut, "cov", covFn)
+		fp, err := os.Create(covPath)
+		if err != nil {
+			return err
+		}
+		for elem := range cov {
+			coverageMap[elem] = struct{}{} // 更新全局覆盖
+			_, err := fp.WriteString(elem + "\n")
+			if err != nil {
+				return err
+			}
+		}
 	}
+
+	// 将全局覆盖存储至本地
+	log.Printf("Saving global coverage ...")
+	path := filepath.Join(*flagOut, "globalCov.txt")
+	fp, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	for elem := range coverageMap {
+		_, err := fp.WriteString(elem + "\n")
+		if err != nil {
+			return err
+		}
+	}
+
 	log.Printf("All done.")
 	return nil
 }
@@ -506,7 +639,7 @@ func main() {
 	flag.Parse()
 
 	// 检查命令行参数, 若不符合要求则退出程序
-	if *flagMR == "" || *flagDir == "" || *flagOut == "" {
+	if *flagMR == "" || *flagDir == "" || *flagOut == "" || *flagKernelObj == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -519,6 +652,7 @@ func main() {
 	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
 	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
 	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+	os.Mkdir(filepath.Join(*flagOut, "cov"), 0777)      // 存储覆盖代码行的文件夹
 
 	// 设置日志文件
 	logPath := filepath.Join(*flagOut, "run.log")
