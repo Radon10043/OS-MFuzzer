@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -21,6 +22,16 @@ import (
 
 	"github.com/seehuhn/mt19937"
 )
+
+type Config struct {
+	MetaRel  string `json:"meta_rel"`           // MR实现文件路径
+	Cdir     string `json:"cdir"`               // C源代码文件目录
+	Out      string `json:"out"`                // 输出文件目录
+	Kernel   string `json:"kernel"`             // 内核对象目录
+	Compiler string `json:"compiler,omitempty"` // 编译器
+	Image    string `json:"image"`              // 镜像文件路径
+	SSHKey   string `json:"sshkey"`             // ssh密钥文件路径
+}
 
 type Qemu struct {
 	bin  string   // qemu-system-x86_64
@@ -48,17 +59,39 @@ type VM struct {
 
 // 命令行参数相关变量
 var (
-	flagMR        = flag.String("mr", "", "MR Implementation file (.h)")
-	flagDir       = flag.String("cdir", "", "C source file directory")
-	flagOut       = flag.String("out", "", "Directory that stores binaries.")
-	flagCompiler  = flag.String("compiler", "gcc", "Compiler to use")
-	flagKernelObj = flag.String("kernelObj", "", "Kernel object directory")
+	flagConfig = flag.String("config", "", "Configuration file")
 )
 
 // 全局变量
 var (
-	rng = rand.New(mt19937.New()) // 随机数生成器
+	rng    = rand.New(mt19937.New()) // 随机数生成器
+	config Config                    // 配置文件
 )
+
+// 为config结构体中的可选字段设置默认值
+func (config *Config) setDefault() {
+	if config.Compiler == "" {
+		config.Compiler = "clang"
+	}
+}
+
+// 检查Config配置是否合法
+func (config *Config) isLegal() error {
+	fields := []string{
+		config.MetaRel, "meta_rel",
+		config.Cdir, "cdir",
+		config.Out, "out",
+		config.Kernel, "kernel",
+		config.Image, "image",
+		config.SSHKey, "sshkey",
+	}
+	for i := 0; i < len(fields); i += 2 {
+		if fields[i] == "" {
+			return fmt.Errorf("%s is empty", fields[i+1])
+		}
+	}
+	return nil
+}
 
 // 启动qemu
 func (qemu *Qemu) boot() error {
@@ -69,7 +102,7 @@ func (qemu *Qemu) boot() error {
 
 	// 将qemu进程ID写入文件
 	qemu.pid = cmd.Process.Pid
-	qemu.pidf = filepath.Join(*flagOut, "qemu.pid")
+	qemu.pidf = filepath.Join(config.Out, "qemu.pid")
 	qemu.inst = *cmd
 	if err := os.WriteFile(qemu.pidf, []byte(fmt.Sprint(qemu.pid)), 0666); err != nil {
 		return fmt.Errorf("failed to write QEMU PID to file: %w", err)
@@ -360,7 +393,7 @@ func runProgram(vm *VM, binPath string) error {
 	}
 
 	// 将PC写入文件
-	pcPath := filepath.Join(*flagOut, "pc", filepath.Base(binPath)+"-pc")
+	pcPath := filepath.Join(config.Out, "pc", filepath.Base(binPath)+"-pc")
 	fd, err := os.Create(pcPath)
 	if err != nil {
 		return err
@@ -524,8 +557,8 @@ func loop(vm *VM, srcPaths []string) error {
 		srcFn := filepath.Base(srcPath)                              // Source Filename
 		srcFnNoExt := strings.TrimSuffix(srcFn, filepath.Ext(srcFn)) // Source Filename without Extension
 		nSrcFn := srcFnNoExt + "-mr.c"                               // New Source Filename
-		nSrcPath := filepath.Join(*flagOut, "csrc", nSrcFn)          // New Souce Path
-		nSrc := insertMRImpl(srcPath, *flagMR)                       // New Source (code)
+		nSrcPath := filepath.Join(config.Out, "csrc", nSrcFn)        // New Souce Path
+		nSrc := insertMRImpl(srcPath, config.MetaRel)                // New Source (code)
 		err := writeFile(nSrc, nSrcPath)
 		if err != nil {
 			log.Fatalf("Failed to insert MR into %s: %v", filepath.Base(srcPath), err)
@@ -534,9 +567,9 @@ func loop(vm *VM, srcPaths []string) error {
 
 		// 编译新的C代码为可执行文件
 		log.Printf("Building ...")
-		binFn := srcFnNoExt + "-mr"                           // Binary Filename
-		binPath := filepath.Join(*flagOut, "binaries", binFn) // Binary Path
-		err = buildProgram(nSrcPath, binPath, *flagCompiler)
+		binFn := srcFnNoExt + "-mr"                             // Binary Filename
+		binPath := filepath.Join(config.Out, "binaries", binFn) // Binary Path
+		err = buildProgram(nSrcPath, binPath, config.Compiler)
 		if err != nil {
 			log.Fatalf("Failed to build %s: %v", binFn, err)
 			return fmt.Errorf("failed to build %s: %w", binFn, err)
@@ -587,8 +620,8 @@ func loop(vm *VM, srcPaths []string) error {
 
 		// 收集覆盖信息
 		log.Printf("Collecting coverage ...")
-		pcFile := filepath.Join(*flagOut, "pc", binFn+"-pc")
-		cov, err := collectCov(pcFile, *flagKernelObj)
+		pcFile := filepath.Join(config.Out, "pc", binFn+"-pc")
+		cov, err := collectCov(pcFile, config.Kernel)
 		if err != nil {
 			log.Fatalf("Failed to collect coverage for %s: %v", pcFile, err)
 			return fmt.Errorf("failed to collect coverage for %s: %w", pcFile, err)
@@ -596,7 +629,7 @@ func loop(vm *VM, srcPaths []string) error {
 
 		// 将程序的覆盖信息分别存储至cov文件夹下
 		covFn := binFn + "-cov"
-		covPath := filepath.Join(*flagOut, "cov", covFn)
+		covPath := filepath.Join(config.Out, "cov", covFn)
 		fd, err := os.Create(covPath)
 		if err != nil {
 			return err
@@ -612,7 +645,7 @@ func loop(vm *VM, srcPaths []string) error {
 
 	// 将全局覆盖存储至本地
 	log.Printf("Saving global coverage ...")
-	path := filepath.Join(*flagOut, "globalCov")
+	path := filepath.Join(config.Out, "globalCov")
 	fd, err := os.Create(path)
 	if err != nil {
 		return err
@@ -637,24 +670,35 @@ func main() {
 	}
 	flag.Parse()
 
-	// 检查命令行参数, 若不符合要求则退出程序
-	if *flagMR == "" || *flagDir == "" || *flagOut == "" || *flagKernelObj == "" {
-		flag.Usage()
-		os.Exit(1)
+	// 读取配置文件
+	config.setDefault()
+	data, err := os.ReadFile(*flagConfig)
+	if err != nil {
+		log.Fatalf("Failed to read config file: %v", err)
+		panic(err)
+	}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal config file: %v", err)
+		panic(err)
+	}
+	if err = config.isLegal(); err != nil {
+		log.Fatalf("Config is illegal: %v", err)
+		panic(err)
 	}
 
 	// 删除原先的out目录, 创建新的out目录
-	if _, err := os.Stat(*flagOut); err == nil {
-		os.RemoveAll(*flagOut)
+	if _, err := os.Stat(config.Out); err == nil {
+		os.RemoveAll(config.Out)
 	}
-	os.Mkdir(*flagOut, 0777)
-	os.Mkdir(filepath.Join(*flagOut, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
-	os.Mkdir(filepath.Join(*flagOut, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
-	os.Mkdir(filepath.Join(*flagOut, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
-	os.Mkdir(filepath.Join(*flagOut, "cov"), 0777)      // 存储覆盖代码行的文件夹
+	os.Mkdir(config.Out, 0777)
+	os.Mkdir(filepath.Join(config.Out, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
+	os.Mkdir(filepath.Join(config.Out, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
+	os.Mkdir(filepath.Join(config.Out, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+	os.Mkdir(filepath.Join(config.Out, "cov"), 0777)      // 存储覆盖代码行的文件夹
 
 	// 设置日志文件
-	logPath := filepath.Join(*flagOut, "run.log")
+	logPath := filepath.Join(config.Out, "run.log")
 	logFd, err := setLog(logPath)
 	if err != nil {
 		log.Fatalf("Failed to set log file: %v", err)
@@ -664,7 +708,7 @@ func main() {
 	defer logFd.Close()
 
 	// 获取C源代码文件路径, 加入srcPaths切片中
-	srcPaths, err := listFiles(*flagDir, ".c")
+	srcPaths, err := listFiles(config.Cdir, ".c")
 	if err != nil {
 		log.Fatalf("Failed to list C source files: %v", err)
 		panic(err)
