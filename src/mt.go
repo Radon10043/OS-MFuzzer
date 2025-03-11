@@ -192,9 +192,9 @@ func create() (*VM, error) {
 			"-cpu", "host,migratable=off",
 			"-device", "e1000,netdev=net0",
 			"-netdev", "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:10021-:22",
-			"-hda", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.img",
+			"-hda", config.Image,
 			"-snapshot",
-			"-kernel", "/home/radon/Documents/kernel-fuzzing/linux-v6.2/arch/x86/boot/bzImage",
+			"-kernel", filepath.Join(config.Kernel, "arch", "x86", "boot", "bzImage"),
 			"-append", "root=/dev/sda console=ttyS0",
 		},
 	}
@@ -209,7 +209,7 @@ func create() (*VM, error) {
 			"-o", "BatchMode=yes",
 			"-o", "StrictHostKeyChecking=no",
 			"-o", "ConnectTimeout=10",
-			"-i", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa",
+			"-i", config.SSHKey,
 			"-v",
 			"root@localhost",
 		},
@@ -225,7 +225,7 @@ func create() (*VM, error) {
 			"-o", "BatchMode=yes",
 			"-o", "StrictHostKeyChecking=no",
 			"-o", "ConnectTimeout=10",
-			"-i", "/home/radon/Documents/kernel-fuzzing/Debian/bullseye.id_rsa",
+			"-i", config.SSHKey,
 		},
 	}
 
