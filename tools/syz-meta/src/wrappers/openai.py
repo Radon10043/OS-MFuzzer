@@ -88,6 +88,8 @@ class OpenAI(Wrapper):
         if self.stream:
             SAYF(f"Response of {self.model}\n--------------------\n")
             for chunk in response:
+                if len(chunk.choices) == 0:
+                    continue
                 token = chunk.choices[0].delta.content
                 if token is None:
                     break
