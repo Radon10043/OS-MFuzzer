@@ -215,6 +215,7 @@ verifier: descriptions
 
 meta:
 	GOOS=$(HOSTOS) GOARCH=$(HOSTARCH) $(HOSTGO) build $(GOHOSTFLAGS) -o ./bin/syz-meta tools/syz-meta/src/mt.go
+	$(CC) -o ./bin/kcovtrace tools/kcovtrace/kcovtrace.c
 
 # `extract` extracts const files from various kernel sources, and may only
 # re-generate parts of files.

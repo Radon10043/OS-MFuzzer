@@ -1,44 +1,134 @@
-# syzkaller - kernel fuzzer
+# SyzMeta
 
-[![CI Status](https://github.com/google/syzkaller/workflows/ci/badge.svg)](https://github.com/google/syzkaller/actions?query=workflow/ci)
-[![OSS-Fuzz](https://oss-fuzz-build-logs.storage.googleapis.com/badges/syzkaller.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?q=label:Proj-syzkaller)
-[![Go Report Card](https://goreportcard.com/badge/github.com/google/syzkaller)](https://goreportcard.com/report/github.com/google/syzkaller)
-[![Coverage Status](https://codecov.io/gh/google/syzkaller/graph/badge.svg)](https://codecov.io/gh/google/syzkaller)
-[![GoDoc](https://godoc.org/github.com/google/syzkaller?status.svg)](https://godoc.org/github.com/google/syzkaller)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+Try to identify metamorphic relations via large language models for drivers in linux kernels. Also perform metamorphic testing for kernel.
 
-`syzkaller` (`[siːzˈkɔːlə]`) is an unsupervised coverage-guided kernel fuzzer.\
-Supported OSes: `FreeBSD`, `Fuchsia`, `gVisor`, `Linux`, `NetBSD`, `OpenBSD`, `Windows`.
+## Dependices
 
-Mailing list: [syzkaller@googlegroups.com](https://groups.google.com/forum/#!forum/syzkaller) (join on [web](https://groups.google.com/forum/#!forum/syzkaller) or by [email](mailto:syzkaller+subscribe@googlegroups.com)).
+- Ubuntu 22.04
+- Python 3.12.3
+- LLVM 19.1.7
 
-Found bugs: [Darwin/XNU](docs/darwin/README.md), [FreeBSD](docs/freebsd/found_bugs.md), [Linux](docs/linux/found_bugs.md), [NetBSD](docs/netbsd/found_bugs.md), [OpenBSD](docs/openbsd/found_bugs.md), [Windows](docs/windows/README.md).
+## Install
 
-## Documentation
+```sh
+pip install -r tools/syz-meta/requirements.txt
+```
 
-Initially, syzkaller was developed with Linux kernel fuzzing in mind, but now
-it's being extended to support other OS kernels as well.
-Most of the documentation at this moment is related to the [Linux](docs/linux/setup.md) kernel.
-For other OS kernels check:
-[Darwin/XNU](docs/darwin/README.md),
-[FreeBSD](docs/freebsd/README.md),
-[Fuchsia](docs/fuchsia/README.md),
-[NetBSD](docs/netbsd/README.md),
-[OpenBSD](docs/openbsd/setup.md),
-[Starnix](docs/starnix/README.md),
-[Windows](docs/windows/README.md),
-[gVisor](docs/gvisor/README.md).
-[Akaros](docs/akaros/README.md),
+### Install LLVM & Clang from source code
 
-- [How to install syzkaller](docs/setup.md)
-- [How to use syzkaller](docs/usage.md)
-- [How syzkaller works](docs/internals.md)
-- [How to install syzbot](docs/setup_syzbot.md)
-- [How to contribute to syzkaller](docs/contributing.md)
-- [How to report Linux kernel bugs](docs/linux/reporting_kernel_bugs.md)
-- [Tech talks and articles](docs/talks.md)
-- [Research work based on syzkaller](docs/research.md)
+Please run the following commands in the root path of the repository。
 
-## Disclaimer
+```sh
+sudo apt update
+sudo apt install ninja-build cmake
+mkdir build && pushd build
+git clone --depth 1 -b llvmorg-19.1.7 https://github.com/llvm/llvm-project.git
+mkdir build-clang && pushd build-clang
+cmake -G Ninja ../llvm-project/llvm -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DCMAKE_BUILD_TYPE=Release -DLLVM_BUILD_TESTS=ON
+ninja
+ninja check       # Test LLVM only.
+ninja clang-test  # Test Clang only.
+ninja install
+```
 
-This is not an official Google product.
+## Run
+
+### MR Identification
+
+Create a json file (e.g. `MRIden.cfg.json`), write the following content:
+
+```json
+{
+    "identifier": {
+        "base_url": "https://api.deepseek.com",
+        "api_key": "sk-xxx",
+        "framework": "openai",
+        "model": "deepseek-chat",
+        "temperature": 0.5,     // Optional, default as 0.5
+        "stream": true,         // Optional, default as false
+        "prompts": {
+            "system": "/path/to/kernel-driver-MR-identify/data/prompts/identifier/system.md",
+            "user": [
+                "/path/to/kernel-driver-MR-identify/data/prompts/identifier/init.md",
+                "/path/to/kernel-driver-MR-identify/data/prompts/identifier/follow.md"
+            ]
+        }
+    },
+    "calibrator": {
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "sk-xxx",
+        "framework": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.2,     // Optional, default as 0.5
+        "stream": true,         // Optional, default as false
+        "prompts": {
+            "system": "/path/to/kernel-driver-MR-identify/data/prompts/calibrator/system.md",
+            "user": [
+                "/path/to/kernel-driver-MR-identify/data/prompts/calibrator/vanilla.md"
+            ]
+        }
+    },
+    "max_iter": 10,
+    "output": "/path/to/kernel-driver-MR-identify/data/output",
+    "specification": "/path/to/kernel-driver-MR-identify/data/specifications/linux-v6.2/autofs/sec1_purpose.md",
+    "driver_name": "autofs"
+}
+```
+
+MRIden.py is used to identify and calibrate MR via LLMs. Explanation of each parameters is as follows:
+
+- identifier: store the settings of identifier model, specifically:
+  - base_url: base URL for access model, such as DeepSeek.
+  - api_key: your API key for accessing model, usally prefix with "sk-".
+  - base_model: based on which series of models to query, such as DeepSeek, GPT (case insensitive).
+  - temperature: the temperature wanna used, the lower temperature, the more stable and accurate the LLM's response.
+  - stream: whether to enable streaming response. If enabled, the output of LLM will be printed in streaming mode.
+  - prompts: prompts that will send to LLM, categorized into system prompt and user prompt. This project supports one system prompt and multi user prompts. Each prompt is stored in a markdown file and its path is presented in the json file, the script will read and load each prompt's content.
+- calibrator: store the settings of calibrator model, its content is same as identifier.
+- max_iter: maximum iteration for discussing.
+- output: output directory that stores query messages, discussion result, etc.
+- specification: path of specification file that used in the LLM query.
+- driver_name: Name of driver under test.
+
+### MR Implementation
+
+Create a json file (e.g. `MRImpl.json`), write the following content:
+
+```json
+{
+    "base_url": "https://api.deepseek.com",
+    "api_key": "sk-xxx",
+    "framework": "openai",
+    "model": "deepseek-chat",
+    "temperature": 0.5,     // Optional, default as 0.5
+    "stream": true,         // Optional, default as false
+    "prompts": {
+        "system": "/path/to/kernel-driver-MR-identify/data/prompts/programmer/system.md",
+        "user": [
+            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/init.md",
+            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/follow.md"
+        ]
+    },
+    "mrc_desc": "/path/to/kernel-driver-MR-identify/data/MRCs/mrc1.md",
+    "max_iter": 10,
+    "output": "/path/to/kernel-driver-MR-identify/data/output/MRImpl",
+    "compiler": "gcc",
+    "cflags": "-static"
+}
+```
+
+MRImpl.py is used to generate C code of an MRC. Explanation of each parameters is as follows:
+
+- Meaning of base_url, api_key, framework, temperature, prompts, stream, and max_iter are same as MR Identification.
+- mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
+- compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
+- cflags: compile options.
+
+### Metamorphic Testing
+
+
+
+## References
+
+[1] [https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html](https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html)
+[2] [README.md of syzkaller](/README-syzkaller.md)
