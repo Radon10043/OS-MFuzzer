@@ -11,6 +11,8 @@ Try to identify metamorphic relations via large language models for drivers in l
 ## Install
 
 ```sh
+sudo apt update
+sudo apt install jq
 pip install -r tools/syz-meta/requirements.txt
 ```
 
