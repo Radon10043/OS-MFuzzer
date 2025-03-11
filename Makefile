@@ -213,6 +213,9 @@ verifier: descriptions
 	# TODO: switch syz-verifier to use syz-executor.
 	# GOOS=$(HOSTOS) GOARCH=$(HOSTARCH) $(HOSTGO) build $(GOHOSTFLAGS) -o ./bin/syz-verifier github.com/google/syzkaller/syz-verifier
 
+meta:
+	GOOS=$(HOSTOS) GOARCH=$(HOSTARCH) $(HOSTGO) build $(GOHOSTFLAGS) -o ./bin/syz-meta tools/syz-meta/src/mt.go
+
 # `extract` extracts const files from various kernel sources, and may only
 # re-generate parts of files.
 extract: bin/syz-extract
