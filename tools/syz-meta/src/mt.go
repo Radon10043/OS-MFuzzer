@@ -251,10 +251,10 @@ func create() (*VM, error) {
 func getSyscallLinenos(csrcPath string) []int {
 	// 获取系统调用的py文件绝对路径
 	repoDir := filepath.Dir(filepath.Dir(os.Args[0]))
-	pyFilePath := filepath.Join(repoDir, "src", "CAnalysis.py")
+	pyFilePath := filepath.Join(repoDir, "tools", "syz-meta", "src", "CAnalysis.py")
 
 	// 调用py文件获取C代码main函数中的系统调用
-	pythonBin := filepath.Join(repoDir, ".venv", "bin", "python3")
+	pythonBin := filepath.Join(repoDir, "tools", "syz-meta", ".venv", "bin", "python3")
 	out, err := exec.Command(pythonBin, pyFilePath, "--file", csrcPath).Output()
 	if err != nil {
 		panic(err)
@@ -367,15 +367,17 @@ func listFiles(dir string, extname string) ([]string, error) {
 }
 
 // 运行可执行文件, 获得pc, 去重后保存至本地
-func runProgram(vm *VM, binPath string) error {
+func runProgram(vm *VM, binPath string, pcPath string) error {
+	binFn := filepath.Base(binPath)
+
 	// 拷贝可执行文件到qemu中
-	err := vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
+	err := vm.scp.run(binPath, "localhost:/"+binFn)
 	if err != nil {
 		return err
 	}
 
 	// 运行可执行文件
-	command := fmt.Sprintf("/kcovtrace /%s 2>&1", filepath.Base(binPath))
+	command := fmt.Sprintf("/kcovtrace /%s 2>&1", binFn)
 	stdout, _, err := vm.ssh.run(command)
 	if err != nil {
 		return err
@@ -393,7 +395,6 @@ func runProgram(vm *VM, binPath string) error {
 	}
 
 	// 将PC写入文件
-	pcPath := filepath.Join(config.Out, "pc", filepath.Base(binPath)+"-pc")
 	fd, err := os.Create(pcPath)
 	if err != nil {
 		return err
@@ -535,7 +536,96 @@ func collectCov(pcFile string, kernelObj string) (map[string]struct{}, error) {
 	return cov, nil
 }
 
-// 循环遍历每个源码文件, 插入MR->编译->运行
+// 拷贝文件
+//
+// Parameters:
+//
+//	src: 源文件路径
+//	dst: 目标文件路径
+//
+// Returns:
+//
+//	若成功, 返回nil; 否则返回错误信息
+func copy(src string, dst string) error {
+	// 读取原始文件
+	srcFd, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFd.Close()
+
+	// 创建副本文件
+	dstFd, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFd.Close()
+
+	// 将原始文件的内容拷贝到副本文件中
+	_, err = io.Copy(dstFd, srcFd)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// 运行可执行文件的Loop, 尝试运行可执行文件3次, 若失败则重启qemu后再尝试3次
+//
+// Parameters:
+//
+//	vm: VM实例
+//	binPath: 可执行文件路径
+//	pcPath: pc文件路径
+//
+// Returns:
+//
+//	bool: 成功运行返回true, 否则返回false
+//	error: 若函数执行期间出错返回错误信息, 否则返回nil
+func runProgramLoop(vm *VM, binPath string, pcPath string) (bool, error) {
+	pass := false
+	for j := 0; j < 3; j++ {
+		err := runProgram(vm, binPath, pcPath)
+		if err == nil {
+			pass = true
+			break
+		}
+	}
+
+	// 成功了, 继续下一步; 失败了, 重启qemu后再尝试3次
+	if !pass {
+		log.Printf("Restarting qemu and retrying %s", filepath.Base(binPath))
+		vm.qemu.restart()
+		time.Sleep(5 * time.Second)
+		if _, _, err := vm.ssh.run("pwd"); err != nil {
+			log.Fatalf("Failed to handshake with VM after restart: %v", err)
+			return false, err
+		}
+
+		for j := 0; j < 3; j++ {
+			err := runProgram(vm, binPath, pcPath)
+			if err == nil {
+				pass = true
+				break
+			}
+		}
+	}
+
+	return pass, nil
+}
+
+// 合并多个值类型为空结构体的map, 本质上是合并集合
+func mergeSets[K comparable](maps ...map[K]struct{}) map[K]struct{} {
+	res := make(map[K]struct{})
+	for _, m := range maps {
+		for k := range m {
+			res[k] = struct{}{}
+		}
+	}
+	return res
+}
+
+// 循环遍历每个由模糊测试生成的源码文件, 编译->运行->收集覆盖
 //
 // Parameters:
 //
@@ -544,121 +634,194 @@ func collectCov(pcFile string, kernelObj string) (map[string]struct{}, error) {
 //
 // Returns:
 //
-//	若成功, 返回nil; 否则返回错误信息
-func loop(vm *VM, srcPaths []string) error {
+//	map[string]struct{}: 总体覆盖集合
+//	error: 错误信息, 若未报错则为nil
+func fuzzLoop(vm *VM, srcPaths []string) (map[string]struct{}, error) {
+	coverageMap := make(map[string]struct{}) // 总体覆盖
+
+	// 遍历每个源码路径, 编译->运行->收集覆盖
+	for i, srcPath := range srcPaths {
+		log.Printf("Running fuzzLoop. Source file: %s. Progress %d/%d.", filepath.Base(srcPath), i+1, len(srcPaths))
+
+		// 源文件拷贝一份副本到输出文件夹
+		srcFn := filepath.Base(srcPath)                              // Source Filename
+		nSrcPath := filepath.Join(config.Out, "fuzz", "csrc", srcFn) // New Source Path
+		err := copy(srcPath, nSrcPath)
+		if err != nil {
+			log.Fatalf("Failed to copy %s to %s: %v", filepath.Base(srcPath), nSrcPath, err)
+			return coverageMap, err
+		}
+
+		// 编译新的C代码为可执行文件
+		binFn := strings.TrimSuffix(srcFn, filepath.Ext(srcFn))         // Binary Filename
+		binPath := filepath.Join(config.Out, "fuzz", "binaries", binFn) // Binary Path
+		err = buildProgram(nSrcPath, binPath, config.Compiler)
+		if err != nil {
+			log.Fatalf("Failed to build %s: %v", binFn, err)
+			return coverageMap, err
+		}
+
+		// 将编译后的可执行文件复制到vm
+		err = vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
+		if err != nil {
+			log.Fatalf("Failed to copy %s to vm: %v", filepath.Base(binPath), err)
+			return coverageMap, err
+		}
+
+		// 运行可执行文件, 运行过程中会自动将pc保存至输出文件夹的pc下
+		pcPath := filepath.Join(config.Out, "fuzz", "pc", binFn+"-pc")
+		pass, err := runProgramLoop(vm, binPath, pcPath)
+		if err != nil {
+			log.Fatalf("Failed to run %s: %v", filepath.Base(binPath), err)
+			return coverageMap, err
+		}
+
+		// 运行失败, 跳过这个测试用例, 打印信息
+		if !pass {
+			log.Fatalf("Shit, run %s failed, skip it.", binFn)
+			continue
+		}
+
+		// 收集覆盖信息
+		cov, err := collectCov(pcPath, config.Kernel)
+		if err != nil {
+			log.Fatalf("Failed to collect coverage for %s: %v", pcPath, err)
+			return coverageMap, err
+		}
+
+		// 覆盖信息存储至cov文件夹下
+		covFn := binFn + "-cov"
+		covPath := filepath.Join(config.Out, "fuzz", "cov", covFn)
+		fd, err := os.Create(covPath)
+		if err != nil {
+			return coverageMap, err
+		}
+
+		// 更新全局覆盖
+		for elem := range cov {
+			coverageMap[elem] = struct{}{}
+			_, err := fd.WriteString(elem + "\n")
+			if err != nil {
+				return coverageMap, err
+			}
+		}
+	}
+
+	// 将全局覆盖保存到本地
+	path := filepath.Join(config.Out, "fuzz", "globalCov")
+	fd, err := os.Create(path)
+	if err != nil {
+		return coverageMap, err
+	}
+	for elem := range coverageMap {
+		_, err := fd.WriteString(elem + "\n")
+		if err != nil {
+			return coverageMap, err
+		}
+	}
+
+	log.Printf("All done.")
+	return coverageMap, nil
+}
+
+// 循环遍历每个源码文件, 插入MR->编译->运行->收集覆盖
+//
+// Parameters:
+//
+//	vm: VM实例
+//	srcPaths: 源码文件路径切片
+//
+// Returns:
+//
+//	map[string]struct{}: 总体覆盖集合
+//	error: 报错信息, 若未报错则为nil
+func metaLoop(vm *VM, srcPaths []string) (map[string]struct{}, error) {
 	coverageMap := make(map[string]struct{}) // 总体覆盖
 
 	// 遍历每个源码路径, 插入MR->编译->运行
 	for i, srcPath := range srcPaths {
-		log.Printf("Insert, build, and execute. Source file: %s. Progress %d/%d.", filepath.Base(srcPath), i+1, len(srcPaths))
+		log.Printf("Running metaLoop. Source file: %s. Progress %d/%d.", filepath.Base(srcPath), i+1, len(srcPaths))
 
 		// 将MR插入源文件
-		log.Printf("Inserting ...")
-		srcFn := filepath.Base(srcPath)                              // Source Filename
-		srcFnNoExt := strings.TrimSuffix(srcFn, filepath.Ext(srcFn)) // Source Filename without Extension
-		nSrcFn := srcFnNoExt + "-mr.c"                               // New Source Filename
-		nSrcPath := filepath.Join(config.Out, "csrc", nSrcFn)        // New Souce Path
-		nSrc := insertMRImpl(srcPath, config.MetaRel)                // New Source (code)
+		srcFn := filepath.Base(srcPath)                               // Source Filename
+		srcFnNoExt := strings.TrimSuffix(srcFn, filepath.Ext(srcFn))  // Source Filename without Extension
+		nSrcFn := srcFnNoExt + "-mr.c"                                // New Source Filename
+		nSrcPath := filepath.Join(config.Out, "meta", "csrc", nSrcFn) // New Souce Path
+		nSrc := insertMRImpl(srcPath, config.MetaRel)                 // New Source (code)
 		err := writeFile(nSrc, nSrcPath)
 		if err != nil {
 			log.Fatalf("Failed to insert MR into %s: %v", filepath.Base(srcPath), err)
-			return fmt.Errorf("failed to insert MR into %s: %w", filepath.Base(srcPath), err)
+			return coverageMap, err
 		}
 
 		// 编译新的C代码为可执行文件
-		log.Printf("Building ...")
-		binFn := srcFnNoExt + "-mr"                             // Binary Filename
-		binPath := filepath.Join(config.Out, "binaries", binFn) // Binary Path
+		binFn := srcFnNoExt + "-mr"                                     // Binary Filename
+		binPath := filepath.Join(config.Out, "meta", "binaries", binFn) // Binary Path
 		err = buildProgram(nSrcPath, binPath, config.Compiler)
 		if err != nil {
 			log.Fatalf("Failed to build %s: %v", binFn, err)
-			return fmt.Errorf("failed to build %s: %w", binFn, err)
+			return coverageMap, err
 		}
 
 		// 将编译后的可执行文件复制到vm
-		log.Printf("Copying ...")
 		err = vm.scp.run(binPath, "localhost:/"+filepath.Base(binPath))
 		if err != nil {
 			log.Fatalf("Failed to copy %s to vm: %v", filepath.Base(binPath), err)
 			panic(err)
 		}
 
-		// 尝试运行可执行文件3次, 若失败则重启qemu后再尝试3次
-		log.Printf("Executing ...")
-		pass := false
-		for j := 0; j < 3; j++ {
-			err = runProgram(vm, binPath)
-			if err == nil {
-				pass = true
-				break
-			}
+		// 运行可执行文件, 运行过程中会自动将pc保存至输出文件夹的pc下
+		pcPath := filepath.Join(config.Out, "meta", "pc", binFn+"-pc")
+		pass, err := runProgramLoop(vm, binPath, pcPath)
+		if err != nil {
+			log.Fatalf("Failed to run %s: %v", filepath.Base(binPath), err)
+			return coverageMap, err
 		}
 
-		// 成功了, 继续下一步; 失败了, 重启qemu后再尝试3次
-		if !pass {
-			log.Printf("Restarting qemu and retrying %s", filepath.Base(binPath))
-			vm.qemu.restart()
-			time.Sleep(5 * time.Second)
-			if _, _, err := vm.ssh.run("pwd"); err != nil {
-				log.Fatalf("Failed to handshake with VM after restart: %v", err)
-				panic(err)
-			}
-
-			for j := 0; j < 3; j++ {
-				err = runProgram(vm, binPath)
-				if err == nil {
-					pass = true
-					break
-				}
-			}
-		}
-
-		// 仍然失败, 跳过这个测试用例, 打印信息
+		// 运行失败, 跳过这个测试用例, 打印信息
 		if !pass {
 			log.Printf("Shit, run %s failed, skip it.", filepath.Base(binPath))
+			continue
 		}
 
 		// 收集覆盖信息
-		log.Printf("Collecting coverage ...")
-		pcFile := filepath.Join(config.Out, "pc", binFn+"-pc")
-		cov, err := collectCov(pcFile, config.Kernel)
+		cov, err := collectCov(pcPath, config.Kernel)
 		if err != nil {
-			log.Fatalf("Failed to collect coverage for %s: %v", pcFile, err)
-			return fmt.Errorf("failed to collect coverage for %s: %w", pcFile, err)
+			log.Fatalf("Failed to collect coverage for %s: %v", pcPath, err)
+			return coverageMap, err
 		}
 
 		// 将程序的覆盖信息分别存储至cov文件夹下
 		covFn := binFn + "-cov"
-		covPath := filepath.Join(config.Out, "cov", covFn)
+		covPath := filepath.Join(config.Out, "meta", "cov", covFn)
 		fd, err := os.Create(covPath)
 		if err != nil {
-			return err
+			return coverageMap, err
 		}
 		for elem := range cov {
 			coverageMap[elem] = struct{}{} // 更新全局覆盖
 			_, err := fd.WriteString(elem + "\n")
 			if err != nil {
-				return err
+				return coverageMap, err
 			}
 		}
 	}
 
 	// 将全局覆盖存储至本地
-	log.Printf("Saving global coverage ...")
-	path := filepath.Join(config.Out, "globalCov")
+	path := filepath.Join(config.Out, "meta", "globalCov")
 	fd, err := os.Create(path)
 	if err != nil {
-		return err
+		return coverageMap, err
 	}
 	for elem := range coverageMap {
 		_, err := fd.WriteString(elem + "\n")
 		if err != nil {
-			return err
+			return coverageMap, err
 		}
 	}
 
 	log.Printf("All done.")
-	return nil
+	return coverageMap, nil
 }
 
 func main() {
@@ -698,10 +861,20 @@ func main() {
 		os.RemoveAll(config.Out)
 	}
 	os.Mkdir(config.Out, 0777)
-	os.Mkdir(filepath.Join(config.Out, "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
-	os.Mkdir(filepath.Join(config.Out, "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
-	os.Mkdir(filepath.Join(config.Out, "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
-	os.Mkdir(filepath.Join(config.Out, "cov"), 0777)      // 存储覆盖代码行的文件夹
+
+	// 创建out目录下的子目录, meta目录存储蜕变测试相关数据
+	os.Mkdir(filepath.Join(config.Out, "meta"), 0777)             // 存储蜕变测试相关数据的根目录
+	os.Mkdir(filepath.Join(config.Out, "meta", "csrc"), 0777)     // 存储插入MR实现的C源码的文件夹
+	os.Mkdir(filepath.Join(config.Out, "meta", "binaries"), 0777) // 存储插入MR实现且编译后的可执行文件的文件夹
+	os.Mkdir(filepath.Join(config.Out, "meta", "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+	os.Mkdir(filepath.Join(config.Out, "meta", "cov"), 0777)      // 存储覆盖代码行的文件夹
+
+	// fuzz目录存储模糊测试相关数据
+	os.Mkdir(filepath.Join(config.Out, "fuzz"), 0777)             // 存储模糊测试相关数据的根目录
+	os.Mkdir(filepath.Join(config.Out, "fuzz", "csrc"), 0777)     // 存储C源码的文件夹
+	os.Mkdir(filepath.Join(config.Out, "fuzz", "binaries"), 0777) // 存储编译后的可执行文件的文件夹
+	os.Mkdir(filepath.Join(config.Out, "fuzz", "pc"), 0777)       // 存储可执行文件覆盖PC的文件夹
+	os.Mkdir(filepath.Join(config.Out, "fuzz", "cov"), 0777)      // 存储覆盖代码行的文件夹
 
 	// 设置日志文件
 	logPath := filepath.Join(config.Out, "run.log")
@@ -734,9 +907,33 @@ func main() {
 	}
 	defer vm.qemu.stop() // 程序退出时关闭vm
 
-	// 循环遍历每个源码文件, 插入MR->编译->运行
-	err = loop(vm, srcPaths)
+	// 循环遍历每个由模糊测试生成的源码文件, 编译->运行->收集覆盖
+	fuzzCovMap, err := fuzzLoop(vm, srcPaths)
 	if err != nil {
+		log.Fatalf("Failed to run fuzzLoop: %v", err)
 		panic(err)
+	}
+
+	// 循环遍历每个源码文件, 插入MR->编译->运行->收集覆盖
+	metaCovMap, err := metaLoop(vm, srcPaths)
+	if err != nil {
+		log.Fatalf("Failed to run metaLoop: %v", err)
+		panic(err)
+	}
+
+	// 合并模糊测试和蜕变测试的覆盖信息, 保存到本地
+	metaFuzzCovMap := mergeSets(metaCovMap, fuzzCovMap)
+	path := filepath.Join(config.Out, "metaFuzzCov")
+	fd, err := os.Create(path)
+	if err != nil {
+		log.Fatalf("Failed to create file: %v", err)
+		panic(err)
+	}
+	for elem := range metaFuzzCovMap {
+		_, err := fd.WriteString(elem + "\n")
+		if err != nil {
+			log.Fatalf("Failed to write to file: %v", err)
+			panic(err)
+		}
 	}
 }
