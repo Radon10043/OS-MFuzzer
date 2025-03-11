@@ -670,6 +670,12 @@ func main() {
 	}
 	flag.Parse()
 
+	// 确保配置文件参数不为空
+	if *flagConfig == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	// 读取配置文件
 	config.setDefault()
 	data, err := os.ReadFile(*flagConfig)
