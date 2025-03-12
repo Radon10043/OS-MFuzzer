@@ -708,7 +708,7 @@ func fuzzLoop(vm *VM, srcPaths []string) (map[string]struct{}, error) {
 	}
 
 	// 将全局覆盖保存到本地
-	path := filepath.Join(config.Out, "fuzz", "globalCov")
+	path := filepath.Join(config.Out, "fuzz", "fuzzCov")
 	fd, err := os.Create(path)
 	if err != nil {
 		return coverageMap, err
@@ -808,7 +808,7 @@ func metaLoop(vm *VM, srcPaths []string) (map[string]struct{}, error) {
 	}
 
 	// 将全局覆盖存储至本地
-	path := filepath.Join(config.Out, "meta", "globalCov")
+	path := filepath.Join(config.Out, "meta", "metaCov")
 	fd, err := os.Create(path)
 	if err != nil {
 		return coverageMap, err
