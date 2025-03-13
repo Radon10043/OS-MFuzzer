@@ -20,6 +20,7 @@ type Stats struct {
 	statJobsTriage          *stat.Val
 	statJobsTriageCandidate *stat.Val
 	statJobsSmash           *stat.Val
+	statJobsMetamorphic     *stat.Val
 	statJobsFaultInjection  *stat.Val
 	statJobsHints           *stat.Val
 	statExecTime            *stat.Val
@@ -56,6 +57,8 @@ func newStats(target *prog.Target) Stats {
 			stat.StackedGraph("jobs"), stat.Link("/jobs?type=triage")),
 		statJobsSmash: stat.New("smash jobs", "Running smash jobs", stat.StackedGraph("jobs"),
 			stat.Link("/jobs?type=smash")),
+		statJobsMetamorphic: stat.New("metamorphic jobs", "Running metamorphic jobs",
+			stat.StackedGraph("jobs"), stat.Link("/jobs?type=metamorphic")),
 		statJobsFaultInjection: stat.New("fault jobs", "Running fault injection jobs", stat.StackedGraph("jobs")),
 		statJobsHints: stat.New("hints jobs", "Running hints jobs", stat.StackedGraph("jobs"),
 			stat.Link("/jobs?type=hints")),

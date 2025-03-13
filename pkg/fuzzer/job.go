@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/google/syzkaller/pkg/corpus"
 	"github.com/google/syzkaller/pkg/cover"
+	"github.com/google/syzkaller/pkg/csource"
 	"github.com/google/syzkaller/pkg/flatrpc"
 	"github.com/google/syzkaller/pkg/fuzzer/queue"
 	"github.com/google/syzkaller/pkg/signal"
@@ -185,6 +187,15 @@ func (job *triageJob) handleCall(call int, info *triageCall) {
 			info: &JobInfo{
 				Name:  p.String(),
 				Type:  "smash",
+				Calls: []string{p.CallName(call)},
+			},
+		})
+		job.fuzzer.startJob(job.fuzzer.statJobsMetamorphic, &metamorphicJob{
+			exec: job.fuzzer.smashQueue,
+			p:    p.Clone(),
+			info: &JobInfo{
+				Name:  p.String(),
+				Type:  "metamorphic",
 				Calls: []string{p.CallName(call)},
 			},
 		})
@@ -471,6 +482,67 @@ func (job *smashJob) run(fuzzer *Fuzzer) {
 
 func (job *smashJob) getInfo() *JobInfo {
 	return job.info
+}
+
+type metamorphicJob struct {
+	exec queue.Executor
+	p    *prog.Prog
+	info *JobInfo
+}
+
+// Insert metamorphic relation implementation into seed
+func (job *metamorphicJob) run(fuzzer *Fuzzer) {
+	// Using default options from prog2c.go
+	features, err := csource.ParseFeaturesFlags("none", "none", false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to parse features: %v\n", err)
+		return
+	}
+	opts := csource.Options{
+		Threaded:      false,
+		Repeat:        false,
+		RepeatTimes:   1,
+		Procs:         1,
+		Slowdown:      1,
+		Sandbox:       "",
+		SandboxArg:    0,
+		Leak:          false,
+		NetInjection:  features["tun"].Enabled,
+		NetDevices:    features["net_dev"].Enabled,
+		NetReset:      features["net_reset"].Enabled,
+		Cgroups:       features["cgroups"].Enabled,
+		BinfmtMisc:    features["binfmt_misc"].Enabled,
+		CloseFDs:      features["close_fds"].Enabled,
+		KCSAN:         features["kcsan"].Enabled,
+		DevlinkPCI:    features["devlink_pci"].Enabled,
+		NicVF:         features["nic_vf"].Enabled,
+		USB:           features["usb"].Enabled,
+		VhciInjection: features["vhci"].Enabled,
+		Wifi:          features["wifi"].Enabled,
+		IEEE802154:    features["ieee802154"].Enabled,
+		Sysctl:        features["sysctl"].Enabled,
+		Swap:          features["swap"].Enabled,
+		UseTmpDir:     false,
+		HandleSegv:    false,
+		Trace:         false,
+	}
+
+	const iters = 25
+	for i := 0; i < iters; i++ {
+		fmt.Printf("In progress ... %d/%d\n", i+1, iters)
+		src, err := csource.Write(job.p, opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to generate C source: %v\n", err)
+			continue
+		}
+		if formatted, err := csource.Format(src); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to format C source: %v\n", err)
+			continue
+		} else {
+			src = formatted
+		}
+		os.Stdout.Write(src)
+	}
 }
 
 func randomCollide(origP *prog.Prog, rnd *rand.Rand) *prog.Prog {
