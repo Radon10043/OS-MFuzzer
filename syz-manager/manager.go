@@ -1065,6 +1065,8 @@ func (mgr *Manager) MachineChecked(features flatrpc.Feature, enabledSyscalls map
 				defer mgr.mu.Unlock()
 				return !mgr.saturatedCalls[call]
 			},
+			MetamorphicDir: mgr.cfg.MetamorphicDir,
+			SyzkallerDir:   mgr.cfg.Syzkaller,
 		}, rnd, mgr.target)
 		fuzzerObj.AddCandidates(candidates)
 		mgr.fuzzer.Store(fuzzerObj)

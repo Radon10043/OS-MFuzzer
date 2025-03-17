@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
@@ -16,7 +17,9 @@ import (
 	"github.com/google/syzkaller/pkg/csource"
 	"github.com/google/syzkaller/pkg/flatrpc"
 	"github.com/google/syzkaller/pkg/fuzzer/queue"
+	"github.com/google/syzkaller/pkg/log"
 	"github.com/google/syzkaller/pkg/mgrconfig"
+	"github.com/google/syzkaller/pkg/osutil"
 	"github.com/google/syzkaller/pkg/signal"
 	"github.com/google/syzkaller/pkg/stat"
 	"github.com/google/syzkaller/prog"
@@ -39,6 +42,8 @@ type Fuzzer struct {
 	ctMu         sync.Mutex // TODO: use RWLock.
 	ctRegenerate chan struct{}
 
+	metamorphicFiles []string
+
 	execQueues
 }
 
@@ -49,6 +54,20 @@ func NewFuzzer(ctx context.Context, cfg *Config, rnd *rand.Rand,
 			return true
 		}
 	}
+
+	// Get all metamorphic relation implementations
+	var metamorphicFiles []string
+	if cfg.MetamorphicDir != "" {
+		absDir := osutil.Abs(cfg.MetamorphicDir)
+		files, err := osutil.ListDir(cfg.MetamorphicDir)
+		if err != nil {
+			log.Logf(0, "Couldn't get metamorphic relations, run vanilla syzkaller: %v", err)
+		}
+		for _, file := range files {
+			metamorphicFiles = append(metamorphicFiles, filepath.Join(absDir, file))
+		}
+	}
+
 	f := &Fuzzer{
 		Stats:  newStats(target),
 		Config: cfg,
@@ -62,6 +81,8 @@ func NewFuzzer(ctx context.Context, cfg *Config, rnd *rand.Rand,
 		// We're okay to lose some of the messages -- if we are already
 		// regenerating the table, we don't want to repeat it right away.
 		ctRegenerate: make(chan struct{}),
+
+		metamorphicFiles: metamorphicFiles,
 	}
 	f.execQueues = newExecQueues(f)
 	f.updateChoiceTable(nil)
@@ -210,6 +231,8 @@ type Config struct {
 	FetchRawCover  bool
 	NewInputFilter func(call string) bool
 	PatchTest      bool
+	MetamorphicDir string
+	SyzkallerDir   string
 }
 
 func (fuzzer *Fuzzer) triageProgCall(p *prog.Prog, info *flatrpc.CallInfo, call int, triage *map[int]*triageCall) {

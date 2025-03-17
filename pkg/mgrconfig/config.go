@@ -192,6 +192,11 @@ type Config struct {
 	// the output.
 	StraceBin string `json:"strace_bin"`
 
+	// Directory that store metamorphic relation implementation headers
+	// If set, metamorphic relation implementation will be inserted to the program, as
+	// an extra mutation stage.
+	MetamorphicDir string `json:"metamorphic_dir,omitempty"`
+
 	// Type of virtual machine to use, e.g. "qemu", "gce", "android", "isolated", etc.
 	Type string `json:"type"`
 	// VM-type-specific parameters.
