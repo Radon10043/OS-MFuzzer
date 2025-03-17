@@ -289,6 +289,11 @@ func (v *Val) Val() int {
 	return int(v.val.Load())
 }
 
+// Getters for Val fields
+func (v *Val) GetName() string {
+	return v.name
+}
+
 func formatRate(v int, period time.Duration) string {
 	secs := int(period.Seconds())
 	if x := v / secs; x >= 10 {

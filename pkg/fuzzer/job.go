@@ -575,7 +575,7 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 
 	// Get syscall line number candidates
 	pyInterpreter := filepath.Join(fuzzer.Config.SyzkallerDir, "tools", "syz-meta", ".venv", "bin", "python3")
-	analysisPy := filepath.Join(fuzzer.Config.SyzkallerDir, "tools", "syz-meta", "CAnalysis.py")
+	analysisPy := filepath.Join(fuzzer.Config.SyzkallerDir, "tools", "syz-meta", "src", "CAnalysis.py")
 	timeout := 5 * time.Second
 	linenoCands := []int{}
 	output, err := osutil.RunCmd(timeout, "", pyInterpreter, analysisPy, "--file", path)
@@ -603,8 +603,10 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 	const iters = 25
 	for i := 0; i < iters; i++ {
 		// Randomly select and insert an MR implementation into C source
-		nSrcSlie := job.insertMR(fuzzer, srcSlice, lastIncludeLine, linenoCands)
-		codeBytes := []byte(strings.Join(nSrcSlie, "\n"))
+		metaSlice := make([]string, len(srcSlice))
+		copy(metaSlice, srcSlice)
+		job.insertMR(fuzzer, metaSlice, lastIncludeLine, linenoCands)
+		codeBytes := []byte(strings.Join(metaSlice, "\n"))
 
 		// Build the program which is inserted MR implementation
 		bin, err := csource.BuildNoWarn(fuzzer.target, codeBytes)
@@ -612,14 +614,24 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 			fmt.Println("Shit, build failed. Continue.")
 			continue
 		}
-		fmt.Println(bin)
+
+		// Execute the program
+		result := fuzzer.execute(job.exec, &queue.Request{
+			BinaryFile: bin,
+			ExecOpts:   setFlags(flatrpc.ExecFlagCollectSignal),
+			Stat:       fuzzer.statExecMetamorphic,
+		})
+		if result.Stop() {
+			return
+		}
+		job.info.Execs.Add(1)
 	}
 
-	// TODO: Clean files
+	// TODO: Clean files?
 }
 
 // Insert MR implementation to the existing source
-func (job *metamorphicJob) insertMR(fuzzer *Fuzzer, srcSlice []string, lastIncludeLine int, linenoCand []int) []string {
+func (job *metamorphicJob) insertMR(fuzzer *Fuzzer, srcSlice []string, lastIncludeLine int, linenoCand []int) {
 	// Clone
 	nSrcSlice := srcSlice
 
@@ -631,7 +643,6 @@ func (job *metamorphicJob) insertMR(fuzzer *Fuzzer, srcSlice []string, lastInclu
 	index := fuzzer.rnd.Uint32() % uint32(len(linenoCand))
 	syscallLine := linenoCand[index]
 	nSrcSlice[syscallLine] += "\nMR();"
-	return nSrcSlice
 }
 
 func randomCollide(origP *prog.Prog, rnd *rand.Rand) *prog.Prog {

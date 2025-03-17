@@ -361,7 +361,13 @@ func (runner *Runner) handleExecutingMessage(msg *flatrpc.ExecutingMessage) erro
 	} else {
 		runner.stats.statExecRetries.Add(1)
 	}
-	runner.lastExec.Note(int(msg.Id), proc, req.Prog.Serialize(), osutil.MonotonicNano())
+
+	if req.Stat != nil && req.Stat.GetName() == "exec metamorphic" { // TODO: More efficient approach is required
+		runner.lastExec.Note(int(msg.Id), proc, []byte(req.BinaryFile), osutil.MonotonicNano())
+	} else {
+		runner.lastExec.Note(int(msg.Id), proc, req.Prog.Serialize(), osutil.MonotonicNano())
+	}
+
 	select {
 	case runner.injectExec <- true:
 	default:

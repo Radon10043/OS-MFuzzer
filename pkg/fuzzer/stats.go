@@ -30,6 +30,7 @@ type Stats struct {
 	statExecTriage          *stat.Val
 	statExecMinimize        *stat.Val
 	statExecSmash           *stat.Val
+	statExecMetamorphic     *stat.Val
 	statExecFaultInject     *stat.Val
 	statExecHint            *stat.Val
 	statExecSeed            *stat.Val
@@ -74,6 +75,8 @@ func newStats(target *prog.Target) Stats {
 		statExecMinimize: stat.New("exec minimize", "Executions of programs during minimization",
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecSmash: stat.New("exec smash", "Executions of smashed programs",
+			stat.Rate{}, stat.StackedGraph("exec")),
+		statExecMetamorphic: stat.New("exec metamorphic", "Executions of metamorphic programs",
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecFaultInject: stat.New("exec inject", "Executions of fault injection",
 			stat.Rate{}, stat.StackedGraph("exec")),
