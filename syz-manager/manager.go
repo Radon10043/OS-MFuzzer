@@ -565,6 +565,13 @@ func (mgr *Manager) runInstanceInner(ctx context.Context, inst *vm.Instance, inj
 		}
 	}
 
+	// We need kcovtrace to collect addresses of metamorphic binary execution,
+	// copy it to the image.
+	_, err = inst.Copy(filepath.Join(mgr.cfg.Syzkaller, "bin", "kcovtrace"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to copy kcovtrace binary: %w", err)
+	}
+
 	// Run the fuzzer binary.
 	start := time.Now()
 

@@ -795,7 +795,15 @@ private:
 		if (pipe(stdout_pipe))
 			fail("pipe failed");
 
-		const char* argv[] = {file.c_str(), nullptr};
+		// Use kcovtrace provided by syzkaller to execute the metamorphic binary.
+		// Addresses will be saved to stdout, and we collect coverage based on
+		// these addresses on the host side.
+		// TODO: We need a better way to collect coverage, and ColleectCoverage
+		// in RequestFlags is required to improve efficiency. Further, looks like
+		// PCs are trimmed before sending to the host, we also need to find a way to
+		// get the full PCs.
+		const char* argv[] = {"/kcovtrace", file.c_str(), nullptr};
+
 		std::vector<std::pair<int, int>> fds = {
 		    {stdin_pipe[0], STDIN_FILENO},
 		    {stdout_pipe[1], STDOUT_FILENO},
