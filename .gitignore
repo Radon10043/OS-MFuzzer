@@ -19,6 +19,9 @@ sys/*/gen/*.go
 executor/defs.h
 executor/syscalls.h
 
+# Dont ignore sys/*/gen/empty.go since it may cause build failures
+!sys/*/gen/empty.go
+
 # jetbrains goland
 .idea
 
