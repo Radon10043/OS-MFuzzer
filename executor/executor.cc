@@ -71,6 +71,7 @@ const int kInPipeFd = kMaxFd - 1; // remapped from stdin
 const int kOutPipeFd = kMaxFd - 2; // remapped from stdout
 const int kCoverFd = kOutPipeFd - kMaxThreads;
 const int kExtraCoverFd = kCoverFd - 1;
+const int kBinaryCoverFd = kExtraCoverFd - 1;
 const int kMaxArgs = 9;
 const int kCoverSize = 512 << 10;
 const int kFailStatus = 67;
@@ -392,6 +393,7 @@ static thread_t* last_scheduled;
 static __thread struct thread_t* current_thread;
 
 static cover_t extra_cov;
+static cover_t binary_cov;
 
 struct res_t {
 	bool executed;

@@ -14,6 +14,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -534,6 +535,13 @@ public:
 						     max_signal_fd, cover_filter_fd, use_cover_edges_, is_kernel_64_bit_, slowdown_,
 						     syscall_timeout_ms_, program_timeout_ms_));
 
+		// Just initilizing binary_cov one time
+		binary_cov = {};
+		binary_cov.fd = kBinaryCoverFd;
+		cover_open(&binary_cov, false);
+		cover_mmap(&binary_cov);
+		cover_protect(&binary_cov);
+
 		for (;;)
 			Loop();
 	}
@@ -788,6 +796,11 @@ private:
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
 			return {"binary file write failed", {}};
 
+		cover_enable(&binary_cov, false, false);
+		if (!binary_cov.size)
+			cover_reset(&binary_cov);
+		cover_unprotect(&binary_cov);
+
 		int stdin_pipe[2];
 		if (pipe(stdin_pipe))
 			fail("pipe failed");
@@ -795,14 +808,7 @@ private:
 		if (pipe(stdout_pipe))
 			fail("pipe failed");
 
-		// Use kcovtrace provided by syzkaller to execute the metamorphic binary.
-		// Addresses will be saved to stdout, and we collect coverage based on
-		// these addresses on the host side.
-		// TODO: We need a better way to collect coverage, and ColleectCoverage
-		// in RequestFlags is required to improve efficiency. Further, looks like
-		// PCs are trimmed before sending to the host, we also need to find a way to
-		// get the full PCs.
-		const char* argv[] = {"/kcovtrace", file.c_str(), nullptr};
+		const char* argv[] = {file.c_str(), nullptr};
 
 		std::vector<std::pair<int, int>> fds = {
 		    {stdin_pipe[0], STDIN_FILENO},
@@ -815,6 +821,11 @@ private:
 		close(stdout_pipe[1]);
 
 		int status = process.WaitAndKill(5 * program_timeout_ms_);
+
+		debug("[SyzMeta]: Size of cov: %u", binary_cov.size);
+		if (ioctl(kBinaryCoverFd, KCOV_DISABLE, KCOV_TRACE_PC))
+			fail("KCOV_DISABLE failed");
+		cover_protect(&binary_cov);
 
 		std::vector<uint8_t> output;
 		for (;;) {
