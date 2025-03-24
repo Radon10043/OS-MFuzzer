@@ -33,6 +33,19 @@ ninja clang-test  # Test Clang only.
 ninja install
 ```
 
+### Install flatbuffers-v25.2.10
+
+We need install flatbuffers-2.0.8, which is same as syzkaller used, to compile the flatrpc.fbs.
+
+```sh
+cd /path/to/flatbuffers-build
+sudo apt purge flatbuffers-compiler
+wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz
+cmake -G "Unix Makefiles"
+make -j
+sudo make install
+```
+
 ## Run
 
 ### MR Identification
