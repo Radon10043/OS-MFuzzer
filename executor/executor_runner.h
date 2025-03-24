@@ -769,7 +769,7 @@ private:
 			fail("mkdtemp failed");
 		if (chmod(dir, 0777))
 			fail("chmod failed");
-		auto [err, output] = ExecuteBinaryImpl(msg, dir);
+		auto [err, output, cov] = ExecuteBinaryImpl(msg, dir);
 		if (!err.empty()) {
 			char tmp[64];
 			snprintf(tmp, sizeof(tmp), " (errno %d: %s)", errno, strerror(errno));
@@ -780,21 +780,22 @@ private:
 		res.id = msg.id;
 		res.error = std::move(err);
 		res.output = std::move(output);
+		// TODO: Add cov to the res.bincov
 		raw.msg.Set(std::move(res));
 		conn_.Send(raw);
 	}
 
-	std::tuple<std::string, std::vector<uint8_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
+	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
 	{
 		// For simplicity we just wait for binary tests to complete blocking everything else.
 		std::string file = std::string(dir) + "/syz-executor";
 		int fd = open(file.c_str(), O_WRONLY | O_CLOEXEC | O_CREAT, 0755);
 		if (fd == -1)
-			return {"binary file creation failed", {}};
+			return {"binary file creation failed", {}, {}};
 		ssize_t wrote = write(fd, msg.prog_data.data(), msg.prog_data.size());
 		close(fd);
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
-			return {"binary file write failed", {}};
+			return {"binary file write failed", {}, {}};
 
 		// Prepare to collect coverage of binary execution
 		*(uint64*)binary_cov.data = 0;
@@ -824,10 +825,18 @@ private:
 
 		// Collect coverage of binary after execution
 		cover_collect(&binary_cov);
-		debug("[SyzMeta]: Size of cov: %u\n", binary_cov.size);
 		if (ioctl(kBinaryCoverFd, KCOV_DISABLE, KCOV_TRACE_PC))
 			fail("KCOV_DISABLE failed");
-		cover_protect(&binary_cov);
+
+		// Deduplicate program counters
+		std::unordered_set<uint64> unique_cov;
+		std::vector<uint64> cov;
+		for (size_t i = 0; i < binary_cov.size; i++) {
+			uint64 pc = binary_cov.data[i] + binary_cov.pc_offset;
+			if (unique_cov.insert(pc).second)
+				cov.push_back(pc);
+		}
+		debug("[SyzMeta]: PC nums after deduplication: %lu\n", cov.size());
 
 		std::vector<uint8_t> output;
 		for (;;) {
@@ -841,7 +850,7 @@ private:
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 
-		return {status == kFailStatus ? "process failed" : "", std::move(output)};
+		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(cov)};
 	}
 };
 
