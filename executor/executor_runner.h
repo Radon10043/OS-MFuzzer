@@ -796,9 +796,9 @@ private:
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
 			return {"binary file write failed", {}};
 
+		// Prepare to collect coverage of binary execution
 		cover_enable(&binary_cov, false, false);
-		if (!binary_cov.size)
-			cover_reset(&binary_cov);
+		cover_reset(&binary_cov);
 		cover_unprotect(&binary_cov);
 
 		int stdin_pipe[2];
@@ -822,6 +822,8 @@ private:
 
 		int status = process.WaitAndKill(5 * program_timeout_ms_);
 
+		// Collect coverage of binary after execution
+		cover_collect(&binary_cov);
 		debug("[SyzMeta]: Size of cov: %u", binary_cov.size);
 		if (ioctl(kBinaryCoverFd, KCOV_DISABLE, KCOV_TRACE_PC))
 			fail("KCOV_DISABLE failed");
