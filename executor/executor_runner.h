@@ -797,9 +797,9 @@ private:
 			return {"binary file write failed", {}};
 
 		// Prepare to collect coverage of binary execution
+		*(uint64*)binary_cov.data = 0;
+		binary_cov.overflow = false;
 		cover_enable(&binary_cov, false, false);
-		cover_reset(&binary_cov);
-		cover_unprotect(&binary_cov);
 
 		int stdin_pipe[2];
 		if (pipe(stdin_pipe))
@@ -824,7 +824,7 @@ private:
 
 		// Collect coverage of binary after execution
 		cover_collect(&binary_cov);
-		debug("[SyzMeta]: Size of cov: %u", binary_cov.size);
+		debug("[SyzMeta]: Size of cov: %u\n", binary_cov.size);
 		if (ioctl(kBinaryCoverFd, KCOV_DISABLE, KCOV_TRACE_PC))
 			fail("KCOV_DISABLE failed");
 		cover_protect(&binary_cov);
