@@ -322,7 +322,7 @@ private:
 		    {cover_filter_fd_, kCoverFilterFd},
 		};
 		const char* argv[] = {bin_, "exec", nullptr};
-		process_.emplace(argv, fds);
+		process_.emplace(argv, nullptr, fds);
 
 		Select::Prepare(resp_pipe[0]);
 		Select::Prepare(stdout_pipe[0]);
@@ -534,13 +534,6 @@ public:
 			procs_.emplace_back(new Proc(conn, bin, i, *proc_id_pool_, restarting_, corpus_triaged_,
 						     max_signal_fd, cover_filter_fd, use_cover_edges_, is_kernel_64_bit_, slowdown_,
 						     syscall_timeout_ms_, program_timeout_ms_));
-
-		// Just initilizing binary_cov one time
-		binary_cov = {};
-		binary_cov.fd = kBinaryCoverFd;
-		cover_open(&binary_cov, false);
-		cover_mmap(&binary_cov);
-		cover_protect(&binary_cov);
 
 		for (;;)
 			Loop();
@@ -769,7 +762,7 @@ private:
 			fail("mkdtemp failed");
 		if (chmod(dir, 0777))
 			fail("chmod failed");
-		auto [err, output, cov] = ExecuteBinaryImpl(msg, dir);
+		auto [err, output, bincov] = ExecuteBinaryImpl(msg, dir);
 		if (!err.empty()) {
 			char tmp[64];
 			snprintf(tmp, sizeof(tmp), " (errno %d: %s)", errno, strerror(errno));
@@ -780,12 +773,12 @@ private:
 		res.id = msg.id;
 		res.error = std::move(err);
 		res.output = std::move(output);
-		// TODO: Add cov to the res.bincov
+		res.bincov = std::move(bincov);
 		raw.msg.Set(std::move(res));
 		conn_.Send(raw);
 	}
 
-	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
+	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
 	{
 		// For simplicity we just wait for binary tests to complete blocking everything else.
 		std::string file = std::string(dir) + "/syz-executor";
@@ -797,11 +790,6 @@ private:
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
 			return {"binary file write failed", {}, {}};
 
-		// Prepare to collect coverage of binary execution
-		*(uint64*)binary_cov.data = 0;
-		binary_cov.overflow = false;
-		cover_enable(&binary_cov, false, false);
-
 		int stdin_pipe[2];
 		if (pipe(stdin_pipe))
 			fail("pipe failed");
@@ -809,34 +797,41 @@ private:
 		if (pipe(stdout_pipe))
 			fail("pipe failed");
 
-		const char* argv[] = {file.c_str(), nullptr};
+		// It is hard to collect coverage from subprocess when executing a binary.
+		// For simplicity, we use kcovtrace to collect coverage and write PCs to the .cov file.
+		// tools/kcovtracce/kcovtrace.c has been updated, it can write PCs to the specified
+		// file when COV_FILE is set in envp.
+		// TODO: There must be a better way to do this.
+		std::string cov_file = std::string(dir) + "/syz-executor.cov";
+		std::string cov_file_envp = "COV_FILE=" + cov_file;
+		const char* argv[] = {"/kcovtrace", file.c_str(), nullptr};
+		const char* envp[] = {cov_file_envp.c_str(), nullptr};
 
 		std::vector<std::pair<int, int>> fds = {
 		    {stdin_pipe[0], STDIN_FILENO},
 		    {stdout_pipe[1], STDOUT_FILENO},
 		    {stdout_pipe[1], STDERR_FILENO},
 		};
-		Subprocess process(argv, fds);
+		Subprocess process(argv, envp, fds);
 
 		close(stdin_pipe[0]);
 		close(stdout_pipe[1]);
 
 		int status = process.WaitAndKill(5 * program_timeout_ms_);
 
-		// Collect coverage of binary after execution
-		cover_collect(&binary_cov);
-		if (ioctl(kBinaryCoverFd, KCOV_DISABLE, KCOV_TRACE_PC))
-			fail("KCOV_DISABLE failed");
-
-		// Deduplicate program counters
-		std::unordered_set<uint64> unique_cov;
-		std::vector<uint64> cov;
-		for (size_t i = 0; i < binary_cov.size; i++) {
-			uint64 pc = binary_cov.data[i] + binary_cov.pc_offset;
-			if (unique_cov.insert(pc).second)
-				cov.push_back(pc);
-		}
-		debug("[SyzMeta]: PC nums after deduplication: %lu\n", cov.size());
+		// Collect & deduplicate coverage of binary after execution
+		int cov_fd = open(cov_file.c_str(), O_RDONLY);
+		uint64_t cov_buf = 0;
+		std::unordered_set<uint64_t> uniq_cov;
+		std::vector<uint64_t> bincov;
+		if (cov_fd != -1)
+			while (read(cov_fd, &cov_buf, sizeof(cov_buf)) > 0)
+				uniq_cov.insert(cov_buf);
+		else
+			debug("open cov file failed, skip coverage collection\n");
+		debug("[SyzMeta]: Size of uniq_cov: %zu\n", uniq_cov.size());
+		bincov = std::vector<uint64_t>(uniq_cov.begin(), uniq_cov.end());
+		close(cov_fd);
 
 		std::vector<uint8_t> output;
 		for (;;) {
@@ -850,7 +845,7 @@ private:
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 
-		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(cov)};
+		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(bincov)};
 	}
 };
 

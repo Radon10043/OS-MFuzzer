@@ -71,7 +71,6 @@ const int kInPipeFd = kMaxFd - 1; // remapped from stdin
 const int kOutPipeFd = kMaxFd - 2; // remapped from stdout
 const int kCoverFd = kOutPipeFd - kMaxThreads;
 const int kExtraCoverFd = kCoverFd - 1;
-const int kBinaryCoverFd = kExtraCoverFd - 1;
 const int kMaxArgs = 9;
 const int kCoverSize = 512 << 10;
 const int kFailStatus = 67;
@@ -393,7 +392,6 @@ static thread_t* last_scheduled;
 static __thread struct thread_t* current_thread;
 
 static cover_t extra_cov;
-static cover_t binary_cov;
 
 struct res_t {
 	bool executed;
@@ -1386,7 +1384,8 @@ flatbuffers::span<uint8_t> finish_output(OutputData* output, int proc_id, uint64
 	flatbuffers::Offset<flatbuffers::Vector<uint8_t>> output_off = 0;
 	if (process_output)
 		output_off = fbb.CreateVector(*process_output);
-	auto exec_off = rpc::CreateExecResultRaw(fbb, req_id, proc_id, output_off, hanged, error_off, prog_info_off);
+	flatbuffers::Offset<flatbuffers::Vector<uint64_t>> bincov = 0;
+	auto exec_off = rpc::CreateExecResultRaw(fbb, req_id, proc_id, output_off, bincov, hanged, error_off, prog_info_off);
 	auto msg_off = rpc::CreateExecutorMessageRaw(fbb, rpc::ExecutorMessagesRaw::ExecResult,
 						     flatbuffers::Offset<void>(exec_off.o));
 	fbb.FinishSizePrefixed(msg_off);
