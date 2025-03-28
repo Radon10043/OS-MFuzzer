@@ -438,6 +438,7 @@ func (runner *Runner) handleExecResult(msg *flatrpc.ExecResult) error {
 		Status: status,
 		Info:   msg.Info,
 		Output: slices.Clone(msg.Output),
+		Bincov: slices.Clone(msg.Bincov),
 		Err:    resErr,
 	})
 	return nil

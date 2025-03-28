@@ -27,8 +27,9 @@ import (
 
 type Fuzzer struct {
 	Stats
-	Config *Config
-	Cover  *Cover
+	Config    *Config
+	Cover     *Cover
+	MetaCover *MetaCover
 
 	ctx          context.Context
 	mu           sync.Mutex
@@ -69,9 +70,10 @@ func NewFuzzer(ctx context.Context, cfg *Config, rnd *rand.Rand,
 	}
 
 	f := &Fuzzer{
-		Stats:  newStats(target),
-		Config: cfg,
-		Cover:  newCover(),
+		Stats:     newStats(target),
+		Config:    cfg,
+		Cover:     newCover(),
+		MetaCover: newMetaCover(),
 
 		ctx:         ctx,
 		rnd:         rnd,
@@ -195,6 +197,13 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 			fuzzer.handleCallInfo(req, info, call)
 		}
 		fuzzer.handleCallInfo(req, res.Info.Extra, -1)
+	}
+
+	// Merge coverage of metamorphic binary
+	if len(res.Bincov) > 0 {
+		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
+		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
+		fmt.Printf("meta coverage=%d\n", len(excSigs))
 	}
 
 	// Corpus candidates may have flaky coverage, so we give them a second chance.

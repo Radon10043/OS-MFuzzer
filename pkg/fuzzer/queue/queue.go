@@ -151,6 +151,7 @@ type Result struct {
 	Info     *flatrpc.ProgInfo
 	Executor ExecutorID
 	Output   []byte
+	Bincov   []uint64
 	Status   Status
 	Err      error // More details in case of ExecFailure.
 }
