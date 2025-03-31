@@ -203,7 +203,7 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 	if len(res.Bincov) > 0 {
 		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
 		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
-		fuzzer.statExcMetaCover.Add(len(excSigs)) // TODO: we need to implement stat.store to store the number of exclusive signals
+		fuzzer.statExcMetaCover.Store(len(excSigs))
 	}
 
 	// Corpus candidates may have flaky coverage, so we give them a second chance.
