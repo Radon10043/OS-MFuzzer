@@ -36,6 +36,7 @@ type Stats struct {
 	statExecSeed            *stat.Val
 	statExecCollide         *stat.Val
 	statExcMetaCover        *stat.Val
+	statMetaViolated        *stat.Val
 }
 
 type SyscallStats struct {
@@ -87,6 +88,7 @@ func newStats(target *prog.Target) Stats {
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecCollide: stat.New("exec collide", "Executions of programs in collide mode",
 			stat.Rate{}, stat.StackedGraph("exec")),
-		statExcMetaCover: stat.New("exc metamorphic cover", "Exclusive metamorphicn coverage", stat.Console),
+		statExcMetaCover: stat.New("exc metamorphic cover", "Exclusive metamorphicn coverage", stat.Console, stat.NoGraph),
+		statMetaViolated: stat.New("meta violated", "Programs that violate the metamorphic relation", stat.Console, stat.NoGraph),
 	}
 }

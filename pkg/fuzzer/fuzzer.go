@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -199,11 +200,17 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 		fuzzer.handleCallInfo(req, res.Info.Extra, -1)
 	}
 
-	// Merge coverage of metamorphic binary
-	if len(res.Bincov) > 0 {
+	if req.Stat.GetName() == "exec metamorphic" {
+		// Merge coverage of metamorphic binary
 		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
 		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
 		fuzzer.statExcMetaCover.Store(len(excSigs))
+
+		// Check whether metamorphic relation is violated
+		violated := strings.Contains(string(res.Output), "[SyzMeta]: MR is violated!")
+		if violated {
+			fuzzer.statMetaViolated.Add(1)
+		}
 	}
 
 	// Corpus candidates may have flaky coverage, so we give them a second chance.
