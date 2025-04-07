@@ -600,7 +600,7 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 		linenoCands = append(linenoCands, lineno)
 	}
 
-	const iters = 5
+	const iters = 1
 	for i := 0; i < iters; i++ {
 		// Randomly select and insert an MR implementation into C source
 		metaSlice := make([]string, len(srcSlice))
