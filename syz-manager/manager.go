@@ -202,6 +202,12 @@ func RunManager(mode Mode, cfg *mgrconfig.Config) {
 	}
 
 	osutil.MkdirAll(cfg.Workdir)
+	osutil.MkdirAll(filepath.Join(cfg.Workdir, "metaprog"))                     // The metaprog folder under workdir saves the source code after inserting MR
+	f, err := os.Create(filepath.Join(cfg.Workdir, "metaprog", "violated.txt")) // The violated.txt saves the source file paths that violate MR
+	defer f.Close()
+	if err != nil {
+		log.Fatalf("failed to create violated.txt: %v", err)
+	}
 
 	reporter, err := report.NewReporter(cfg)
 	if err != nil {
@@ -1074,6 +1080,7 @@ func (mgr *Manager) MachineChecked(features flatrpc.Feature, enabledSyscalls map
 			},
 			MetamorphicDir: mgr.cfg.MetamorphicDir,
 			SyzkallerDir:   mgr.cfg.Syzkaller,
+			Workdir:        mgr.cfg.Workdir,
 		}, rnd, mgr.target)
 		fuzzerObj.AddCandidates(candidates)
 		mgr.fuzzer.Store(fuzzerObj)

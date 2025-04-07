@@ -38,6 +38,7 @@ type Request struct {
 
 	// Options needed by runtest.
 	BinaryFile string // If set, it's executed instead of Prog.
+	SourceCode []byte // Source code corresponding to BinaryFile.
 
 	// Important requests will be retried even from crashed VMs.
 	Important bool

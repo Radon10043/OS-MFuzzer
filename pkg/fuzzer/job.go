@@ -547,11 +547,16 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 	}
 
 	// Create a temporary .c file
-	path, err := osutil.TempFile("syz-metasrc*.c")
+	path, err := osutil.TempFile("syz-meta*.c")
 	if err != nil {
 		log.Logf(0, "Failed to create a temporary file: %v", err)
 		return
 	}
+	defer func() {
+		if err := os.Remove(path); err != nil {
+			fuzzer.Logf(0, "Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// Write the source code to the temporary file
 	if err = osutil.WriteFile(path, src); err != nil {
@@ -618,6 +623,7 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 		// Execute the program
 		result := fuzzer.execute(job.exec, &queue.Request{
 			BinaryFile: bin,
+			SourceCode: codeBytes,
 			ExecOpts:   setFlags(flatrpc.ExecFlagCollectSignal),
 			Stat:       fuzzer.statExecMetamorphic,
 		})
@@ -626,8 +632,6 @@ func (job *metamorphicJob) run(fuzzer *Fuzzer) {
 		}
 		job.info.Execs.Add(1)
 	}
-
-	// TODO: Clean files?
 }
 
 // Insert MR implementation to the existing source

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -200,19 +201,6 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 		fuzzer.handleCallInfo(req, res.Info.Extra, -1)
 	}
 
-	if req.Stat.GetName() == "exec metamorphic" {
-		// Merge coverage of metamorphic binary
-		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
-		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
-		fuzzer.statExcMetaCover.Store(len(excSigs))
-
-		// Check whether metamorphic relation is violated
-		violated := strings.Contains(string(res.Output), "[SyzMeta]: MR is violated!")
-		if violated {
-			fuzzer.statMetaViolated.Add(1)
-		}
-	}
-
 	// Corpus candidates may have flaky coverage, so we give them a second chance.
 	maxCandidateAttempts := 3
 	if req.Risky() {
@@ -230,6 +218,48 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 	if flags&progCandidate != 0 {
 		fuzzer.statCandidates.Add(-1)
 	}
+
+	// Process the execution result of metamorphic program
+	if req.Stat.GetName() == "exec metamorphic" {
+		// Merge coverage of metamorphic binary
+		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
+		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
+		fuzzer.statExcMetaCover.Store(len(excSigs))
+
+		// Save corresponding source to the file
+		metaprogDir := filepath.Join(fuzzer.Config.Workdir, "metaprog")
+		srcFile, err := os.CreateTemp(metaprogDir, "syz-meta*.c")
+		defer srcFile.Close()
+		if err != nil {
+			fuzzer.Logf(0, "failed to create metamorphic source file: %v", err)
+		} else {
+			if _, err := srcFile.Write(req.SourceCode); err != nil {
+				fuzzer.Logf(0, "failed to write metamorphic source file: %v", err)
+			}
+		}
+
+		// Check whether metamorphic relation is violated
+		violated := strings.Contains(string(res.Output), "[SyzMeta]: MR is violated!")
+		if violated {
+			if srcFile != nil { // Log the violated program
+				vioFilePath := filepath.Join(metaprogDir, "violated.txt")
+				vioFile, err := os.OpenFile(vioFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				defer vioFile.Close()
+				if err != nil {
+					fuzzer.Logf(0, "failed to create/write violated file: %v", err)
+				} else {
+					vioFile.Write([]byte(srcFile.Name() + "\n"))
+				}
+			}
+			fuzzer.statMetaViolated.Add(1)
+		}
+
+		// Now we can delete the binary file
+		if err := os.Remove(req.BinaryFile); err != nil {
+			fuzzer.Logf(0, "failed to remove metamorphic binary file: %v", err)
+		}
+	}
+
 	return true
 }
 
@@ -249,6 +279,7 @@ type Config struct {
 	PatchTest      bool
 	MetamorphicDir string
 	SyzkallerDir   string
+	Workdir        string
 }
 
 func (fuzzer *Fuzzer) triageProgCall(p *prog.Prog, info *flatrpc.CallInfo, call int, triage *map[int]*triageCall) {
