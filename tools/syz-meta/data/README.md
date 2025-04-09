@@ -34,3 +34,14 @@ Source of specifications:
 
 - data/specifications/linux-v6.2: https://www.kernel.org/doc/html/v6.2/index.html
 - data/specifications/linux-v6.2/autofs: https://www.kernel.org/doc/html/v6.2/filesystems/autofs.html
+- data/specifications/linux-v6.2/fuse: https://www.kernel.org/doc/html/v6.2/filesystems/fuse.html
+- data/specifications/linux-v6.2/kvm: https://www.kernel.org/doc/html/v6.2/virt/kvm/api.html
+- data/specifications/linux-v6.2/ppp: https://www.kernel.org/doc/html/v6.2/networking/ppp_generic.html
+- data/specifications/linux-v6.2/ptmx: https://www.kernel.org/doc/html/v6.2/filesystems/devpts.html
+- data/specifications/linux-v6.2/rdma_cm:
+    + https://www.kernel.org/doc/html/v6.2/infiniband/core_locking.html
+    + https://www.kernel.org/doc/html/v6.2/infiniband/ipoib.html
+    + https://www.kernel.org/doc/html/v6.2/infiniband/opa_vnic.html
+    + https://www.kernel.org/doc/html/v6.2/infiniband/tag_matching.html
+    + https://www.kernel.org/doc/html/v6.2/infiniband/user_mad.html
+    + https://www.kernel.org/doc/html/v6.2/infiniband/user_verbs.html
