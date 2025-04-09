@@ -41,6 +41,7 @@ We need install flatbuffers-2.0.8, which is same as syzkaller used, to compile t
 cd /path/to/flatbuffers-build
 sudo apt purge flatbuffers-compiler
 wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz
+tar -xzvf v2.0.8.tar.gz && cd flatbuffers-2.0.8
 cmake -G "Unix Makefiles"
 make -j
 sudo make install
