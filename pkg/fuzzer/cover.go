@@ -83,7 +83,6 @@ func (metaCover *MetaCover) addRawMaxSignal(signal []uint64, prio uint8) signal.
 	return diff
 }
 
-// TODO: Please check the correctness of implementation
 // Get the exclusive signals of the metamorphic binary.
 func (metaCover *MetaCover) exclusiveSignals(cover *Cover) signal.Signal {
 	metaCover.mu.RLock()

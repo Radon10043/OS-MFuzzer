@@ -194,7 +194,8 @@ func (job *triageJob) handleCall(call int, info *triageCall) {
 				Calls: []string{p.CallName(call)},
 			},
 		})
-		if job.fuzzer.Config.MetamorphicDir != "" {
+		// 0.5 probability to insert metamorphic relation.
+		if job.fuzzer.Config.MetamorphicDir != "" && job.fuzzer.rnd.Intn(100) < 50 {
 			job.fuzzer.startJob(job.fuzzer.statJobsMetamorphic, &metamorphicJob{
 				exec: job.fuzzer.smashQueue,
 				p:    p.Clone(),

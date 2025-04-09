@@ -204,9 +204,10 @@ func RunManager(mode Mode, cfg *mgrconfig.Config) {
 	osutil.MkdirAll(cfg.Workdir)
 	osutil.MkdirAll(filepath.Join(cfg.Workdir, "metaprog"))                     // The metaprog folder under workdir saves the source code after inserting MR
 	f, err := os.Create(filepath.Join(cfg.Workdir, "metaprog", "violated.txt")) // The violated.txt saves the source file paths that violate MR
-	defer f.Close()
 	if err != nil {
 		log.Fatalf("failed to create violated.txt: %v", err)
+	} else {
+		defer f.Close()
 	}
 
 	reporter, err := report.NewReporter(cfg)

@@ -438,8 +438,11 @@ func (runner *Runner) handleExecResult(msg *flatrpc.ExecResult) error {
 		Status: status,
 		Info:   msg.Info,
 		Output: slices.Clone(msg.Output),
-		Bincov: slices.Clone(msg.Bincov),
-		Err:    resErr,
+		// TODO (radon): Currently no processing is done on bincover, maybe we can use it
+		// to show the basic blocks covered by metamorphic program in the frontend?
+		Bincover:   slices.Clone(msg.Bincover),
+		Binsignals: slices.Clone(msg.Binsignals),
+		Err:        resErr,
 	})
 	return nil
 }

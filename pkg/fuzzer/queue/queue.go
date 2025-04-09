@@ -149,12 +149,13 @@ func (r *Request) initChannel() {
 }
 
 type Result struct {
-	Info     *flatrpc.ProgInfo
-	Executor ExecutorID
-	Output   []byte
-	Bincov   []uint64
-	Status   Status
-	Err      error // More details in case of ExecFailure.
+	Info       *flatrpc.ProgInfo
+	Executor   ExecutorID
+	Output     []byte
+	Bincover   []uint64
+	Binsignals []uint64
+	Status     Status
+	Err        error // More details in case of ExecFailure.
 }
 
 func (r *Result) clone() *Result {

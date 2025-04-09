@@ -762,7 +762,7 @@ private:
 			fail("mkdtemp failed");
 		if (chmod(dir, 0777))
 			fail("chmod failed");
-		auto [err, output, bincov] = ExecuteBinaryImpl(msg, dir);
+		auto [err, output, bincover, binsignals] = ExecuteBinaryImpl(msg, dir);
 		if (!err.empty()) {
 			char tmp[64];
 			snprintf(tmp, sizeof(tmp), " (errno %d: %s)", errno, strerror(errno));
@@ -773,22 +773,23 @@ private:
 		res.id = msg.id;
 		res.error = std::move(err);
 		res.output = std::move(output);
-		res.bincov = std::move(bincov);
+		res.bincover = std::move(bincover);
+		res.binsignals = std::move(binsignals);
 		raw.msg.Set(std::move(res));
 		conn_.Send(raw);
 	}
 
-	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
+	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64_t>, std::vector<uint64_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
 	{
 		// For simplicity we just wait for binary tests to complete blocking everything else.
 		std::string file = std::string(dir) + "/syz-executor";
 		int fd = open(file.c_str(), O_WRONLY | O_CLOEXEC | O_CREAT, 0755);
 		if (fd == -1)
-			return {"binary file creation failed", {}, {}};
+			return {"binary file creation failed", {}, {}, {}};
 		ssize_t wrote = write(fd, msg.prog_data.data(), msg.prog_data.size());
 		close(fd);
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
-			return {"binary file write failed", {}, {}};
+			return {"binary file write failed", {}, {}, {}};
 
 		int stdin_pipe[2];
 		if (pipe(stdin_pipe))
@@ -822,15 +823,28 @@ private:
 		// Collect & deduplicate coverage of binary after execution
 		int cov_fd = open(cov_file.c_str(), O_RDONLY);
 		uint64_t cov_buf = 0;
-		std::unordered_set<uint64_t> uniq_cov;
-		std::vector<uint64_t> bincov;
-		if (cov_fd != -1)
-			while (read(cov_fd, &cov_buf, sizeof(cov_buf)) > 0)
-				uniq_cov.insert(cov_buf);
-		else
+		std::unordered_set<uint64_t> uniq_cover;
+		std::unordered_set<uint64_t> uniq_signals;
+		std::vector<uint64_t> bincover;
+		std::vector<uint64_t> binsignals;
+		if (cov_fd != -1) {
+			uint64_t prev_pc = 0;
+			while (read(cov_fd, &cov_buf, sizeof(cov_buf)) > 0) {
+				uint64_t pc = cov_buf;
+				uint64_t signal = pc;
+				if (use_cover_edges_) {	// Refer to write_signal() in executor.cc
+					const uint64 mask = (1 << 12) - 1;
+					signal ^= hash(prev_pc & mask) & mask;
+				}
+				uniq_cover.insert(pc);
+				uniq_signals.insert(signal);	// If use_cover_edges_ is false, signal is same as pc
+				prev_pc = pc;
+			}
+		} else {
 			debug("open cov file failed, skip coverage collection\n");
-		debug("[SyzMeta]: Size of uniq_cov: %zu\n", uniq_cov.size());
-		bincov = std::vector<uint64_t>(uniq_cov.begin(), uniq_cov.end());
+		}
+		bincover = std::vector<uint64_t>(uniq_cover.begin(), uniq_cover.end());
+		binsignals = std::vector<uint64_t>(uniq_signals.begin(), uniq_signals.end());
 		close(cov_fd);
 
 		std::vector<uint8_t> output;
@@ -845,7 +859,7 @@ private:
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 
-		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(bincov)};
+		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(bincover), std::move(binsignals)};
 	}
 };
 

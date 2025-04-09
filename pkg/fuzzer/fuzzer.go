@@ -222,17 +222,17 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 	// Process the execution result of metamorphic program
 	if req.Stat.GetName() == "exec metamorphic" {
 		// Merge coverage of metamorphic binary
-		fuzzer.MetaCover.addRawMaxSignal(res.Bincov, 0)
+		fuzzer.MetaCover.addRawMaxSignal(res.Binsignals, 0)
 		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
 		fuzzer.statExcMetaCover.Store(len(excSigs))
 
 		// Save corresponding source to the file
 		metaprogDir := filepath.Join(fuzzer.Config.Workdir, "metaprog")
 		srcFile, err := os.CreateTemp(metaprogDir, "syz-meta*.c")
-		defer srcFile.Close()
 		if err != nil {
 			fuzzer.Logf(0, "failed to create metamorphic source file: %v", err)
 		} else {
+			defer srcFile.Close()
 			if _, err := srcFile.Write(req.SourceCode); err != nil {
 				fuzzer.Logf(0, "failed to write metamorphic source file: %v", err)
 			}
@@ -244,10 +244,10 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 			if srcFile != nil { // Log the violated program
 				vioFilePath := filepath.Join(metaprogDir, "violated.txt")
 				vioFile, err := os.OpenFile(vioFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				defer vioFile.Close()
 				if err != nil {
 					fuzzer.Logf(0, "failed to create/write violated file: %v", err)
 				} else {
+					defer vioFile.Close()
 					vioFile.Write([]byte(srcFile.Name() + "\n"))
 				}
 			}
