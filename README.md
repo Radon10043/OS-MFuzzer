@@ -103,7 +103,7 @@ MRIden.py is used to identify and calibrate MR via LLMs. Explanation of each par
 - calibrator: store the settings of calibrator model, its content is same as identifier.
 - max_iter: maximum iteration for discussing.
 - output: output directory that stores query messages, discussion result, etc.
-- specification: path of specification file that used in the LLM query.
+- specification: path of specification file that used in the LLM query (We convert html content to markdown via [devtool.tech](https://devtool.tech/en)).
 - driver_name: Name of driver under test.
 
 ### MR Implementation
@@ -171,3 +171,4 @@ tools/syz-meta/src/mt.go is used to insert the metamorphosis relation implementa
 
 [1] [https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html](https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html)
 [2] [https://github.com/google/syzkaller](https://github.com/google/syzkaller)
+[3] [https://devtool.tech/en](https://devtool.tech/en)
