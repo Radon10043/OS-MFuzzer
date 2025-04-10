@@ -1,4 +1,4 @@
-## autofs - how it works
+# autofs - how it works
 
 ## Purpose
 
