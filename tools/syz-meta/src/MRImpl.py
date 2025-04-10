@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-19 14:09:19
+LastEditTime : 2025-04-10 14:11:59
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -185,7 +185,8 @@ def build_c_program(c_code: str, compiler: str, cflags: str) -> Tuple[int, str]:
     binary = "/tmp/GQuuuuuuX"
     with open(sfn, mode="w", encoding="utf-8") as f:
         f.write(c_code)
-    res = subprocess.run([compiler, cflags, "-o", binary, sfn], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = [compiler, sfn, "-o", binary] + cflags.split()
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return res.returncode, res.stderr.decode("utf-8")
 
 
@@ -239,9 +240,9 @@ def loop(programmer, config: dict):
         if len(mrc_code) == 0:
             FATAL(f"{config["model"]} generated empty C code implementation of MRC.")
 
-        # 加一段main函数调用MR(void)的代码, 与MRC代码结合形成完整C代码
+        # 加一段main函数, 里面只有一句return 0, 主要目的是查看LLM生成的代码是否能编译通过
         # 编译构建C代码, 同时获取错误信息
-        c_code = f"{mrc_code}\n\nint main() {{ MR(); return 0; }}"
+        c_code = f"{mrc_code}\n\nint main() {{ return 0; }}"
         ret_code, err_msgs = build_c_program(c_code, config["compiler"], config["cflags"])
         if ret_code == 0:  # 如果编译成功, 跳出循环
             gen_success = True
