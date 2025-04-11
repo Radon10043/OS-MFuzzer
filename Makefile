@@ -111,7 +111,7 @@ endif
 	presubmit_arch_executor presubmit_dashboard presubmit_race presubmit_race_dashboard presubmit_old
 
 all: host target
-host: manager repro mutate prog2c db upgrade meta
+host: manager repro mutate prog2c db upgrade
 target: execprog executor
 
 executor: descriptions
@@ -212,10 +212,6 @@ bisect: descriptions
 verifier: descriptions
 	# TODO: switch syz-verifier to use syz-executor.
 	# GOOS=$(HOSTOS) GOARCH=$(HOSTARCH) $(HOSTGO) build $(GOHOSTFLAGS) -o ./bin/syz-verifier github.com/google/syzkaller/syz-verifier
-
-meta:
-	GOOS=$(HOSTOS) GOARCH=$(HOSTARCH) $(HOSTGO) build $(GOHOSTFLAGS) -o ./bin/syz-meta tools/syz-meta/src/mt.go
-	$(CC) -static -o ./bin/kcovtrace tools/kcovtrace/kcovtrace.c
 
 # `extract` extracts const files from various kernel sources, and may only
 # re-generate parts of files.

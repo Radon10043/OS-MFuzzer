@@ -7,11 +7,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,9 +16,7 @@ import (
 	"github.com/google/syzkaller/pkg/csource"
 	"github.com/google/syzkaller/pkg/flatrpc"
 	"github.com/google/syzkaller/pkg/fuzzer/queue"
-	"github.com/google/syzkaller/pkg/log"
 	"github.com/google/syzkaller/pkg/mgrconfig"
-	"github.com/google/syzkaller/pkg/osutil"
 	"github.com/google/syzkaller/pkg/signal"
 	"github.com/google/syzkaller/pkg/stat"
 	"github.com/google/syzkaller/prog"
@@ -29,9 +24,8 @@ import (
 
 type Fuzzer struct {
 	Stats
-	Config    *Config
-	Cover     *Cover
-	MetaCover *MetaCover
+	Config *Config
+	Cover  *Cover
 
 	ctx          context.Context
 	mu           sync.Mutex
@@ -45,8 +39,6 @@ type Fuzzer struct {
 	ctMu         sync.Mutex // TODO: use RWLock.
 	ctRegenerate chan struct{}
 
-	metamorphicFiles []string
-
 	execQueues
 }
 
@@ -57,25 +49,10 @@ func NewFuzzer(ctx context.Context, cfg *Config, rnd *rand.Rand,
 			return true
 		}
 	}
-
-	// Get all metamorphic relation implementations
-	var metamorphicFiles []string
-	if cfg.MetamorphicDir != "" {
-		absDir := osutil.Abs(cfg.MetamorphicDir)
-		files, err := osutil.ListDir(cfg.MetamorphicDir)
-		if err != nil {
-			log.Logf(0, "Couldn't get metamorphic relations, run vanilla syzkaller: %v", err)
-		}
-		for _, file := range files {
-			metamorphicFiles = append(metamorphicFiles, filepath.Join(absDir, file))
-		}
-	}
-
 	f := &Fuzzer{
-		Stats:     newStats(target),
-		Config:    cfg,
-		Cover:     newCover(),
-		MetaCover: newMetaCover(),
+		Stats:  newStats(target),
+		Config: cfg,
+		Cover:  newCover(),
 
 		ctx:         ctx,
 		rnd:         rnd,
@@ -85,8 +62,6 @@ func NewFuzzer(ctx context.Context, cfg *Config, rnd *rand.Rand,
 		// We're okay to lose some of the messages -- if we are already
 		// regenerating the table, we don't want to repeat it right away.
 		ctRegenerate: make(chan struct{}),
-
-		metamorphicFiles: metamorphicFiles,
 	}
 	f.execQueues = newExecQueues(f)
 	f.updateChoiceTable(nil)
@@ -218,48 +193,6 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 	if flags&progCandidate != 0 {
 		fuzzer.statCandidates.Add(-1)
 	}
-
-	// Process the execution result of metamorphic program
-	if req.Stat.GetName() == "exec metamorphic" {
-		// Merge coverage of metamorphic binary
-		fuzzer.MetaCover.addRawMaxSignal(res.Binsignals, 0)
-		excSigs := fuzzer.MetaCover.exclusiveSignals(fuzzer.Cover)
-		fuzzer.statExcMetaCover.Store(len(excSigs))
-
-		// Save corresponding source to the file
-		metaprogDir := filepath.Join(fuzzer.Config.Workdir, "metaprog")
-		srcFile, err := os.CreateTemp(metaprogDir, "syz-meta*.c")
-		if err != nil {
-			fuzzer.Logf(0, "failed to create metamorphic source file: %v", err)
-		} else {
-			defer srcFile.Close()
-			if _, err := srcFile.Write(req.SourceCode); err != nil {
-				fuzzer.Logf(0, "failed to write metamorphic source file: %v", err)
-			}
-		}
-
-		// Check whether metamorphic relation is violated
-		violated := strings.Contains(string(res.Output), "[SyzMeta]: MR is violated!")
-		if violated {
-			if srcFile != nil { // Log the violated program
-				vioFilePath := filepath.Join(metaprogDir, "violated.txt")
-				vioFile, err := os.OpenFile(vioFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if err != nil {
-					fuzzer.Logf(0, "failed to create/write violated file: %v", err)
-				} else {
-					defer vioFile.Close()
-					vioFile.Write([]byte(srcFile.Name() + "\n"))
-				}
-			}
-			fuzzer.statMetaViolated.Add(1)
-		}
-
-		// Now we can delete the binary file
-		if err := os.Remove(req.BinaryFile); err != nil {
-			fuzzer.Logf(0, "failed to remove metamorphic binary file: %v", err)
-		}
-	}
-
 	return true
 }
 
@@ -277,9 +210,6 @@ type Config struct {
 	FetchRawCover  bool
 	NewInputFilter func(call string) bool
 	PatchTest      bool
-	MetamorphicDir string
-	SyzkallerDir   string
-	Workdir        string
 }
 
 func (fuzzer *Fuzzer) triageProgCall(p *prog.Prog, info *flatrpc.CallInfo, call int, triage *map[int]*triageCall) {

@@ -361,13 +361,7 @@ func (runner *Runner) handleExecutingMessage(msg *flatrpc.ExecutingMessage) erro
 	} else {
 		runner.stats.statExecRetries.Add(1)
 	}
-
-	if req.Stat != nil && req.Stat.GetName() == "exec metamorphic" { // TODO: More efficient approach is required
-		runner.lastExec.Note(int(msg.Id), proc, []byte(req.BinaryFile), osutil.MonotonicNano())
-	} else {
-		runner.lastExec.Note(int(msg.Id), proc, req.Prog.Serialize(), osutil.MonotonicNano())
-	}
-
+	runner.lastExec.Note(int(msg.Id), proc, req.Prog.Serialize(), osutil.MonotonicNano())
 	select {
 	case runner.injectExec <- true:
 	default:
@@ -438,11 +432,7 @@ func (runner *Runner) handleExecResult(msg *flatrpc.ExecResult) error {
 		Status: status,
 		Info:   msg.Info,
 		Output: slices.Clone(msg.Output),
-		// TODO (radon): Currently no processing is done on bincover, maybe we can use it
-		// to show the basic blocks covered by metamorphic program in the frontend?
-		Bincover:   slices.Clone(msg.Bincover),
-		Binsignals: slices.Clone(msg.Binsignals),
-		Err:        resErr,
+		Err:    resErr,
 	})
 	return nil
 }

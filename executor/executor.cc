@@ -1384,9 +1384,7 @@ flatbuffers::span<uint8_t> finish_output(OutputData* output, int proc_id, uint64
 	flatbuffers::Offset<flatbuffers::Vector<uint8_t>> output_off = 0;
 	if (process_output)
 		output_off = fbb.CreateVector(*process_output);
-	flatbuffers::Offset<flatbuffers::Vector<uint64_t>> binsignals = 0;
-	flatbuffers::Offset<flatbuffers::Vector<uint64_t>> bincover = 0;
-	auto exec_off = rpc::CreateExecResultRaw(fbb, req_id, proc_id, output_off, bincover, binsignals, hanged, error_off, prog_info_off);
+	auto exec_off = rpc::CreateExecResultRaw(fbb, req_id, proc_id, output_off, hanged, error_off, prog_info_off);
 	auto msg_off = rpc::CreateExecutorMessageRaw(fbb, rpc::ExecutorMessagesRaw::ExecResult,
 						     flatbuffers::Offset<void>(exec_off.o));
 	fbb.FinishSizePrefixed(msg_off);

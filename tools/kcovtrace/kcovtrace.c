@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -37,16 +36,7 @@ typedef unsigned long cover_t;
 int main(int argc, char** argv, char** envp)
 {
 	int fd, pid, status;
-	int cov_fd = -1;
 	cover_t *cover, n, i;
-
-	 // if COV_FILE is set in envp, open it
-	for (int j = 0; envp[j]; j++) {
-		if (strncmp(envp[j], "COV_FILE=", 9) == 0) {
-			cov_fd = open(envp[j] + 9, O_RDWR | O_CREAT | O_TRUNC, 0600);
-			break;
-		}
-	}
 
 	if (argc == 1)
 		fprintf(stderr, "usage: kcovtrace program [args...]\n"), exit(1);
@@ -91,18 +81,8 @@ int main(int argc, char** argv, char** envp)
 #endif
 	}
 	n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
-
-	// Write coverage to the file or print it to stdout.
-	if (cov_fd != -1) {
-		for (i = 0; i < n; i++)
-			if (write(cov_fd, &cover[i + 1], sizeof(cover[i + 1])) != sizeof(cover[i + 1]))
-				perror("write"), exit(1);
-		close(cov_fd);
-	} else {
-		for (i = 0; i < n; i++)
-			printf("0x%jx\n", (uintmax_t)cover[i + 1]);
-	}
-
+	for (i = 0; i < n; i++)
+		printf("0x%jx\n", (uintmax_t)cover[i + 1]);
 	if (munmap(cover, COVER_SIZE * KCOV_ENTRY_SIZE))
 		perror("munmap"), exit(1);
 	if (close(fd))

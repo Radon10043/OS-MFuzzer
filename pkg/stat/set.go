@@ -274,14 +274,6 @@ func (v *Val) Add(val int) {
 	v.val.Add(uint64(val))
 }
 
-// Store sets the value of the metric to val.
-func (v *Val) Store(val int) {
-	if v.ext != nil {
-		panic(fmt.Sprintf("stat %v is in external mode", v.name))
-	}
-	v.val.Store(uint64(val))
-}
-
 func (v *Val) Val() int {
 	if v.ext != nil {
 		return v.ext()
@@ -295,11 +287,6 @@ func (v *Val) Val() int {
 		return int(v.histVal.Mean())
 	}
 	return int(v.val.Load())
-}
-
-// Getters for Val fields
-func (v *Val) GetName() string {
-	return v.name
 }
 
 func formatRate(v int, period time.Duration) string {

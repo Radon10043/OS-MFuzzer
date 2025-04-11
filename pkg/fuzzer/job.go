@@ -7,9 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,11 +14,8 @@ import (
 
 	"github.com/google/syzkaller/pkg/corpus"
 	"github.com/google/syzkaller/pkg/cover"
-	"github.com/google/syzkaller/pkg/csource"
 	"github.com/google/syzkaller/pkg/flatrpc"
 	"github.com/google/syzkaller/pkg/fuzzer/queue"
-	"github.com/google/syzkaller/pkg/log"
-	"github.com/google/syzkaller/pkg/osutil"
 	"github.com/google/syzkaller/pkg/signal"
 	"github.com/google/syzkaller/prog"
 )
@@ -194,18 +188,6 @@ func (job *triageJob) handleCall(call int, info *triageCall) {
 				Calls: []string{p.CallName(call)},
 			},
 		})
-		// 0.5 probability to insert metamorphic relation.
-		if job.fuzzer.Config.MetamorphicDir != "" && job.fuzzer.rnd.Intn(100) < 50 {
-			job.fuzzer.startJob(job.fuzzer.statJobsMetamorphic, &metamorphicJob{
-				exec: job.fuzzer.smashQueue,
-				p:    p.Clone(),
-				info: &JobInfo{
-					Name:  p.String(),
-					Type:  "metamorphic",
-					Calls: []string{p.CallName(call)},
-				},
-			})
-		}
 		if job.fuzzer.Config.Comparisons && call >= 0 {
 			job.fuzzer.startJob(job.fuzzer.statJobsHints, &hintsJob{
 				exec: job.fuzzer.smashQueue,
@@ -489,165 +471,6 @@ func (job *smashJob) run(fuzzer *Fuzzer) {
 
 func (job *smashJob) getInfo() *JobInfo {
 	return job.info
-}
-
-type metamorphicJob struct {
-	exec queue.Executor
-	p    *prog.Prog
-	info *JobInfo
-}
-
-// Insert metamorphic relation implementation into seed
-func (job *metamorphicJob) run(fuzzer *Fuzzer) {
-	// Using default options from prog2c.go
-	features, err := csource.ParseFeaturesFlags("none", "none", false)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to parse features: %v\n", err)
-		return
-	}
-	opts := csource.Options{
-		Threaded:      false,
-		Repeat:        false,
-		RepeatTimes:   1,
-		Procs:         1,
-		Slowdown:      1,
-		Sandbox:       "",
-		SandboxArg:    0,
-		Leak:          false,
-		NetInjection:  features["tun"].Enabled,
-		NetDevices:    features["net_dev"].Enabled,
-		NetReset:      features["net_reset"].Enabled,
-		Cgroups:       features["cgroups"].Enabled,
-		BinfmtMisc:    features["binfmt_misc"].Enabled,
-		CloseFDs:      features["close_fds"].Enabled,
-		KCSAN:         features["kcsan"].Enabled,
-		DevlinkPCI:    features["devlink_pci"].Enabled,
-		NicVF:         features["nic_vf"].Enabled,
-		USB:           features["usb"].Enabled,
-		VhciInjection: features["vhci"].Enabled,
-		Wifi:          features["wifi"].Enabled,
-		IEEE802154:    features["ieee802154"].Enabled,
-		Sysctl:        features["sysctl"].Enabled,
-		Swap:          features["swap"].Enabled,
-		UseTmpDir:     false,
-		HandleSegv:    false,
-		Trace:         false,
-	}
-
-	// Convert the program to C source
-	src, err := csource.Write(job.p, opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to generate C source: %v\n", err)
-		return
-	}
-	if formatted, err := csource.Format(src); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to format C source: %v\n", err)
-		return
-	} else {
-		src = formatted
-	}
-
-	// Create a temporary .c file
-	path, err := osutil.TempFile("syz-meta*.c")
-	if err != nil {
-		log.Logf(0, "Failed to create a temporary file: %v", err)
-		return
-	}
-	defer func() {
-		if err := os.Remove(path); err != nil {
-			fuzzer.Logf(0, "Failed to remove temporary file: %v", err)
-		}
-	}()
-
-	// Write the source code to the temporary file
-	if err = osutil.WriteFile(path, src); err != nil {
-		log.Logf(0, "Failed to write source code to %s: %v", path, err)
-		return
-	}
-
-	// Get the last line of "#include"
-	srcStr := string(src)
-	srcSlice := strings.Split(srcStr, "\n")
-	lastIncludeLine := 0
-	for i, line := range srcSlice {
-		if strings.HasPrefix(line, "#include") {
-			lastIncludeLine = i
-		} else if strings.HasPrefix(line, "#define") || strings.HasPrefix(line, "//") || line == "" {
-			continue
-		} else {
-			break
-		}
-	}
-
-	// Get syscall line number candidates
-	pyInterpreter := filepath.Join(fuzzer.Config.SyzkallerDir, "tools", "syz-meta", ".venv", "bin", "python3")
-	analysisPy := filepath.Join(fuzzer.Config.SyzkallerDir, "tools", "syz-meta", "src", "CAnalysis.py")
-	timeout := 5 * time.Second
-	linenoCands := []int{}
-	output, err := osutil.RunCmd(timeout, "", pyInterpreter, analysisPy, "--file", path)
-	if err != nil {
-		log.Logf(0, "Failed to get syscall lineno candidates: %v", err)
-		return
-	}
-
-	// Filter to get the avaliable line numbers
-	lines := strings.Split(string(output), "\n")
-	lines = lines[3 : len(lines)-1]
-	for _, line := range lines {
-		lst := strings.Split(line, ",")
-		lineno, err := strconv.Atoi(lst[1])
-		if err != nil {
-			log.Logf(0, "Failed to get line number of syscall: %v", err)
-			return
-		}
-		// The line number outputted by py script is 1-based. To facilitate subsequent MR intertion,
-		// we need to convert it to 0-based.
-		lineno--
-		linenoCands = append(linenoCands, lineno)
-	}
-
-	const iters = 1
-	for i := 0; i < iters; i++ {
-		// Randomly select and insert an MR implementation into C source
-		metaSlice := make([]string, len(srcSlice))
-		copy(metaSlice, srcSlice)
-		job.insertMR(fuzzer, metaSlice, lastIncludeLine, linenoCands)
-		codeBytes := []byte(strings.Join(metaSlice, "\n"))
-
-		// Build the program which is inserted MR implementation
-		bin, err := csource.BuildNoWarn(fuzzer.target, codeBytes)
-		if err != nil {
-			fmt.Println("Shit, build failed. Continue.")
-			continue
-		}
-
-		// Execute the program
-		result := fuzzer.execute(job.exec, &queue.Request{
-			BinaryFile: bin,
-			SourceCode: codeBytes,
-			ExecOpts:   setFlags(flatrpc.ExecFlagCollectSignal),
-			Stat:       fuzzer.statExecMetamorphic,
-		})
-		if result.Stop() {
-			return
-		}
-		job.info.Execs.Add(1)
-	}
-}
-
-// Insert MR implementation to the existing source
-func (job *metamorphicJob) insertMR(fuzzer *Fuzzer, srcSlice []string, lastIncludeLine int, linenoCand []int) {
-	// Clone
-	nSrcSlice := srcSlice
-
-	// Insert #include "/path/to/mr.h"
-	mrIndex := fuzzer.rnd.Uint32() % uint32(len(fuzzer.metamorphicFiles))
-	nSrcSlice[lastIncludeLine] += "\n#include \"" + fuzzer.metamorphicFiles[mrIndex] + "\""
-
-	// Insert MR() to the main func
-	index := fuzzer.rnd.Uint32() % uint32(len(linenoCand))
-	syscallLine := linenoCand[index]
-	nSrcSlice[syscallLine] += "\nMR();"
 }
 
 func randomCollide(origP *prog.Prog, rnd *rand.Rand) *prog.Prog {

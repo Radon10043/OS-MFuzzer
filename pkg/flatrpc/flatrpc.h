@@ -2378,8 +2378,6 @@ struct ExecResultRawT : public flatbuffers::NativeTable {
   int64_t id = 0;
   int32_t proc = 0;
   std::vector<uint8_t> output{};
-  std::vector<uint64_t> bincover{};
-  std::vector<uint64_t> binsignals{};
   bool hanged = false;
   std::string error{};
   std::unique_ptr<rpc::ProgInfoRawT> info{};
@@ -2396,11 +2394,9 @@ struct ExecResultRaw FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_ID = 4,
     VT_PROC = 6,
     VT_OUTPUT = 8,
-    VT_BINCOVER = 10,
-    VT_BINSIGNALS = 12,
-    VT_HANGED = 14,
-    VT_ERROR = 16,
-    VT_INFO = 18
+    VT_HANGED = 10,
+    VT_ERROR = 12,
+    VT_INFO = 14
   };
   int64_t id() const {
     return GetField<int64_t>(VT_ID, 0);
@@ -2410,12 +2406,6 @@ struct ExecResultRaw FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const flatbuffers::Vector<uint8_t> *output() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_OUTPUT);
-  }
-  const flatbuffers::Vector<uint64_t> *bincover() const {
-    return GetPointer<const flatbuffers::Vector<uint64_t> *>(VT_BINCOVER);
-  }
-  const flatbuffers::Vector<uint64_t> *binsignals() const {
-    return GetPointer<const flatbuffers::Vector<uint64_t> *>(VT_BINSIGNALS);
   }
   bool hanged() const {
     return GetField<uint8_t>(VT_HANGED, 0) != 0;
@@ -2432,10 +2422,6 @@ struct ExecResultRaw FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<int32_t>(verifier, VT_PROC, 4) &&
            VerifyOffset(verifier, VT_OUTPUT) &&
            verifier.VerifyVector(output()) &&
-           VerifyOffset(verifier, VT_BINCOVER) &&
-           verifier.VerifyVector(bincover()) &&
-           VerifyOffset(verifier, VT_BINSIGNALS) &&
-           verifier.VerifyVector(binsignals()) &&
            VerifyField<uint8_t>(verifier, VT_HANGED, 1) &&
            VerifyOffset(verifier, VT_ERROR) &&
            verifier.VerifyString(error()) &&
@@ -2460,12 +2446,6 @@ struct ExecResultRawBuilder {
   }
   void add_output(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> output) {
     fbb_.AddOffset(ExecResultRaw::VT_OUTPUT, output);
-  }
-  void add_bincover(flatbuffers::Offset<flatbuffers::Vector<uint64_t>> bincover) {
-    fbb_.AddOffset(ExecResultRaw::VT_BINCOVER, bincover);
-  }
-  void add_binsignals(flatbuffers::Offset<flatbuffers::Vector<uint64_t>> binsignals) {
-    fbb_.AddOffset(ExecResultRaw::VT_BINSIGNALS, binsignals);
   }
   void add_hanged(bool hanged) {
     fbb_.AddElement<uint8_t>(ExecResultRaw::VT_HANGED, static_cast<uint8_t>(hanged), 0);
@@ -2492,8 +2472,6 @@ inline flatbuffers::Offset<ExecResultRaw> CreateExecResultRaw(
     int64_t id = 0,
     int32_t proc = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> output = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint64_t>> bincover = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint64_t>> binsignals = 0,
     bool hanged = false,
     flatbuffers::Offset<flatbuffers::String> error = 0,
     flatbuffers::Offset<rpc::ProgInfoRaw> info = 0) {
@@ -2501,8 +2479,6 @@ inline flatbuffers::Offset<ExecResultRaw> CreateExecResultRaw(
   builder_.add_id(id);
   builder_.add_info(info);
   builder_.add_error(error);
-  builder_.add_binsignals(binsignals);
-  builder_.add_bincover(bincover);
   builder_.add_output(output);
   builder_.add_proc(proc);
   builder_.add_hanged(hanged);
@@ -2514,22 +2490,16 @@ inline flatbuffers::Offset<ExecResultRaw> CreateExecResultRawDirect(
     int64_t id = 0,
     int32_t proc = 0,
     const std::vector<uint8_t> *output = nullptr,
-    const std::vector<uint64_t> *bincover = nullptr,
-    const std::vector<uint64_t> *binsignals = nullptr,
     bool hanged = false,
     const char *error = nullptr,
     flatbuffers::Offset<rpc::ProgInfoRaw> info = 0) {
   auto output__ = output ? _fbb.CreateVector<uint8_t>(*output) : 0;
-  auto bincover__ = bincover ? _fbb.CreateVector<uint64_t>(*bincover) : 0;
-  auto binsignals__ = binsignals ? _fbb.CreateVector<uint64_t>(*binsignals) : 0;
   auto error__ = error ? _fbb.CreateString(error) : 0;
   return rpc::CreateExecResultRaw(
       _fbb,
       id,
       proc,
       output__,
-      bincover__,
-      binsignals__,
       hanged,
       error__,
       info);
@@ -3512,8 +3482,6 @@ inline ExecResultRawT::ExecResultRawT(const ExecResultRawT &o)
       : id(o.id),
         proc(o.proc),
         output(o.output),
-        bincover(o.bincover),
-        binsignals(o.binsignals),
         hanged(o.hanged),
         error(o.error),
         info((o.info) ? new rpc::ProgInfoRawT(*o.info) : nullptr) {
@@ -3523,8 +3491,6 @@ inline ExecResultRawT &ExecResultRawT::operator=(ExecResultRawT o) FLATBUFFERS_N
   std::swap(id, o.id);
   std::swap(proc, o.proc);
   std::swap(output, o.output);
-  std::swap(bincover, o.bincover);
-  std::swap(binsignals, o.binsignals);
   std::swap(hanged, o.hanged);
   std::swap(error, o.error);
   std::swap(info, o.info);
@@ -3543,8 +3509,6 @@ inline void ExecResultRaw::UnPackTo(ExecResultRawT *_o, const flatbuffers::resol
   { auto _e = id(); _o->id = _e; }
   { auto _e = proc(); _o->proc = _e; }
   { auto _e = output(); if (_e) { _o->output.resize(_e->size()); std::copy(_e->begin(), _e->end(), _o->output.begin()); } }
-  { auto _e = bincover(); if (_e) { _o->bincover.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->bincover[_i] = _e->Get(_i); } } }
-  { auto _e = binsignals(); if (_e) { _o->binsignals.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->binsignals[_i] = _e->Get(_i); } } }
   { auto _e = hanged(); _o->hanged = _e; }
   { auto _e = error(); if (_e) _o->error = _e->str(); }
   { auto _e = info(); if (_e) _o->info = std::unique_ptr<rpc::ProgInfoRawT>(_e->UnPack(_resolver)); }
@@ -3561,8 +3525,6 @@ inline flatbuffers::Offset<ExecResultRaw> CreateExecResultRaw(flatbuffers::FlatB
   auto _id = _o->id;
   auto _proc = _o->proc;
   auto _output = _o->output.size() ? _fbb.CreateVector(_o->output) : 0;
-  auto _bincover = _o->bincover.size() ? _fbb.CreateVector(_o->bincover) : 0;
-  auto _binsignals = _o->binsignals.size() ? _fbb.CreateVector(_o->binsignals) : 0;
   auto _hanged = _o->hanged;
   auto _error = _o->error.empty() ? 0 : _fbb.CreateString(_o->error);
   auto _info = _o->info ? CreateProgInfoRaw(_fbb, _o->info.get(), _rehasher) : 0;
@@ -3571,8 +3533,6 @@ inline flatbuffers::Offset<ExecResultRaw> CreateExecResultRaw(flatbuffers::FlatB
       _id,
       _proc,
       _output,
-      _bincover,
-      _binsignals,
       _hanged,
       _error,
       _info);

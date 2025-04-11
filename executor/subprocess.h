@@ -11,7 +11,7 @@
 class Subprocess
 {
 public:
-	Subprocess(const char** argv, const char** envp, const std::vector<std::pair<int, int>>& fds)
+	Subprocess(const char** argv, const std::vector<std::pair<int, int>>& fds)
 	{
 		posix_spawn_file_actions_t actions;
 		if (posix_spawn_file_actions_init(&actions))
@@ -47,22 +47,17 @@ public:
 		if (posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP))
 			fail("posix_spawnattr_setflags failed");
 
-		std::vector<const char*> child_envp = {
+		const char* child_envp[] = {
 		    // Tell ASAN to not mess with our NONFAILING and disable leak checking
 		    // (somehow lsan is very slow in syzbot arm64 image and we are not very interested
 		    // in leaks in the exec subprocess, it does not use malloc/new anyway).
 		    "ASAN_OPTIONS=handle_segv=0 allow_user_segv_handler=1 detect_leaks=0",
 		    // Disable rseq since we don't use it and we want to [ab]use it ourselves for kernel testing.
 		    "GLIBC_TUNABLES=glibc.pthread.rseq=0",
-		};
-
-		// Add envps from the caller.
-		for (int i = 0; envp && envp[i]; i++)
-			child_envp.push_back(envp[i]);
-		child_envp.push_back(nullptr);
+		    nullptr};
 
 		if (posix_spawn(&pid_, argv[0], &actions, &attr,
-				const_cast<char**>(argv), const_cast<char**>(child_envp.data())))
+				const_cast<char**>(argv), const_cast<char**>(child_envp)))
 			fail("posix_spawn failed");
 
 		if (posix_spawn_file_actions_destroy(&actions))

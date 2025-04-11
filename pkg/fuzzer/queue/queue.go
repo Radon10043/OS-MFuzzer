@@ -38,7 +38,6 @@ type Request struct {
 
 	// Options needed by runtest.
 	BinaryFile string // If set, it's executed instead of Prog.
-	SourceCode []byte // Source code corresponding to BinaryFile.
 
 	// Important requests will be retried even from crashed VMs.
 	Important bool
@@ -149,13 +148,11 @@ func (r *Request) initChannel() {
 }
 
 type Result struct {
-	Info       *flatrpc.ProgInfo
-	Executor   ExecutorID
-	Output     []byte
-	Bincover   []uint64
-	Binsignals []uint64
-	Status     Status
-	Err        error // More details in case of ExecFailure.
+	Info     *flatrpc.ProgInfo
+	Executor ExecutorID
+	Output   []byte
+	Status   Status
+	Err      error // More details in case of ExecFailure.
 }
 
 func (r *Result) clone() *Result {

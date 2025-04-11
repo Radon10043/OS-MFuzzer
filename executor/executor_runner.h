@@ -14,7 +14,6 @@
 #include <optional>
 #include <sstream>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -322,7 +321,7 @@ private:
 		    {cover_filter_fd_, kCoverFilterFd},
 		};
 		const char* argv[] = {bin_, "exec", nullptr};
-		process_.emplace(argv, nullptr, fds);
+		process_.emplace(argv, fds);
 
 		Select::Prepare(resp_pipe[0]);
 		Select::Prepare(stdout_pipe[0]);
@@ -762,7 +761,7 @@ private:
 			fail("mkdtemp failed");
 		if (chmod(dir, 0777))
 			fail("chmod failed");
-		auto [err, output, bincover, binsignals] = ExecuteBinaryImpl(msg, dir);
+		auto [err, output] = ExecuteBinaryImpl(msg, dir);
 		if (!err.empty()) {
 			char tmp[64];
 			snprintf(tmp, sizeof(tmp), " (errno %d: %s)", errno, strerror(errno));
@@ -773,23 +772,21 @@ private:
 		res.id = msg.id;
 		res.error = std::move(err);
 		res.output = std::move(output);
-		res.bincover = std::move(bincover);
-		res.binsignals = std::move(binsignals);
 		raw.msg.Set(std::move(res));
 		conn_.Send(raw);
 	}
 
-	std::tuple<std::string, std::vector<uint8_t>, std::vector<uint64_t>, std::vector<uint64_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
+	std::tuple<std::string, std::vector<uint8_t>> ExecuteBinaryImpl(rpc::ExecRequestRawT& msg, const char* dir)
 	{
 		// For simplicity we just wait for binary tests to complete blocking everything else.
 		std::string file = std::string(dir) + "/syz-executor";
 		int fd = open(file.c_str(), O_WRONLY | O_CLOEXEC | O_CREAT, 0755);
 		if (fd == -1)
-			return {"binary file creation failed", {}, {}, {}};
+			return {"binary file creation failed", {}};
 		ssize_t wrote = write(fd, msg.prog_data.data(), msg.prog_data.size());
 		close(fd);
 		if (wrote != static_cast<ssize_t>(msg.prog_data.size()))
-			return {"binary file write failed", {}, {}, {}};
+			return {"binary file write failed", {}};
 
 		int stdin_pipe[2];
 		if (pipe(stdin_pipe))
@@ -798,54 +795,18 @@ private:
 		if (pipe(stdout_pipe))
 			fail("pipe failed");
 
-		// It is hard to collect coverage from subprocess when executing a binary.
-		// For simplicity, we use kcovtrace to collect coverage and write PCs to the .cov file.
-		// tools/kcovtracce/kcovtrace.c has been updated, it can write PCs to the specified
-		// file when COV_FILE is set in envp.
-		// TODO: There must be a better way to do this.
-		std::string cov_file = std::string(dir) + "/syz-executor.cov";
-		std::string cov_file_envp = "COV_FILE=" + cov_file;
-		const char* argv[] = {"/kcovtrace", file.c_str(), nullptr};
-		const char* envp[] = {cov_file_envp.c_str(), nullptr};
-
+		const char* argv[] = {file.c_str(), nullptr};
 		std::vector<std::pair<int, int>> fds = {
 		    {stdin_pipe[0], STDIN_FILENO},
 		    {stdout_pipe[1], STDOUT_FILENO},
 		    {stdout_pipe[1], STDERR_FILENO},
 		};
-		Subprocess process(argv, envp, fds);
+		Subprocess process(argv, fds);
 
 		close(stdin_pipe[0]);
 		close(stdout_pipe[1]);
 
 		int status = process.WaitAndKill(5 * program_timeout_ms_);
-
-		// Collect & deduplicate coverage of binary after execution
-		int cov_fd = open(cov_file.c_str(), O_RDONLY);
-		uint64_t cov_buf = 0;
-		std::unordered_set<uint64_t> uniq_cover;
-		std::unordered_set<uint64_t> uniq_signals;
-		std::vector<uint64_t> bincover;
-		std::vector<uint64_t> binsignals;
-		if (cov_fd != -1) {
-			uint64_t prev_pc = 0;
-			while (read(cov_fd, &cov_buf, sizeof(cov_buf)) > 0) {
-				uint64_t pc = cov_buf;
-				uint64_t signal = pc;
-				if (use_cover_edges_) {	// Refer to write_signal() in executor.cc
-					const uint64 mask = (1 << 12) - 1;
-					signal ^= hash(prev_pc & mask) & mask;
-				}
-				uniq_cover.insert(pc);
-				uniq_signals.insert(signal);	// If use_cover_edges_ is false, signal is same as pc
-				prev_pc = pc;
-			}
-		} else {
-			debug("open cov file failed, skip coverage collection\n");
-		}
-		bincover = std::vector<uint64_t>(uniq_cover.begin(), uniq_cover.end());
-		binsignals = std::vector<uint64_t>(uniq_signals.begin(), uniq_signals.end());
-		close(cov_fd);
 
 		std::vector<uint8_t> output;
 		for (;;) {
@@ -859,7 +820,7 @@ private:
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 
-		return {status == kFailStatus ? "process failed" : "", std::move(output), std::move(bincover), std::move(binsignals)};
+		return {status == kFailStatus ? "process failed" : "", std::move(output)};
 	}
 };
 

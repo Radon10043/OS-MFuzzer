@@ -20,7 +20,6 @@ type Stats struct {
 	statJobsTriage          *stat.Val
 	statJobsTriageCandidate *stat.Val
 	statJobsSmash           *stat.Val
-	statJobsMetamorphic     *stat.Val
 	statJobsFaultInjection  *stat.Val
 	statJobsHints           *stat.Val
 	statExecTime            *stat.Val
@@ -30,13 +29,10 @@ type Stats struct {
 	statExecTriage          *stat.Val
 	statExecMinimize        *stat.Val
 	statExecSmash           *stat.Val
-	statExecMetamorphic     *stat.Val
 	statExecFaultInject     *stat.Val
 	statExecHint            *stat.Val
 	statExecSeed            *stat.Val
 	statExecCollide         *stat.Val
-	statExcMetaCover        *stat.Val
-	statMetaViolated        *stat.Val
 }
 
 type SyscallStats struct {
@@ -60,8 +56,6 @@ func newStats(target *prog.Target) Stats {
 			stat.StackedGraph("jobs"), stat.Link("/jobs?type=triage")),
 		statJobsSmash: stat.New("smash jobs", "Running smash jobs", stat.StackedGraph("jobs"),
 			stat.Link("/jobs?type=smash")),
-		statJobsMetamorphic: stat.New("metamorphic jobs", "Running metamorphic jobs",
-			stat.StackedGraph("jobs"), stat.Link("/jobs?type=metamorphic")),
 		statJobsFaultInjection: stat.New("fault jobs", "Running fault injection jobs", stat.StackedGraph("jobs")),
 		statJobsHints: stat.New("hints jobs", "Running hints jobs", stat.StackedGraph("jobs"),
 			stat.Link("/jobs?type=hints")),
@@ -78,8 +72,6 @@ func newStats(target *prog.Target) Stats {
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecSmash: stat.New("exec smash", "Executions of smashed programs",
 			stat.Rate{}, stat.StackedGraph("exec")),
-		statExecMetamorphic: stat.New("exec metamorphic", "Executions of metamorphic programs",
-			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecFaultInject: stat.New("exec inject", "Executions of fault injection",
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecHint: stat.New("exec hints", "Executions of programs generated using hints",
@@ -88,7 +80,5 @@ func newStats(target *prog.Target) Stats {
 			stat.Rate{}, stat.StackedGraph("exec")),
 		statExecCollide: stat.New("exec collide", "Executions of programs in collide mode",
 			stat.Rate{}, stat.StackedGraph("exec")),
-		statExcMetaCover: stat.New("exc metamorphic cover", "Exclusive metamorphicn coverage", stat.Console, stat.NoGraph),
-		statMetaViolated: stat.New("meta violated", "Programs that violate the metamorphic relation", stat.Console, stat.NoGraph),
 	}
 }
