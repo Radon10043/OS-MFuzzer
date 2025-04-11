@@ -16,6 +16,8 @@ sudo apt install jq
 pip install -r tools/syz-meta/requirements.txt
 ```
 
+*It is recommended to use syz-env to build syzkaller related binaries, see [syzkaller's docs](docs/contributing.md#using-syz-env) for details*
+
 ### Install LLVM & Clang from source code
 
 Please run the following commands in the root path of the repository。
@@ -119,26 +121,37 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
     "temperature": 0.5,     // Optional, default as 0.5
     "stream": true,         // Optional, default as false
     "prompts": {
-        "system": "/path/to/kernel-driver-MR-identify/data/prompts/programmer/system.md",
-        "user": [
-            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/init.md",
-            "/path/to/kernel-driver-MR-identify/data/prompts/programmer/follow.md"
-        ]
+        "c": {
+            "system": "/path/to/tools/syz-meta/data/prompts/programmer/c/system.md",
+            "user": [
+                "/path/to/tools/syz-meta/data/prompts/programmer/c/init.md",
+                "/path/to/tools/syz-meta/data/prompts/programmer/c/follow.md"
+            ]
+        },
+        "syzlang": {
+            "system": "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/system.md",
+            "user": [
+                "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/init.md",
+                "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/follow.md"
+            ]
+        }
     },
     "mrc_desc": "/path/to/kernel-driver-MR-identify/data/MRCs/mrc1.md",
     "max_iter": 10,
     "output": "/path/to/kernel-driver-MR-identify/data/output/MRImpl",
     "compiler": "gcc",
-    "cflags": "-static"
+    "cflags": "-static -Werror",
+    "syzkaller": "/path/to/syzkaller"
 }
 ```
 
-MRImpl.py is used to generate C code of an MRC. Explanation of each parameters is as follows:
+MRImpl.py is used to generate C code and corresponding syzlang description of an MRC. Explanation of each parameters is as follows:
 
 - Meaning of base_url, api_key, framework, temperature, prompts, stream, and max_iter are same as MR Identification.
 - mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
 - compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
 - cflags: compile options.
+- syzkaller: path of syzkaller, which used to verify whether the generated MR implementation and syzlang description can be successfully integrated into it.
 
 ### Metamorphic Testing
 
@@ -170,5 +183,7 @@ tools/syz-meta/src/mt.go is used to insert the metamorphosis relation implementa
 ## References
 
 [1] [https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html](https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html)
+
 [2] [https://github.com/google/syzkaller](https://github.com/google/syzkaller)
+
 [3] [https://devtool.tech/en](https://devtool.tech/en)
