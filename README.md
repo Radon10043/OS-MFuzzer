@@ -65,10 +65,10 @@ Create a json file (e.g. `MRIden.cfg.json`), write the following content:
         "temperature": 0.5,     // Optional, default as 0.5
         "stream": true,         // Optional, default as false
         "prompts": {
-            "system": "/path/to/kernel-driver-MR-identify/data/prompts/identifier/system.md",
+            "system": "/path/to/SyzMeta/tools/syz-meta/data/prompts/identifier/system.md",
             "user": [
-                "/path/to/kernel-driver-MR-identify/data/prompts/identifier/init.md",
-                "/path/to/kernel-driver-MR-identify/data/prompts/identifier/follow.md"
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/identifier/init.md",
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/identifier/follow.md"
             ]
         }
     },
@@ -80,15 +80,15 @@ Create a json file (e.g. `MRIden.cfg.json`), write the following content:
         "temperature": 0.2,     // Optional, default as 0.5
         "stream": true,         // Optional, default as false
         "prompts": {
-            "system": "/path/to/kernel-driver-MR-identify/data/prompts/calibrator/system.md",
+            "system": "/path/to/SyzMeta/tools/syz-meta/data/prompts/calibrator/system.md",
             "user": [
-                "/path/to/kernel-driver-MR-identify/data/prompts/calibrator/vanilla.md"
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/calibrator/vanilla.md"
             ]
         }
     },
     "max_iter": 10,
-    "output": "/path/to/kernel-driver-MR-identify/data/output",
-    "specification": "/path/to/kernel-driver-MR-identify/data/specifications/linux-v6.2/autofs/sec1_purpose.md",
+    "output": "/path/to/SyzMeta/workdir/MRs/autofs-1/iden",
+    "specification": "/path/to/SyzMeta/tools/syz-meta/data/spec/linux-v6.2/autofs/1.purpose.md",
     "driver_name": "autofs"
 }
 ```
@@ -114,33 +114,40 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
 
 ```json
 {
-    "base_url": "https://api.deepseek.com",
-    "api_key": "sk-xxx",
-    "framework": "openai",
-    "model": "deepseek-chat",
-    "temperature": 0.5,     // Optional, default as 0.5
-    "stream": true,         // Optional, default as false
-    "prompts": {
-        "c": {
-            "system": "/path/to/tools/syz-meta/data/prompts/programmer/c/system.md",
+    "c_programmer": {
+        "base_url": "https://api.deepseek.com",
+        "api_key": "sk-xxxx",
+        "framework": "openai",
+        "model": "deepseek-r1",
+        "temperature": 0.5,
+        "stream": true,
+        "prompts": {
+            "system": "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/c/system.md",
             "user": [
-                "/path/to/tools/syz-meta/data/prompts/programmer/c/init.md",
-                "/path/to/tools/syz-meta/data/prompts/programmer/c/follow.md"
-            ]
-        },
-        "syzlang": {
-            "system": "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/system.md",
-            "user": [
-                "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/init.md",
-                "/path/to/tools/syz-meta/data/prompts/programmer/syzlang/follow.md"
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/c/init.md",
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/c/follow.md"
             ]
         }
     },
-    "mrc_desc": "/path/to/kernel-driver-MR-identify/data/MRCs/mrc1.md",
+    "syzlang_programmer": {
+        "base_url": "https://api.deepseek.com",
+        "api_key": "sk-xxxx",
+        "framework": "openai",
+        "model": "deepseek-r1",
+        "temperature": 0.5,
+        "stream": true,
+        "prompts": {
+            "system": "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/syzlang/system.md",
+            "user": [
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/syzlang/init.md",
+                "/path/to/SyzMeta/tools/syz-meta/data/prompts/programmer/syzlang/follow.md"
+            ]
+        }
+    },
+    "mrc_desc": "/path/to/SyzMeta/workdir/MRs/autofs-1/iden/mrc_final.md",
     "max_iter": 10,
-    "output": "/path/to/kernel-driver-MR-identify/data/output/MRImpl",
+    "output": "/path/to/SyzMeta/workdir/MRs/autofs-1/impl",
     "compiler": "gcc",
-    "cflags": "-static -Werror",
     "syzkaller": "/path/to/syzkaller"
 }
 ```
@@ -150,7 +157,6 @@ MRImpl.py is used to generate C code and corresponding syzlang description of an
 - Meaning of base_url, api_key, framework, temperature, prompts, stream, and max_iter are same as MR Identification.
 - mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
 - compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
-- cflags: compile options.
 - syzkaller: path of syzkaller, which used to verify whether the generated MR implementation and syzlang description can be successfully integrated into it.
 
 ### Metamorphic Testing
