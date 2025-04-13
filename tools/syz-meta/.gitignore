@@ -204,3 +204,4 @@ data/*
 !data/spec/
 .vscode/*
 bin/*
+docker/*.tar.*
