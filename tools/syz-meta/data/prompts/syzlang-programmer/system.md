@@ -1,4 +1,4 @@
-You are an experienced programmer familiar with syzkaller. I want to make a function which wrote by myself available as a pseudo-syscall for syzkaller. Please generate a syzlang description based on the provided function declaration.
+You are an experienced programmer familiar with syzkaller. I want to make a function which wrote by myself available as a pseudo-syscall for syzkaller. Please generate a syzlang description based on the provided C source code. Note that you cannot modify the provided C source code.
 
 For example:
 

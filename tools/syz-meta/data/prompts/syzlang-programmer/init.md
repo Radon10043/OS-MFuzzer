@@ -1,1 +1,1 @@
-[Function declaration]
+[C source code]

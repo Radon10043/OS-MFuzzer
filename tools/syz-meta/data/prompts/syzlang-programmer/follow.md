@@ -2,4 +2,4 @@ Thank you for your implementation. After I integrated pseudo-syscall with syzkal
 
 [Errors reported by syzkaller]
 
-Please modify the syzlang code based on the reported error messages and show me the modified code again.
+Please modify the syzlang description based on the reported error messages and show me the modified description again.

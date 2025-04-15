@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-12 05:41:46
+LastEditTime : 2025-04-15 07:25:15
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -179,63 +179,6 @@ def build_c_program(code: str, compiler: str) -> Tuple[int, str]:
     return res.returncode, res.stderr.decode("utf-8")
 
 
-def get_func_decl(file: str, func: str) -> str:
-    """从C代码中提取指定函数的声明
-
-    Parameters
-    ----------
-    file : str
-        保存C源码文件的路径
-    func : str
-        函数名称
-
-    Returns
-    -------
-    str
-        函数声明, 包括返回类型, 函数名称, 参数类型和名称
-    """
-    libclang_path = subprocess.run("llvm-config --libdir", shell=True, stdout=subprocess.PIPE).stdout.decode().strip()
-    Config.set_library_path(libclang_path)
-    index = Index.create()
-    tu = index.parse(file)
-    return traverse_ast(tu.cursor, func)
-
-
-def traverse_ast(cursor: Cursor, func: str) -> str:
-    """遍历AST, 查找指定函数的声明
-
-    Parameters
-    ----------
-    cursor : Cursor
-        当前节点
-    func : str
-        函数名称
-
-    Returns
-    -------
-    str
-        函数声明, 包括返回类型, 函数名称, 参数类型和名称
-        如果存在多个同名函数, 返回第一个找到的函数声明
-        如果没有找到函数声明, 返回空字符串
-    """
-    func_decl = str()
-    for child in cursor.get_children():
-        if child.location.is_in_system_header:  # 跳过系统头文件
-            continue
-        if child.kind == CursorKind.FUNCTION_DECL and child.spelling == func:
-            # 遍历函数参数
-            params = list()
-            for param in child.get_arguments():
-                params.append(f"{param.type.spelling} {param.spelling}")
-            params_fmt = ", ".join(params)
-            # 获取函数声明
-            if child.storage_class == StorageClass.STATIC:
-                func_decl = "static "
-            func_decl += f"{child.result_type.spelling} {child.spelling}({params_fmt})"
-            break
-    return func_decl
-
-
 def gen_csource(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
     """迭代地让programmer生成用C语言实现的MRC
 
@@ -310,13 +253,13 @@ def gen_csource(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         if index < len(usr_prompts) - 1:
             index += 1
 
-    # 如果代码未生成成功, 报错
-    if not gen_success:
-        FATAL(f"Failed to generate C code implementation of MRC after {iterations} iterations.")
-
     # 保存交互记录
     programmer.save_messages(os.path.join(config["output"], f"messages.{agent}.json"))
     programmer.save_messages(os.path.join(config["output"], f"messages.{agent}.md"))
+
+    # 如果代码未生成成功, 报错
+    if not gen_success:
+        FATAL(f"Failed to generate C code implementation of MRC after {iterations} iterations.")
 
     # 将MRC的描述(作为头部注释)和LLM生成的C代码写入文件
     with open(os.path.join(config["output"], "mrc.h"), "w", encoding="utf-8") as f:
@@ -432,10 +375,13 @@ def gen_syzlang(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
     csource = str()  # C代码
     csource_path = os.path.join(config["output"], "mrc.h")  # C代码路径
     target_func = "syz_mr"  # 要获取声明的函数名称
-    func_decl = str()  # 目标函数的声明
     syzkaller_dir = config["syzkaller"]  # syzkaller的路径
     agent = "syzlang_programmer"  # 代理名称
     model = config[agent]["model"]  # 模型名称
+
+    # 读取C代码
+    with open(csource_path, "r", encoding="utf-8") as f:
+        csource = f.read()
 
     # 清除syzkaller的修改, 切换到4b25d554版本
     res = subprocess.run(
@@ -459,19 +405,10 @@ def gen_syzlang(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         with open(fn, "r", encoding="utf-8") as f:
             usr_prompts.append(f.read())
 
-    # 获取C代码内容以及目标函数的声明
-    with open(csource_path, "r", encoding="utf-8") as f:
-        csource = f.read()
-    func_decl = get_func_decl(csource_path, target_func)
-
-    # 如果函数声明为空, 报错退出
-    if len(func_decl) == 0:
-        FATAL(f"Function syz_mr cannot be found in {csource_path}")
-
     # 进行多轮对话, 持续迭代,直到C代码和syzlang可集成到syzkaller
     while not gen_success and iterations < config["max_iter"]:
         prompt = usr_prompts[index]
-        prompt = prompt.replace("[Function declaration]", func_decl)
+        prompt = prompt.replace("[C source code]", csource)
         prompt = prompt.replace("[Errors reported by syzkaller]", err_msgs)
 
         # 与programmer模型进行对话, 生成syzlang描述
@@ -494,13 +431,13 @@ def gen_syzlang(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         if index < len(usr_prompts) - 1:
             index += 1
 
-    # 如果syzlang描述未生成成功, 报错
-    if not gen_success:
-        FATAL(f"Failed to generate syzlang description of MRC after {iterations} iterations.")
-
     # 保存交互记录
     programmer.save_messages(os.path.join(config["output"], "messages.syzlang.json"))
     programmer.save_messages(os.path.join(config["output"], "messages.syzlang.md"))
+
+    # 如果syzlang描述未生成成功, 报错
+    if not gen_success:
+        FATAL(f"Failed to generate syzlang description of MRC after {iterations} iterations.")
 
     # 将LLM生成的syzlang描述写入文件
     syzlang_fn = os.path.join(config["output"], "syzlang.txt")
@@ -527,6 +464,10 @@ def main(args: argparse.Namespace):
     config = dict()
     with open(args.config, "r") as f:
         config = json.load(f)
+
+    text = f"*** MR description: {config["mrc_desc"]} ***"
+    width = len(text)
+    print("*" * width + "\n" + text + "\n" + "*" * width)
 
     # 检查每个代理的配置
     agents = ["c_programmer", "syzlang_programmer"]
@@ -556,10 +497,9 @@ def main(args: argparse.Namespace):
     ACTF("Initializing c_programmer and syzlang_programmer ...")
     agent = "c_programmer"
     framework = config[agent]["framework"].lower()
-    c_programmer = setup_func_dict[framework](config[agent])
     if framework not in setup_func_dict:
         FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
-    OKF("Programmer model successfully initialized!.")
+    c_programmer = setup_func_dict[framework](config[agent])
 
     # 初始化syzlang_programmer, 该模型用于将c_programmer生成的C语言转换为syzlang描述
     agent = "syzlang_programmer"
@@ -567,6 +507,7 @@ def main(args: argparse.Namespace):
     if framework not in setup_func_dict:
         FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
     syzlang_programmer = setup_func_dict[framework](config[agent])
+    OKF("C programmer & syzlang programmer models successfully initialized!.")
 
     # 让programmer模型迭代地生成用C语言实现的MRC
     ACTF("Generating C code implementation of MRC ...")
