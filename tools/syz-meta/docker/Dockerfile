@@ -7,7 +7,7 @@ SHELL [ "/bin/bash", "-c" ]
 # go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz /home/
 RUN apt update && \
-    apt install -y sudo wget curl git vim make gcc g++ flex bison libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 && \
+    apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils && \
     # Install docker
     curl -fsSL https://test.docker.com -o test-docker.sh && \
     chmod +x test-docker.sh && \
@@ -26,15 +26,10 @@ RUN apt update && \
     make -j && \
     make install && \
     popd && \
-    rm -rf Python-3.12.3 Python-3.12.3.tar.xz && \
-    # Install LLVM-19.1.7
-    wget -nc https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz && \
-    tar xvf LLVM-19.1.7-Linux-X64.tar.xz && \
-    rm LLVM-19.1.7-Linux-X64.tar.xz
+    rm -rf Python-3.12.3 Python-3.12.3.tar.xz
 
-ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
 ENV GOPATH=/usr/local/go/bin
-ENV PATH=$PATH:$GOPATH:$LLVM_HOME/bin
+ENV PATH=$PATH:$GOPATH
 
 # Please note:
 # If you want to use docker in the container, you need run "docker run --privileged ..." to create the container.
