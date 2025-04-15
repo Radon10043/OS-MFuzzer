@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-15 18:12:21
+LastEditTime : 2025-04-15 18:30:39
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -253,6 +253,7 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         syzlang_desc = func_name + "(" + ", ".join([f"{param} int32" for param in params]) + ")"
 
         # 尝试将生成的C代码作为pseudo-syscall插入syzkaller中, 并构建syzkaller
+        ACTF("Integrating pseudo-syscall into syzkaller ...")
         ret_code, stderr, stdout = add_pseudo_syscall(syzkaller_dir, mrc_code, syzlang_desc, func_name)
         if ret_code == 0:  # 如果编译成功, 跳出循环
             gen_success = True
