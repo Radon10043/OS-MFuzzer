@@ -116,6 +116,7 @@ class GoogleAI(Wrapper):
         tmp = self.client.models.list()
         for model in tmp.page:
             models.append(model.name.lstrip("models/"))
+        models.sort()
         return models
 
     def save_messages(self, path: str):

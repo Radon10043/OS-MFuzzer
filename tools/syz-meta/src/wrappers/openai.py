@@ -116,6 +116,7 @@ class OpenAI(Wrapper):
         models = list()
         for val in self.client.models.list():
             models.append(val.id)
+        models.sort()
         return models
 
     def save_messages(self, path: str):
