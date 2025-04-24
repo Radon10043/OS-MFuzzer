@@ -409,7 +409,12 @@ struct kvm_interrupt {
 
 #### X86:
 
-Returns: <table class="docutils align-default"><colgroup><col> <col></colgroup><tbody><tr class="row-odd"><td><p>0</p></td><td><p>on success,</p></td></tr><tr class="row-even"><td><p>-EEXIST</p></td><td><p>if an interrupt is already enqueued</p></td></tr><tr class="row-odd"><td><p>-EINVAL</p></td><td><p>the irq number is invalid</p></td></tr><tr class="row-even"><td><p>-ENXIO</p></td><td><p>if the PIC is in the kernel</p></td></tr><tr class="row-odd"><td><p>-EFAULT</p></td><td><p>if the pointer is invalid</p></td></tr></tbody></table>
+Returns:
+      0: on success,
+      -EEXIST: if an interrupt is already enqueued
+      -EINVAL: the irq number is invalid
+      -ENXIO: if the PIC is in the kernel
+      -EFAULT: if the pointer is invalid
 
 Note ‘irq’ is an interrupt vector, not an interrupt pin or line. This ioctl is useful if the in-kernel PIC is not used.
 
@@ -3412,7 +3417,8 @@ Returns: 0 on success, -1 on error
 
 Errors:
 
-> <table class="docutils align-default"><colgroup><col> <col></colgroup><tbody><tr class="row-odd"><td><p>EINVAL</p></td><td><p>interrupt type is invalid type is KVM_S390_SIGP_STOP and flag parameter is invalid value, type is KVM_S390_INT_EXTERNAL_CALL and code is bigger than the maximum of VCPUs</p></td></tr><tr class="row-even"><td><p>EBUSY</p></td><td><p>type is KVM_S390_SIGP_SET_PREFIX and vcpu is not stopped, type is KVM_S390_SIGP_STOP and a stop irq is already pending, type is KVM_S390_INT_EXTERNAL_CALL and an external call interrupt is already pending</p></td></tr></tbody></table>
+> EINVAL: interrupt type is invalid type is KVM_S390_SIGP_STOP and flag parameter is invalid value, type is KVM_S390_INT_EXTERNAL_CALL and code is bigger than the maximum of VCPUs
+> EBUSY: type is KVM_S390_SIGP_SET_PREFIX and vcpu is not stopped, type is KVM_S390_SIGP_STOP and a stop irq is already pending, type is KVM_S390_INT_EXTERNAL_CALL and an external call interrupt is already pending
 
 Allows to inject an interrupt to the guest.
 
@@ -6100,7 +6106,11 @@ To allow more fine grained control over MSR handling, userspace may enable this 
 
 The valid mask flags are:
 
-<table class="docutils align-default"><colgroup><col> <col></colgroup><tbody><tr class="row-odd"><td><p>KVM_MSR_EXIT_REASON_UNKNOWN</p></td><td><p>intercept accesses to unknown (to KVM) MSRs</p></td></tr><tr class="row-even"><td><p>KVM_MSR_EXIT_REASON_INVAL</p></td><td><p>intercept accesses that are architecturally invalid according to the vCPU model and/or mode</p></td></tr><tr class="row-odd"><td><p>KVM_MSR_EXIT_REASON_FILTER</p></td><td><p>intercept accesses that are denied by userspace via KVM_X86_SET_MSR_FILTER</p></td></tr></tbody></table>
+KVM_MSR_EXIT_REASON_UNKNOWN: intercept accesses to unknown (to KVM) MSRs
+
+KVM_MSR_EXIT_REASON_INVAL: intercept accesses that are architecturally invalid according to the vCPU model and/or mode
+
+KVM_MSR_EXIT_REASON_FILTER: intercept accesses that are denied by userspace via KVM_X86_SET_MSR_FILTER
 
 ### 7.22 KVM_CAP_X86_BUS_LOCK_EXIT
 
@@ -6336,7 +6346,9 @@ If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is avai
 
 The value returned by KVM_CHECK_EXTENSION should be compared against known values (see below). All other values are reserved. This is to allow for the possibility of other hardware assisted virtualization implementations which may be incompatible with the MIPS VZ ASE.
 
-<table class="docutils align-default"><colgroup><col> <col></colgroup><tbody><tr class="row-odd"><td><p>0</p></td><td><p>The trap &amp; emulate implementation is in use to run guest code in user mode. Guest virtual memory segments are rearranged to fit the guest in the user mode address space.</p></td></tr><tr class="row-even"><td><p>1</p></td><td><p>The MIPS VZ ASE is in use, providing full hardware assisted virtualization, including standard guest virtual memory segments.</p></td></tr></tbody></table>
+0: The trap & emulate implementation is in use to run guest code in user mode. Guest virtual memory segments are rearranged to fit the guest in the user mode address space.
+
+1: The MIPS VZ ASE is in use, providing full hardware assisted virtualization, including standard guest virtual memory segments.
 
 ### 8.6 KVM_CAP_MIPS_TE
 
@@ -6354,7 +6366,11 @@ This capability indicates the supported architecture type of the guest, i.e. the
 
 The values returned when this capability is checked by KVM_CHECK_EXTENSION on a kvm VM handle correspond roughly to the CP0_Config.AT register field, and should be checked specifically against known values (see below). All other values are reserved.
 
-<table class="docutils align-default"><colgroup><col> <col></colgroup><tbody><tr class="row-odd"><td><p>0</p></td><td><p>MIPS32 or microMIPS32. Both registers and addresses are 32-bits wide. It will only be possible to run 32-bit guest code.</p></td></tr><tr class="row-even"><td><p>1</p></td><td><p>MIPS64 or microMIPS64 with access only to 32-bit compatibility segments. Registers are 64-bits wide, but addresses are 32-bits wide. 64-bit guest code may run but cannot access MIPS64 memory segments. It will also be possible to run 32-bit guest code.</p></td></tr><tr class="row-odd"><td><p>2</p></td><td><p>MIPS64 or microMIPS64 with access to all address segments. Both registers and addresses are 64-bits wide. It will be possible to run 64-bit or 32-bit guest code.</p></td></tr></tbody></table>
+0: MIPS32 or microMIPS32. Both registers and addresses are 32-bits wide. It will only be possible to run 32-bit guest code.
+
+1: MIPS64 or microMIPS64 with access only to 32-bit compatibility segments. Registers are 64-bits wide, but addresses are 32-bits wide. 64-bit guest code may run but cannot access MIPS64 memory segments. It will also be possible to run 32-bit guest code.
+
+2: MIPS64 or microMIPS64 with access to all address segments. Both registers and addresses are 64-bits wide. It will be possible to run 64-bit or 32-bit guest code.
 
 ### 8.9 KVM_CAP_ARM_USER_IRQ
 
@@ -6638,7 +6654,9 @@ Calling KVM_CHECK_EXTENSION for this capability will return a bitmask of hyperca
 
 The argument to KVM_ENABLE_CAP is also a bitmask, and must be a subset of the result of KVM_CHECK_EXTENSION. KVM will forward to userspace the hypercalls whose corresponding bit is in the argument, and return ENOSYS for the others.
 
-### 8.35 KVM_CAP_PMU_CAPABILITY: :Capability KVM_CAP_PMU_CAPABILITY :Architectures: x86 :Type: vm :Parameters: arg[0] is bitmask of PMU virtualization capabilities. :Returns 0 on success, -EINVAL when arg[0] contains invalid bits
+### 8.35 KVM_CAP_PMU_CAPABILITY
+
+:Capability KVM_CAP_PMU_CAPABILITY :Architectures: x86 :Type: vm :Parameters: arg[0] is bitmask of PMU virtualization capabilities. :Returns 0 on success, -EINVAL when arg[0] contains invalid bits
 
 This capability alters PMU virtualization in KVM.
 
