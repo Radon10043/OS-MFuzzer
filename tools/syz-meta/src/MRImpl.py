@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-24 09:37:05
+LastEditTime : 2025-04-24 10:17:56
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -37,9 +37,9 @@ def check_config(args: argparse.Namespace):
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    # 检查存储MRC(MR候选)描述的文件是否存在
-    if not os.path.exists(config["mrc_desc"]):
-        FATAL(f"File not found: {config["mrc_desc"]}")
+    # 检查存储MR描述的文件是否存在
+    if not os.path.exists(config["mr_desc"]):
+        FATAL(f"File not found: {config["mr_desc"]}")
 
     # 检查指定的编译器是否存在
     compiler = config["compiler"]
@@ -184,7 +184,7 @@ def get_params(input: str, func: str, input_file: bool = True) -> list:
 
 
 def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
-    """迭代地让programmer生成用C语言实现的MRC
+    """迭代地让programmer生成用C语言实现的MR
 
     Parameters
     ----------
@@ -199,14 +199,17 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
     sys_prompt = str()  # 系统提示信息
     usr_prompts = list()  # 用户提示列表
     err_msgs = str()  # 编译器报告的错误信息
-    mrc_desc = str()  # MRC的描述
-    mrc_code = str()  # 实现MRC的C代码
+    mr_desc = str()  # MR的描述
+    mr_code = str()  # 实现MR的C代码
     agent = "programmer"  # 代理名称
     model = config[agent]["model"]  # 模型名称
-    syzkaller_dir = config["syzkaller"] # syzkaller路径
-    params = list() # C代码中syz_mr的参数列表
+    syzkaller_dir = config["syzkaller"]  # syzkaller路径
+    params = list()  # C代码中syz_mr的参数列表
     syzlang_desc = ""  # C代码对应的syzlang描述, 只是为了可以混过去
-    func_name = "syz_mr"    # pseudo-syscall的函数名称
+    func_name = "syz_mr"  # pseudo-syscall的函数名称
+    identifier = "unknown"  # 识别MR的模型名称, 在mr_final.md中应该有记
+    calibrator = "unknown"  # 校对MR的模型名称, 在mr_final.md中应该有记
+    iden_iter = "unknown"  # 识别MR的迭代次数, 在mr_final.md中应该有记
 
     # 设置系统提示信息
     fn = config[agent]["prompts"]["system"]
@@ -214,9 +217,9 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         sys_prompt = f.read()
     programmer.set_sys_prompt(sys_prompt)
 
-    # 读取包含MRC自然语言描述的markdown文件
+    # 读取包含MR自然语言描述的markdown文件
     md_text = str()
-    with open(config["mrc_desc"], "r", encoding="utf-8") as f:
+    with open(config["mr_desc"], "r", encoding="utf-8") as f:
         md_text = f.read()
 
     # 读取所有用户提示, 存入usr_prompts中
@@ -224,37 +227,47 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
         with open(fn, "r", encoding="utf-8") as f:
             usr_prompts.append(f.read())
 
-    # 从markdown文本中提取MRC的描述, MRC的描述需要放入markdown或md代码块中才能成功提取, 对应了前一步MR识别与校对的最终输出
-    mrc_desc = get_first_code_block(md_text, {"markdown", "md"})
+    # 从markdown文本中提取MR的描述, MR的描述需要放入markdown或md代码块中才能成功提取, 对应了前一步MR识别与校对的最终输出
+    mr_desc = get_first_code_block(md_text, {"markdown", "md"})
 
-    # 如果没有找到MRC描述, 报错退出
-    if len(mrc_desc) == 0:
-        FATAL(f"No MRC description found in the {config["mrc_desc"]}!")
+    # 从markdown文本中提取identifier和calibrator的模型名称, 如果没有默认为unknown
+    for line in md_text.split("\n"):
+        content = line.lower()
+        if content.startswith("IDENTIFIER: "):
+            identifier = content.split(": ")[1].strip()
+        elif content.startswith("CALIBRATOR: "):
+            calibrator = content.split(": ")[1].strip()
+        elif content.startswith("ITERATIONS: "):
+            iden_iter = content.split(": ")[1].strip()
 
-    # 进行多轮对话, 持续迭代, 直到MRC对应的代码成功生成并编译不报错, 或者达到最大迭代次数
+    # 如果没有找到MR描述, 报错退出
+    if len(mr_desc) == 0:
+        FATAL(f"No MR description found in the {config["mr_desc"]}!")
+
+    # 进行多轮对话, 持续迭代, 直到MR对应的代码成功生成并编译不报错, 或者达到最大迭代次数
     while not gen_success and iterations < config["max_iter"]:
         prompt = usr_prompts[index]
-        prompt = prompt.replace("[MR rendered in markdown]", mrc_desc)
+        prompt = prompt.replace("[MR rendered in markdown]", mr_desc)
         prompt = prompt.replace("[Errors reported by syzkaller]", err_msgs)
 
-        # 与programmer模型进行对话, 生成MRC的C代码
-        ACTF(f"Iter {iterations + 1}: Prompting {model} to generate C code implementation of MRC ...")
+        # 与programmer模型进行对话, 生成MR的C代码
+        ACTF(f"Iter {iterations + 1}: Prompting {model} to generate C code implementation of MR ...")
         response = programmer.chat(prompt)
-        mrc_code = get_first_code_block(response, {"c"})
-        mrc_code = mrc_code.lstrip("`c\n").rstrip("`\n")
+        mr_code = get_first_code_block(response, {"c"})
+        mr_code = mr_code.lstrip("`c\n").rstrip("`\n")
 
         # 如果生成的C代码为空, 认为生成失败
-        if len(mrc_code) == 0:
-            FATAL(f"{model} generated empty C code implementation of MRC.")
+        if len(mr_code) == 0:
+            FATAL(f"{model} generated empty C code implementation of MR.")
 
         # 获取syz_mr的参数, 由于pseudo-syscall的返回类型固定是long且static, 参数类型固定都是violatile long,
         # 所以我们可以手动构造syzlang description
-        params = get_params(mrc_code, func_name, input_file=False)
+        params = get_params(mr_code, func_name, input_file=False)
         syzlang_desc = func_name + "(" + ", ".join([f"{param} int32" for param in params]) + ")"
 
         # 尝试将生成的C代码作为pseudo-syscall插入syzkaller中, 并构建syzkaller
         ACTF("Integrating pseudo-syscall into syzkaller ...")
-        ret_code, stderr, stdout = add_pseudo_syscall(syzkaller_dir, mrc_code, syzlang_desc, func_name)
+        ret_code, stderr, stdout = add_pseudo_syscall(syzkaller_dir, mr_code, syzlang_desc, func_name)
         if ret_code == 0:  # 如果编译成功, 跳出循环
             gen_success = True
             break
@@ -274,21 +287,22 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
 
     # 如果代码未生成成功, 报错
     if not gen_success:
-        FATAL(f"Failed to generate C code implementation of MRC after {iterations + 1} iterations.")
+        FATAL(f"Failed to generate C code implementation of MR after {iterations + 1} iterations.")
 
-    # 将MRC的描述(作为头部注释)和LLM生成的C代码写入文件
-    with open(os.path.join(config["output"], "mrc.h"), "w", encoding="utf-8") as f:
-        header_comments = mrc_desc
+    # 将MR的描述(作为头部注释)和LLM生成的C代码写入文件
+    with open(os.path.join(config["output"], "mr.h"), "w", encoding="utf-8") as f:
+        header_comments = mr_desc
         header_comments = header_comments.lstrip("`markdown\n").rstrip("`\n")
         header_comments = f"// Code generated by {model} after {iterations} iterations\n// " + header_comments.replace("\n", "\n// ")
+        header_comments += f"// MR identified by {identifier} and calibrated by {calibrator} after {iden_iter} iterations\n"
         f.write(header_comments)
-        f.write(mrc_code)
+        f.write(mr_code)
 
     # 将syzlang描述写入文件
     with open(os.path.join(config["output"], "syzlang.txt"), "w", encoding="utf-8") as f:
         f.write(syzlang_desc)
 
-    OKF(f"Successfully generated C code implementation & syzlang description of MRC after {iterations + 1} iterations.")
+    OKF(f"Successfully generated C code implementation & syzlang description of MR after {iterations + 1} iterations.")
 
 
 def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: str) -> Tuple[int, str, str]:
@@ -384,7 +398,7 @@ def main(args: argparse.Namespace):
     args : argparse.Namespace
         命令函参数集
     """
-    agent = "programmer"    # 代理名称
+    agent = "programmer"  # 代理名称
 
     ACTF("Checking arguments ...")
     check_config(args)
@@ -395,9 +409,9 @@ def main(args: argparse.Namespace):
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    text = f"*   MR description: {config["mrc_desc"]}   *"
+    text = f"*   MR description: {config["mr_desc"]}   *"
     width = len(text)
-    print("*" * width + "\n" + "*  " + " " * (width - 6) + "  *\n" + text + "\n" + "*  " + " " * (width - 6) + "  *\n" + "*" * width)
+    SAYF("*" * width + "\n" + "*  " + " " * (width - 6) + "  *\n" + text + "\n" + "*  " + " " * (width - 6) + "  *\n" + "*" * width + "\n")
 
     # 检查代理是否存在
     if agent not in config.keys():
@@ -420,7 +434,7 @@ def main(args: argparse.Namespace):
         "googleai": setup_googleai,
     }
 
-    # 初始化c_programmer, 该模型用于将MRC的自然语言描述转换为C语言实现
+    # 初始化c_programmer, 该模型用于将MR的自然语言描述转换为C语言实现
     ACTF("Initializing programmer ...")
     agent = "programmer"
     framework = config[agent]["framework"].lower()
@@ -429,8 +443,8 @@ def main(args: argparse.Namespace):
     programmer = setup_func_dict[framework](config[agent])
     OKF("Programmer model successfully initialized!.")
 
-    # 让programmer模型迭代地生成用C语言实现的MRC
-    ACTF("Generating C code implementation of MRC ...")
+    # 让programmer模型迭代地生成用C语言实现的MR
+    ACTF("Generating C code implementation of MR ...")
     loop(programmer, config)
 
 

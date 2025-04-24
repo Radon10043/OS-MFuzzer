@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-04-16 05:32:03
 LastEditors  : Radon
-LastEditTime : 2025-04-24 09:36:56
+LastEditTime : 2025-04-24 10:05:02
 Description  : 将MR实现集成到syzkaller中
 """
 
@@ -147,7 +147,7 @@ def main(args: argparse.Namespace):
         uuid4 = uuid.uuid4().hex[:8]
 
         # 修改C代码实现
-        csource_path = os.path.join(impl, "mrc.h")
+        csource_path = os.path.join(impl, "mr.h")
         csource = update_csource(csource_path, uuid4)
 
         # 修改syzlang描述
