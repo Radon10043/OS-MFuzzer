@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-24 10:17:56
+LastEditTime : 2025-04-24 12:25:18
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -389,25 +389,16 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
     return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
 
 
-def main(args: argparse.Namespace):
+def main(config: dict):
     """主函数, 初始化programmer, 迭代地让模型生成用C语言实现的蜕变关系,
     由于pseudo-syscall的返回类型和参数类型都比较固定, 所以基于规则生成对应的syzlang描述
 
     Parameters
     ----------
-    args : argparse.Namespace
-        命令函参数集
+    config : dict
+        用户输入的配置信息
     """
     agent = "programmer"  # 代理名称
-
-    ACTF("Checking arguments ...")
-    check_config(args)
-    ACTF("Arguments are valid.")
-
-    # 读取配置文件, 创建输出文件夹
-    config = dict()
-    with open(args.config, "r") as f:
-        config = json.load(f)
 
     text = f"*   MR description: {config["mr_desc"]}   *"
     width = len(text)
@@ -434,14 +425,13 @@ def main(args: argparse.Namespace):
         "googleai": setup_googleai,
     }
 
-    # 初始化c_programmer, 该模型用于将MR的自然语言描述转换为C语言实现
+    # 初始化programmer, 该模型用于将MR的自然语言描述转换为C语言实现
     ACTF("Initializing programmer ...")
-    agent = "programmer"
     framework = config[agent]["framework"].lower()
     if framework not in setup_func_dict:
         FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
     programmer = setup_func_dict[framework](config[agent])
-    OKF("Programmer model successfully initialized!.")
+    OKF(f"Programmer model ({config[agent]["model"]}) successfully initialized!.")
 
     # 让programmer模型迭代地生成用C语言实现的MR
     ACTF("Generating C code implementation of MR ...")
@@ -452,4 +442,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path of configuration file")
     args = parser.parse_args()
-    main(args)
+
+    # 检查配置是否合法
+    ACTF("Checking arguments ...")
+    check_config(args)
+    OKF("Arguments are valid.")
+
+    # 读取配置文件, 创建输出文件夹
+    config = dict()
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    main(config)
