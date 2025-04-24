@@ -144,7 +144,7 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
             ]
         }
     },
-    "mrc_desc": "/path/to/SyzMeta/workdir/MRs/autofs-1/iden/mrc_final.md",
+    "mr_desc": "/path/to/SyzMeta/workdir/MRs/autofs-1/iden/mr_final.md",
     "max_iter": 10,
     "output": "/path/to/SyzMeta/workdir/MRs/autofs-1/impl",
     "compiler": "gcc",
@@ -152,10 +152,10 @@ Create a json file (e.g. `MRImpl.json`), write the following content:
 }
 ```
 
-MRImpl.py is used to generate C code and corresponding syzlang description of an MRC. Explanation of each parameters is as follows:
+MRImpl.py is used to generate C code and corresponding syzlang description of an MR. Explanation of each parameters is as follows:
 
 - Meaning of base_url, api_key, framework, temperature, prompts, stream, and max_iter are same as MR Identification.
-- mrc_desc: path of markdown file that store the description of an MRC. Note the MRC should be placed in a markdown code block.
+- mr_desc: path of markdown file that store the description of an MR. Note the MR should be placed in a markdown code block.
 - compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
 - syzkaller: path of syzkaller, which used to verify whether the generated MR implementation and syzlang description can be successfully integrated into it.
 
@@ -165,7 +165,7 @@ Create a json file (e.g. `SyzMeta.cfg.json`) and write the following content:
 
 ```json
 {
-    "meta_rel": "/path/to/SyzMeta/workdir/syz-meta/out-MRImpl1/mrc.h",
+    "meta_rel": "/path/to/SyzMeta/workdir/syz-meta/out-MRImpl1/mr.h",
     "cdir": "/path/to/SyzMeta/workdir/syzkaller/out/corpus-c",
     "out": "/path/to/SyzMeta/workdir/syz-meta/out-MT",
     "kernel": "/path/to/linux-kernel/v6.2",
