@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-02-19 14:08:06
+LastEditTime : 2025-04-24 09:43:12
 Description  : 提示两个LLM进行MR识别和校对
 """
 
@@ -252,7 +252,11 @@ def loop(identifier, calibrator, config: dict):
     calibrator.save_messages(os.path.join(config["output"], "cali_messages.md"))
     calibrator.save_messages(os.path.join(config["output"], "cali_messages.json"))
     with open(os.path.join(config["output"], "mrc_final.md"), "w") as f:
-        f.write(f"### FINAL DISCUSSIN RESULT\n\n{prev_mrc}\n\nITERATIONS: {iterations + 1}")
+        f.write("### FINAL DISCUSSION RESULT\n\n")
+        f.write(prev_mrc + "\n\n")
+        f.write(f"IDENTIFIER: {config["identifier"]["model"]}\n\n")
+        f.write(f"CALIBRATOR: {config["calibrator"]["model"]}\n\n")
+        f.write(f"ITERATIONS: {iterations + 1}\n\n")
     OKF(f"Discussion finished! Check the output directory {config["output"]} for details.")
 
 
