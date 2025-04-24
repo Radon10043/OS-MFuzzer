@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-16 05:27:22
+LastEditTime : 2025-04-24 09:37:05
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -157,8 +157,8 @@ def get_params(input: str, func: str, input_file: bool = True) -> list:
     params = list()  # 函数的形参列表
 
     # 加载libclang.so
-    libclang_path = subprocess.run("llvm-config --libdir", shell=True, stdout=subprocess.PIPE).stdout.decode().strip()
     if not Config.loaded:
+        libclang_path = subprocess.run("llvm-config --libdir", shell=True, stdout=subprocess.PIPE).stdout.decode().strip()
         Config.set_library_path(libclang_path)
 
     # 分析获得C代码的AST
@@ -274,7 +274,7 @@ def loop(programmer: OpenAI | Anthropic | GoogleAI, config: dict):
 
     # 如果代码未生成成功, 报错
     if not gen_success:
-        FATAL(f"Failed to generate C code implementation of MRC after {iterations} iterations.")
+        FATAL(f"Failed to generate C code implementation of MRC after {iterations + 1} iterations.")
 
     # 将MRC的描述(作为头部注释)和LLM生成的C代码写入文件
     with open(os.path.join(config["output"], "mrc.h"), "w", encoding="utf-8") as f:
