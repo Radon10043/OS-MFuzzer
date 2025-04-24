@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -34,10 +35,11 @@ type Config struct {
 	vminfo.Config
 	Stats
 
-	VMArch string
-	VMType string
-	RPC    string
-	VMLess bool
+	VMArch   string
+	VMType   string
+	RPC      string
+	MrvioDir string
+	VMLess   bool
 	// Hash adjacent PCs to form fuzzing feedback signal (otherwise just use coverage PCs as signal).
 	UseCoverEdges bool
 	// Filter signal/comparisons against target kernel text/data ranges.
@@ -157,10 +159,11 @@ func New(cfg *mgrconfig.Config, mgr Manager, stats Stats, debug bool) (Server, e
 			Sandbox:    sandbox,
 			SandboxArg: cfg.SandboxArg,
 		},
-		Stats:  stats,
-		VMArch: cfg.TargetVMArch,
-		RPC:    cfg.RPC,
-		VMLess: cfg.VMLess,
+		Stats:    stats,
+		VMArch:   cfg.TargetVMArch,
+		RPC:      cfg.RPC,
+		MrvioDir: filepath.Join(cfg.Workdir, "mrvio"),
+		VMLess:   cfg.VMLess,
 		// gVisor coverage is not a trace, so producing edges won't work.
 		UseCoverEdges: cfg.Experimental.CoverEdges && cfg.Type != targets.GVisor,
 		// gVisor/Starnix are not Linux, so filtering against Linux ranges won't work.
@@ -449,6 +452,7 @@ func (serv *server) CreateInstance(id int, injectExec chan<- bool, updInfo dispa
 		debug:         serv.cfg.Debug,
 		debugTimeouts: serv.cfg.DebugTimeouts,
 		sysTarget:     serv.sysTarget,
+		mrvioDir:      serv.cfg.MrvioDir,
 		injectExec:    injectExec,
 		infoc:         make(chan chan []byte),
 		requests:      make(map[int64]*queue.Request),

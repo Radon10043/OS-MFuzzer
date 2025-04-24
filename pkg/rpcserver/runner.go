@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/google/syzkaller/prog"
 	"github.com/google/syzkaller/sys/targets"
 	"github.com/google/syzkaller/vm/dispatcher"
+	"github.com/google/uuid"
 )
 
 type Runner struct {
@@ -46,6 +49,7 @@ type Runner struct {
 	lastExec      *LastExecuting
 	updInfo       dispatcher.UpdateInfo
 	resultCh      chan error
+	mrvioDir      string
 
 	// The mutex protects all the fields below.
 	mu          sync.Mutex
@@ -275,6 +279,8 @@ func (runner *Runner) sendRequest(req *queue.Request) error {
 		panic(err)
 	}
 	runner.nextRequestID++
+	// Return the output so that we can capture the metamorphic relation violation
+	req.ReturnOutput = true
 	id := runner.nextRequestID
 	var flags flatrpc.RequestFlag
 	if req.ReturnOutput {
@@ -413,6 +419,13 @@ func (runner *Runner) handleExecResult(msg *flatrpc.ExecResult) error {
 			msg.Info.ExtraRaw = nil
 			runner.convertCallInfo(msg.Info.Extra)
 		}
+	}
+	// Check if MR is violated, and if so, save the program to workdir/mrvio.
+	if len(msg.Output) > 0 && strings.Contains(string(msg.Output), "[SyzMeta]: MR is violated!") {
+		osutil.MkdirAll(runner.mrvioDir)
+		id := uuid.New().String()[:8]
+		fn := filepath.Join(runner.mrvioDir, id)
+		osutil.WriteFile(fn, req.Prog.Serialize())
 	}
 	status := queue.Success
 	var resErr error
