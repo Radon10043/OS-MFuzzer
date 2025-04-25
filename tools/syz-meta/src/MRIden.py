@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-04-24 12:22:33
+LastEditTime : 2025-04-25 09:02:25
 Description  : 提示两个LLM进行MR识别和校对
 """
 
@@ -259,6 +259,8 @@ def loop(identifier, calibrator, config: dict):
         f.write(f"IDENTIFIER: {config["identifier"]["model"]}\n\n")
         f.write(f"CALIBRATOR: {config["calibrator"]["model"]}\n\n")
         f.write(f"ITERATIONS: {iterations + 1}\n\n")
+        if iterations >= config["max_iter"]:
+            f.write("Maximum number of iterations has been reached. The identifier and calibrator may not have reached a consensus. Please check the chat log.\n\n")
     OKF(f"Discussion finished! Check the output directory {config["output"]} for details.")
 
 
