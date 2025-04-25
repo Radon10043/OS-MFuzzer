@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-04-24 12:25:18
+LastEditTime : 2025-04-25 15:04:10
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -330,8 +330,6 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
     linux_syscall_file = os.path.join(syzkaller, "pkg", "vminfo", "linux_syscalls.go")  # linux_syscall.go的路径
     linux_syscall_content = str()  # linux_syscall.go的文件内容
     common_linux_file = os.path.join(syzkaller, "executor", "common_linux.h")  # common_linux.h的路径
-    syz_env = os.path.join(syzkaller, "tools", "syz-env")  # syz-env脚本路径, 构建添加pseudo-syscall后的yzkaller用
-    syz_env_content = list()  # syz-env脚本的内容
 
     # 准备尝试集成到syzkaller, 首先删掉所有syzkaller的修改
     res = subprocess.run(
@@ -343,16 +341,6 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
     )
     if res.returncode != 0:
         FATAL(f"Failed to clean syzkaller repository: {res.stderr.decode('utf-8')}")
-
-    # 修改syz-env:
-    # - 注释掉docker pull (L66), 防止出现网络错误
-    # - docker run时添加--network host
-    with open(syz_env, mode="r", encoding="utf-8") as f:
-        syz_env_content = f.readlines()
-    with open(syz_env, mode="w", encoding="utf-8") as f:
-        # TODO (radon): 直接通过行号修改也太糟糕了, 想想有什么别的办法吧, 包括下面修改linux_syscall.go也是
-        syz_env_content[65] = "# " + syz_env_content[65] + 'DOCKERARGS+=" --network host"\n'
-        f.writelines(syz_env_content)
 
     # 将C代码实现, syzlang描述加入syzkaller的指定文件中
     # 还需要在pkg/vminfo/linux_syscalls.go中添加对应的syscall
@@ -369,9 +357,9 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
         f.write(csource)
         f.write("\n#endif\n")
 
-    # 运行syz-env make generate -j
+    # 运行make generate -j
     res = subprocess.run(
-        [syz_env, "make", "generate", "-j"],
+        ["make", "generate", "-j"],
         cwd=syzkaller,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -379,9 +367,9 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
     if res.returncode != 0:
         return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
 
-    # 运行syz-env make clean all -j
+    # 运行make clean all -j
     res = subprocess.run(
-        [syz_env, "make", "clean", "all", "-j"],
+        ["make", "clean", "all", "-j"],
         cwd=syzkaller,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
