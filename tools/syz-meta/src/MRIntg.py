@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-04-16 05:32:03
 LastEditors  : Radon
-LastEditTime : 2025-04-24 10:05:02
+LastEditTime : 2025-04-27 21:26:08
 Description  : 将MR实现集成到syzkaller中
 """
 
@@ -12,8 +12,30 @@ import time
 import uuid
 import subprocess
 
-from clang.cindex import Config, Index, CursorKind
+from clang.cindex import Config, Index, TranslationUnit, CursorKind, TokenKind
 from utils import *
+
+
+########## GLOBAL VARIABLES ##########
+# 黑名单, 记录了需要跳过的节点
+BLACK_LIST = {
+    CursorKind.STRUCT_DECL: {
+        "kvm_ppc_mmuv3_cfg",
+        "kvm_create_spapr_tce",
+        "kvm_arm_copy_mte_tags",
+        "kvm_rtas_token_args",
+        "kvm_xen_vcpu_attr",
+        "kvm_allocate_rma",
+        "kvm_create_spapr_tce_64"
+    },
+    CursorKind.MACRO_DEFINITION: {
+        "KVM_XEN_VCPU_GET_ATTR",
+    },
+    CursorKind.FUNCTION_DECL: {
+        "failmsg"
+    }
+}
+######################################
 
 
 def update_csource(path: str, uuid: str) -> str:
@@ -43,39 +65,72 @@ def update_csource(path: str, uuid: str) -> str:
 
     # 获得C代码实现的AST
     index = Index.create()
-    tu = index.parse(path)
+    tu = index.parse(path, options=TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD)
     cursor = tu.cursor
 
-    # 构建函数名称字典, key为旧函数名, val是对应的新函数名
-    func_dict = dict()
-    for node in cursor.walk_preorder():
+    # 为防止多个源文件之间出现变量, 函数等名称的冲突, 需要为可能冲突的内容进行重命名
+    # 构建名称替换映射, key为旧名字, val是对应的新名字, key包含:
+    # - 函数名
+    # - 全局变量名
+    # - 结构体名
+    # - 宏定义
+    rename_dict = dict()
+    concern_cursor_kinds = {CursorKind.FUNCTION_DECL, CursorKind.VAR_DECL, CursorKind.STRUCT_DECL, CursorKind.MACRO_DEFINITION}
+    for node in cursor.get_children():
         if node.location.is_in_system_header:  # 跳过系统头文件
             continue
-        if node.kind == CursorKind.FUNCTION_DECL:
-            func = node.spelling
-            n_func = func + "_" + uuid
-            func_dict[func] = n_func
+        if node.location.file == None or node.location.file.name != path:  # 跳过不属于当前文件的节点
+            continue
+        if node.kind in BLACK_LIST.keys() and node.spelling in BLACK_LIST[node.kind]:  # 跳过黑名单中的节点
+            # TODO: 这个方法不够通用, 是否存在更好的方式?
+            continue
+        if node.kind in concern_cursor_kinds:
+            name = node.spelling
+            n_name = name + "_" + uuid
+            rename_dict[name] = n_name
 
-    # 遍历AST, 修改函数名, 包括函数声明和函数体
-    for node in cursor.walk_preorder():
-        update = False
-        if node.location.is_in_system_header:  # 跳过系统头文件
+    # 遍历tokens, 进行重命名
+    # 一开始是用cursor.walk_preorder()遍历的, 但if语句内的内容似乎无法被解析,
+    # 暂时没有解决方案, 用cursor.get_tokens()代替. 直觉上比遍历AST精确度会差很多
+    # TODO: 寻找其他更合适的方法重构代码
+    mod_times = dict()  # <int, int>, key为行号, val是修改次数, 若一行存在多个需重命名的内容, 需要计算列号的偏移量
+    for token in cursor.get_tokens():
+
+        # 如果节点不是标识符或者节点的名称不在函数字典中, 跳过
+        if not token.kind == TokenKind.IDENTIFIER or not token.spelling in rename_dict.keys():
             continue
-        if node.kind in {CursorKind.FUNCTION_DECL, CursorKind.CALL_EXPR} and node.spelling in func_dict.keys():
-            update = True
-        if update:  # 小心! 这种修改方法可能会导致代码被破坏
-            func = node.spelling
-            row, col = node.location.line, node.location.column
-            length = len(func)
-            code = csource_lines[row - 1]
-            to_replace = code[col - 1 : col + length - 1]
-            if to_replace != func:
-                FATAL("Damn, C source code might broken. I should not modify it anymore.")
-            n_code = code[: col - 1] + func_dict[func] + code[col + length - 1 :]
-            csource_lines[row - 1] = n_code
+
+        # 根据重命名字典修改代码中的变量名或函数名
+        # 小心! 这种修改方法可能会导致代码被破坏
+        name = token.spelling
+        row, col = token.location.line, token.location.column
+
+        # 若本行存在多个修改内容, 第一个以外的函数调用需要计算列号的偏移量
+        offset = 0
+        if row in mod_times.keys():
+            offset = mod_times[row] * (len(uuid) + 1)  # 因为多了个下划线, 所以+1
+        col += offset
+
+        # 修改函数
+        length = len(name)
+        code = csource_lines[row - 1]
+        to_replace = code[col - 1 : col + length - 1]
+        if to_replace != name:
+            FATAL("Damn, C source code might broken. I should not modify it anymore.")
+        n_code = code[: col - 1] + rename_dict[name] + code[col + length - 1 :]
+        csource_lines[row - 1] = n_code
+
+        # 更新修改字典
+        if row in mod_times.keys():
+            mod_times[row] += 1
+        else:
+            mod_times[row] = 1
+
+    # 添加源码的来源, 方便调试
+    csource_lines.insert(0, f"// Code from {path}\n")
 
     # 返回修改后的函数
-    return "\n".join(csource_lines)
+    return "".join(csource_lines)
 
 
 def update_syzlang(path: str, uuid: str) -> str:
@@ -101,12 +156,34 @@ def update_syzlang(path: str, uuid: str) -> str:
 
 
 def integrate(syzkaller: str, csource: str, syzlang: str, func: str):
-    # 将C实现代码插入syzkaller/executor/common_linux.h的后面
-    common_linux_h = os.path.join(syzkaller, "executor", "common_linux.h")
-    with open(common_linux_h, mode="a", encoding="utf-8") as f:
+    """将C代码实现和syzlang描述集成到syzkaller中
+
+    Parameters
+    ----------
+    syzkaller : str
+        syzkaller的路径
+    csource : str
+        C代码实现
+    syzlang : str
+        syzlang描述
+    func : str
+        函数名称
+    """
+    # 将C代码实现写入syzkaller/executor/MRs/[func].h中, 并基于syzkaller./clang-format进行格式化
+    os.makedirs(os.path.join(syzkaller, "executor", "MRs"), exist_ok=True)
+    fn = os.path.join(syzkaller, "executor", "MRs", func + ".h")
+    with open(fn, mode="a", encoding="utf-8") as f:
         f.write("\n#if SYZ_EXECUTOR || __NR_" + func + "\n")
         f.write(csource)
         f.write("\n#endif\n")
+    res = subprocess.run(["clang-format", "-i", f"--style=file:{syzkaller}/.clang-format", fn])
+    if res.returncode != 0:  # unlikely
+        FATAL("clang-format failed! Please check the file %s." % fn)
+
+    # 在syzkaller/executor/common_linux.h的结尾添加#include "MRs/[func].h"
+    common_linux_h = os.path.join(syzkaller, "executor", "common_linux.h")
+    with open(common_linux_h, mode="a", encoding="utf-8") as f:
+        f.write('#include "MRs/%s.h"\n' % func)
 
     # 将syzlang描述插入syzkaller/sys/linux/metamorphic.txt中
     metamorphic_txt = os.path.join(syzkaller, "sys", "linux", "metamorphic.txt")
@@ -159,7 +236,7 @@ def main(args: argparse.Namespace):
         integrate(syzkaller_dir, csource, syzlang_desc, func)
         OKF("%s is integrated into syzkaller!" % impl)
 
-    WARNF("Integration is complete! Now you can run `make clean all -j` to build syzkaller.")
+    WARNF("Integration is complete! Now you can run `make generate -j && make clean all -j` to build syzkaller.")
     SAYF("    Note that errors may occur during the building, please correct them manually.\n")
 
 
