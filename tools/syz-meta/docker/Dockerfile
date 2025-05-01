@@ -28,10 +28,12 @@ RUN apt update && \
     tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
     rm LLVM-19.1.7-Linux-X64.tar.xz && \
     # Install flatbuffers-2.0.8
-    tar -xzvf v2.0.8.tar.gz && cd flatbuffers-2.0.8 && \
+    tar -xzvf v2.0.8.tar.gz && \
+    pushd flatbuffers-2.0.8 && \
     cmake -G "Unix Makefiles" && \
     make -j && \
     make install && \
+    popd && \
     rm -rf flatbuffers-2.0.8 v2.0.8.tar.gz
 
 ENV GOPATH=/usr/local/go/bin
