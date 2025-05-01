@@ -4,7 +4,7 @@ WORKDIR /home
 SHELL [ "/bin/bash", "-c" ]
 
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
-# go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, flatbuffers-v2.0.8
+# go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
 RUN apt update && \
     apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake && \
