@@ -17,6 +17,7 @@ import (
 	"github.com/google/syzkaller/pkg/cover"
 	"github.com/google/syzkaller/pkg/flatrpc"
 	"github.com/google/syzkaller/pkg/fuzzer/queue"
+	"github.com/google/syzkaller/pkg/hash"
 	"github.com/google/syzkaller/pkg/log"
 	"github.com/google/syzkaller/pkg/osutil"
 	"github.com/google/syzkaller/pkg/report"
@@ -422,9 +423,21 @@ func (runner *Runner) handleExecResult(msg *flatrpc.ExecResult) error {
 	}
 	// Check if MR is violated, and if so, save the program to workdir/mrvio.
 	if len(msg.Output) > 0 && strings.Contains(string(msg.Output), "[SyzMeta]: MR is violated!") {
-		osutil.MkdirAll(runner.mrvioDir)
+		// Let's classify MR-violated test inputs.
+		// Extract MR-related pseudo-syscall sequence in the req and construct mrSeq.
+		mrSeq := ""
+		for i := range len(req.Prog.Calls) {
+			callname := req.Prog.CallName(i)
+			if strings.HasPrefix(callname, "syz_mr_") {
+				mrSeq += callname
+			}
+		}
+		sig := hash.Hash([]byte(mrSeq))
+		// Using hash value of mrSeq for classification
+		dir := filepath.Join(runner.mrvioDir, sig.String())
+		osutil.MkdirAll(dir)
 		id := uuid.New().String()[:8]
-		fn := filepath.Join(runner.mrvioDir, id)
+		fn := filepath.Join(dir, id)
 		osutil.WriteFile(fn, req.Prog.Serialize())
 	}
 	status := queue.Success
