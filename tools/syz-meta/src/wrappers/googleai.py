@@ -158,3 +158,7 @@ class GoogleAI(Wrapper):
         # 不支持的文件后缀名
         else:
             FATAL(f"Unsupported file extension: {ext_name}")
+
+    def clear_messages(self):
+        """清除聊天记录, 但不清除系统提示"""
+        self.inst._curated_history.clear()

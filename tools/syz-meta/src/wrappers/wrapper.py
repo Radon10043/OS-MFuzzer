@@ -73,3 +73,7 @@ class Wrapper:
             消息记录保存路径
         """
         FATAL("Wrapper is an abstract class, please use other class instead.")
+
+    def clear_messages(self):
+        """清除聊天记录, 但不清除系统提示"""
+        FATAL("Wrapper is an abstract class, please use other class instead.")
