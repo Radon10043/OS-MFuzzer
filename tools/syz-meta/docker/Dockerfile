@@ -5,6 +5,7 @@ SHELL [ "/bin/bash", "-c" ]
 
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
+# TODO: Install SyzMeta
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
 RUN apt update && \
     apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake && \
@@ -34,7 +35,17 @@ RUN apt update && \
     make -j && \
     make install && \
     popd && \
-    rm -rf flatbuffers-2.0.8 v2.0.8.tar.gz
+    # Download & build syzkaller
+    rm -rf flatbuffers-2.0.8 v2.0.8.tar.gz && \
+    git clone https://github.com/google/syzkaller && \
+    pushd syzkaller && \
+    git checkout 4b25d554e5643186ba6a09429089ac0275f7573b && \
+    make generate -j && make all -j && \
+    popd && \
+    # Create Debian Bullseye Linux image
+    mkdir Debian && pushd Debian && \
+    cp ../syzkaller/tools/create-image.sh . && \
+    ./create-image.sh
 
 ENV GOPATH=/usr/local/go/bin
 ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
