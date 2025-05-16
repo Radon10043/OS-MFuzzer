@@ -51,5 +51,14 @@ RUN apt update && \
     mkdir Debian && pushd Debian && \
     cp ../syzkaller/tools/create-image.sh .
 
+# After the container is constructed, we need to build the Debian and Linux kernels.
+#
+# We can use the following commands to build Debian:
+# pushd /home/Debian && ./create-image.sh
+#
+# For Linux kernels, we can run the build.sh in the /home/linux/. The first argument
+# is the kernel version, and the second argument is the build config. For example:
+# pushd /home/linux && ./build.sh v6.2 syzbot
+
 # Please note:
 # If host has proxy, you can run "docker run --network host" to make container use host's proxy.
