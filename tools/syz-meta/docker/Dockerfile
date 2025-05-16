@@ -3,10 +3,15 @@ FROM ubuntu:22.04
 WORKDIR /home
 SHELL [ "/bin/bash", "-c" ]
 
+ENV GOPATH=/usr/local/go/bin
+ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
+ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
+
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 # TODO: Install SyzMeta
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
+COPY linux /home/
 RUN apt update && \
     apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake && \
     # Download
@@ -44,12 +49,7 @@ RUN apt update && \
     popd && \
     # Create Debian Bullseye Linux image
     mkdir Debian && pushd Debian && \
-    cp ../syzkaller/tools/create-image.sh . && \
-    ./create-image.sh
-
-ENV GOPATH=/usr/local/go/bin
-ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
-ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
+    cp ../syzkaller/tools/create-image.sh .
 
 # Please note:
 # If host has proxy, you can run "docker run --network host" to make container use host's proxy.
