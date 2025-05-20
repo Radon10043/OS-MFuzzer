@@ -13,7 +13,7 @@ import (
 	"regexp"
 )
 
-//go:embed common*.h kvm*.h android/*.h
+//go:embed common*.h kvm*.h android/*.h MRs/*.h
 var src embed.FS
 
 // CommonHeader contains all executor common headers used by pkg/csource to generate C reproducers.
@@ -24,7 +24,7 @@ var CommonHeader = func() []byte {
 		panic(err)
 	}
 	headers := make(map[string]bool)
-	for _, glob := range []string{"*.h", "android/*.h"} {
+	for _, glob := range []string{"*.h", "android/*.h", "MRs/*.h"} {
 		files, err := fs.Glob(src, glob)
 		if err != nil {
 			panic(err)
@@ -42,12 +42,20 @@ var CommonHeader = func() []byte {
 	for {
 		relacedSomething := false
 		for file := range headers {
-			replace := []byte("#include \"" + path.Base(file) + "\"")
-			if !bytes.Contains(data, replace) {
-				replace = []byte("#include \"android/" + path.Base(file) + "\"")
-				if !bytes.Contains(data, replace) {
-					continue
+			replaceCandidates := [][]byte{
+				[]byte("#include \"" + path.Base(file) + "\""),
+				[]byte("#include \"android/" + path.Base(file) + "\""),
+				[]byte("#include \"MRs/" + path.Base(file) + "\""),
+			}
+			var replace []byte
+			for _, candidate := range replaceCandidates {
+				if bytes.Contains(data, candidate) {
+					replace = bytes.Clone(candidate)
+					break
 				}
+			}
+			if replace == nil {
+				continue
 			}
 			contents, err := src.ReadFile(file)
 			if err != nil {
