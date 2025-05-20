@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-04-16 05:32:03
 LastEditors  : Radon
-LastEditTime : 2025-04-27 21:26:08
+LastEditTime : 2025-05-20 11:52:37
 Description  : 将MR实现集成到syzkaller中
 """
 
@@ -173,17 +173,17 @@ def integrate(syzkaller: str, csource: str, syzlang: str, func: str):
     os.makedirs(os.path.join(syzkaller, "executor", "MRs"), exist_ok=True)
     fn = os.path.join(syzkaller, "executor", "MRs", func + ".h")
     with open(fn, mode="a", encoding="utf-8") as f:
-        f.write("\n#if SYZ_EXECUTOR || __NR_" + func + "\n")
         f.write(csource)
-        f.write("\n#endif\n")
     res = subprocess.run(["clang-format", "-i", f"--style=file:{syzkaller}/.clang-format", fn])
     if res.returncode != 0:  # unlikely
         FATAL("clang-format failed! Please check the file %s." % fn)
 
-    # 在syzkaller/executor/common_linux.h的结尾添加#include "MRs/[func].h"
+    # 在syzkaller/executor/common_linux.h的结尾添加#if SYZ_EXECUTOR || __NR_[func]和#include "MRs/[func].h"
     common_linux_h = os.path.join(syzkaller, "executor", "common_linux.h")
     with open(common_linux_h, mode="a", encoding="utf-8") as f:
+        f.write("\n#if SYZ_EXECUTOR || __NR_" + func + "\n")
         f.write('#include "MRs/%s.h"\n' % func)
+        f.write("\n#endif\n")
 
     # 将syzlang描述插入syzkaller/sys/linux/metamorphic.txt中
     metamorphic_txt = os.path.join(syzkaller, "sys", "linux", "metamorphic.txt")
