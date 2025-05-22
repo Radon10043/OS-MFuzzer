@@ -13,7 +13,7 @@ import (
 	"regexp"
 )
 
-//go:embed common*.h kvm*.h android/*.h MRs/*.h
+//go:embed common*.h kvm*.h android/*.h
 var src embed.FS
 
 // CommonHeader contains all executor common headers used by pkg/csource to generate C reproducers.
@@ -24,7 +24,7 @@ var CommonHeader = func() []byte {
 		panic(err)
 	}
 	headers := make(map[string]bool)
-	for _, glob := range []string{"*.h", "android/*.h", "MRs/*.h"} {
+	for _, glob := range []string{"*.h", "android/*.h"} {
 		files, err := fs.Glob(src, glob)
 		if err != nil {
 			panic(err)
