@@ -1,3 +1,5 @@
+# If host has proxy, you can run "docker run --network host" to make container use host's proxy.
+
 FROM ubuntu:22.04
 
 WORKDIR /home
@@ -9,11 +11,9 @@ ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
 
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
-# TODO: Install SyzMeta
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
-COPY linux /home/
 RUN apt update && \
-    apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake && \
+    apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake gdb && \
     # Download
     wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
     wget -nc https://www.python.org/ftp/python/3.12.3/Python-3.12.3.tar.xz && \
@@ -40,25 +40,23 @@ RUN apt update && \
     make -j && \
     make install && \
     popd && \
-    # Download & build syzkaller
-    rm -rf flatbuffers-2.0.8 v2.0.8.tar.gz && \
-    git clone https://github.com/google/syzkaller && \
-    pushd syzkaller && \
-    git checkout 4b25d554e5643186ba6a09429089ac0275f7573b && \
-    make generate -j && make all -j && \
-    popd && \
-    # Create Debian Bullseye Linux image
-    mkdir Debian && pushd Debian && \
-    cp ../syzkaller/tools/create-image.sh .
+    rm -rf flatbuffers-2.0.8 v2.0.8.tar.gz
 
-# After the container is constructed, we need to build the Debian and Linux kernels.
+# After the container is constructed, we need to build the Debian, Linux kernels, syzkaller and SyzMeta.
+# It is recommended to save above contents in a docker volume. We can run the following commands on the host:
+# **NOTE: THE FOLLOWING COMMANDS ARE JUST EXAMPLES, PLEASE MODIFY THEM ACCORDING TO THE ACTUAL SITUATION**
+# TODO: Write them in a script
 #
-# We can use the following commands to build Debian:
-# pushd /home/Debian && ./create-image.sh
-#
-# For Linux kernels, we can run the build.sh in the /home/linux/. The first argument
-# is the kernel version, and the second argument is the build config. For example:
-# pushd /home/linux && ./build.sh v6.2 syzbot
-
-# Please note:
-# If host has proxy, you can run "docker run --network host" to make container use host's proxy.
+# docker volume create vol-syzmeta
+# docker run -d -v /vol-syzmeta:/vol --cpuset-cpus 16-19 --network host --privileged --name kernel-fuzzing syzmeta:v1 tail -f /dev/null
+# docker exec --workdir /vol git clone https://github.com/google/syzkaller
+# docker exec --workdir /vol/syzkaller git checkout 4b25d554
+# docker exec --workdir /vol git clone https://github.com/Radon10043/SyzMeta
+# docker exec --workdir /vol cp SyzMeta/tools/syz-meta/docker/linux .
+# docker exec --workdir /vol mkdir Debian
+# docker exec --workdir /vol/Debian cp SyzMeta/tools/create-image.sh .
+# docker exec --workdir /vol/Debian create-image.sh
+# docker exec --workdir /vol/linux ./build.sh v5.15 syzbot
+# docker exec --workdir /vol/linux ./build.sh v6.1 syzbot
+# docker exec --workdir /vol/linux ./build.sh v6.2 syzbot
+# docker exec --workdir /vol/linux ./build.sh v6.7 syzbot
