@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-04-16 05:32:03
 LastEditors  : Radon
-LastEditTime : 2025-05-20 11:52:37
+LastEditTime : 2025-05-28 09:03:31
 Description  : 将MR实现集成到syzkaller中
 """
 
@@ -26,14 +26,16 @@ BLACK_LIST = {
         "kvm_rtas_token_args",
         "kvm_xen_vcpu_attr",
         "kvm_allocate_rma",
-        "kvm_create_spapr_tce_64"
+        "kvm_create_spapr_tce_64",
+        "kvm_get_htab_fd",
+        "kvm_ppc_cpu_char",
     },
     CursorKind.MACRO_DEFINITION: {
         "KVM_XEN_VCPU_GET_ATTR",
     },
     CursorKind.FUNCTION_DECL: {
-        "failmsg"
-    }
+        "failmsg",
+    },
 }
 ######################################
 
@@ -172,7 +174,7 @@ def integrate(syzkaller: str, csource: str, syzlang: str, func: str):
     # 将C代码实现写入syzkaller/executor/MRs/[func].h中, 并基于syzkaller./clang-format进行格式化
     os.makedirs(os.path.join(syzkaller, "executor", "MRs"), exist_ok=True)
     fn = os.path.join(syzkaller, "executor", "MRs", func + ".h")
-    with open(fn, mode="a", encoding="utf-8") as f:
+    with open(fn, mode="w", encoding="utf-8") as f:
         f.write(csource)
     res = subprocess.run(["clang-format", "-i", f"--style=file:{syzkaller}/.clang-format", fn])
     if res.returncode != 0:  # unlikely
@@ -204,15 +206,13 @@ def integrate(syzkaller: str, csource: str, syzlang: str, func: str):
 
 def main(args: argparse.Namespace):
     print(
-        """
-+-----------------------------------------------------+
-|   Please make sure that:                            |
-|   - commit of syzkaller commit is 4b25d554;         |
-|   - pkg/vminfo/syscalls.go has not been modified;   |
-|   - no pseudo-syscalls have been added.             |
-|   Otherwise the integration may failed!             |
-+-----------------------------------------------------+
-        """
+        "+-----------------------------------------------------+"
+        "|   Please make sure that:                            |"
+        "|   - commit of syzkaller commit is 4b25d554;         |"
+        "|   - pkg/vminfo/syscalls.go has not been modified;   |"
+        "|   - no pseudo-syscalls have been added.             |"
+        "|   Otherwise the integration may failed!             |"
+        "+-----------------------------------------------------+"
     )
     time.sleep(4)
 
