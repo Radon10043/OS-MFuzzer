@@ -29,6 +29,7 @@ BLACK_LIST = {
         "kvm_create_spapr_tce_64",
         "kvm_get_htab_fd",
         "kvm_ppc_cpu_char",
+        "kvm_ppc_rmmu_info",
     },
     CursorKind.MACRO_DEFINITION: {
         "KVM_XEN_VCPU_GET_ATTR",
@@ -205,14 +206,14 @@ def integrate(syzkaller: str, csource: str, syzlang: str, func: str):
 
 
 def main(args: argparse.Namespace):
-    print(
-        "+-----------------------------------------------------+"
-        "|   Please make sure that:                            |"
-        "|   - commit of syzkaller commit is 4b25d554;         |"
-        "|   - pkg/vminfo/syscalls.go has not been modified;   |"
-        "|   - no pseudo-syscalls have been added.             |"
-        "|   Otherwise the integration may failed!             |"
-        "+-----------------------------------------------------+"
+    SAYF(
+        "+-----------------------------------------------------+\n"
+        "|   Please make sure that:                            |\n"
+        "|   - commit of syzkaller commit is 4b25d554;         |\n"
+        "|   - pkg/vminfo/syscalls.go has not been modified;   |\n"
+        "|   - no pseudo-syscalls have been added.             |\n"
+        "|   Otherwise the integration may failed!             |\n"
+        "+-----------------------------------------------------+\n"
     )
     time.sleep(4)
 
