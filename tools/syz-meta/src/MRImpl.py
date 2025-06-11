@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-05-21 17:17:10
+LastEditTime : 2025-06-11 12:25:14
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -358,9 +358,9 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
         f.write(csource)
         f.write("\n#endif\n")
 
-    # 运行make generate -j
+    # 运行make generate -j`nproc`
     res = subprocess.run(
-        ["make", "generate", "-j"],
+        ["make", "generate", "-j`nproc`"],
         cwd=syzkaller,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -368,9 +368,9 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
     if res.returncode != 0:
         return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
 
-    # 运行make clean all -j
+    # 运行make clean all -j`nproc`
     res = subprocess.run(
-        ["make", "clean", "all", "-j"],
+        ["make", "clean", "all", "-j`nproc`"],
         cwd=syzkaller,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
