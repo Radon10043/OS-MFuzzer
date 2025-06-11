@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-06-11 06:52:52
 LastEditors  : Radon
-LastEditTime : 2025-06-11 09:21:38
+LastEditTime : 2025-06-11 12:31:11
 Description  : 参考Zhang等人提出的LLM发现MR的方法识别内核中的MR (SANER 2025)
                论文名称: Can large language models discover metamorphic relations? A large-scale empirical study
 """
@@ -45,7 +45,7 @@ def validate(mr_code: str, syzkaller: str) -> bool:
     return ret_code
 
 
-def main(args: argparse.Namespace):
+def main(config: dict):
     """使用Zhang et al. (SANER 2025)提出的方法识别内核的蜕变关系。
 
     Parameters
@@ -53,11 +53,6 @@ def main(args: argparse.Namespace):
     args : argparse.Namespace
         命令行参数
     """
-    # 读取配置文件
-    config = dict()
-    with open(args.config, "r") as f:
-        config = json.load(f)
-
     # 读取系统提示和用户提示
     sys_prompt = str()
     with open(config["prompts"]["system"], "r") as f:
@@ -83,6 +78,7 @@ def main(args: argparse.Namespace):
     spec = str()
     with open(config["specification"], "r") as f:
         spec = f.read()
+    spec = f"```\n{spec}```"
     prompt = prompt.replace("[specification]", spec)
     response = llm_obj.chat(prompt)
     mr_code = get_first_code_block(response, {"c"})
@@ -112,4 +108,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Baseline method for MR identification, refer to the paper published by Zhang et al. in SANER 2025.")
     parser.add_argument("--config", type=str, required=True, help="Path to the configuration file.")
     args = parser.parse_args()
-    main(args)
+    config = dict()
+    with open(args.config) as f:
+        config = json.load(f)
+    main(config)
