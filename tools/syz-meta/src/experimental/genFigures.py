@@ -4,14 +4,86 @@ import os
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import seaborn.objects as so
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 
 ########## GLOBAL VARIABLES ##########
 FONT_SIZE = 14
-FONT = "Consolas"
+FONT_FAMILY = "Consolas"
 ######################################
+
+
+def genCrashFig(args: argparse.Namespace):
+    excel = args.excel
+    df = pd.read_excel(excel, sheet_name="Fuzzing", header=1, engine="calamine")
+
+    # Get the unique kernel versions and fuzzers
+    vers = df["kernel version"].unique().tolist()
+    fuzzers = df["fuzzer"].unique().tolist()
+    vers.sort()
+    fuzzers.sort()
+
+    # Preprocessing the data
+    plot_data_list = list()
+    for ver in vers:
+        for fuzzer in fuzzers:
+            subset = df[(df["kernel version"] == ver) & (df["fuzzer"] == fuzzer)]
+            mean_total = subset["crash"].mean()
+            mean_valid = subset["valid crash"].mean()
+            mean_invalid = subset["invalid crash"].mean()
+            plot_data_list.append({"Fuzzer & kernel version": "$\\text{" + fuzzer + "}_\\text{" + ver + "}$", "total": mean_total, "valid": mean_valid, "invalid": mean_invalid})
+    plot_data = pd.DataFrame(plot_data_list)
+
+    # Plot the "stacked" bar graph to show the distribution of valid and invalid crashes
+    # Since seaborn does not support stacked bar plots directly, we plot two bars, which
+    # is valid crash and total crash, to pretend that the bar is stacked.
+    f, ax = plt.subplots(figsize=(8, 6))
+    sns.set_theme(style="whitegrid")
+    sns.set_color_codes("muted")
+    sns.barplot(x="Fuzzer & kernel version", y="total", label="invalid", width=0.5, data=plot_data, color="b")
+    sns.set_color_codes("pastel")
+    sns.barplot(x="Fuzzer & kernel version", y="valid", label="valid", width=0.5, data=plot_data, color="b")
+    ax.legend(ncol=2, loc="upper center", frameon=True, prop={"size": FONT_SIZE, "family": FONT_FAMILY})
+    plt.ylabel("Number of crashes")
+    plt.xticks(rotation=45, ha="right", va="top")
+
+    # Ready to set the bar properties ...
+    n = len(fuzzers) * len(vers)
+    crash_types = ["invalid", "valid"]
+    offset = 0.2
+    ticks = ax.get_xticks()
+    ntickpos = list()
+
+    # Set bar properties
+    for i, bar in enumerate(ax.patches):
+        # Set position of the bar
+        bar.set_x(bar.get_x() + (-1) ** i * offset)  # type: ignore
+
+        # Prepare new x-ticks position
+        if i < len(ticks):
+            ntickpos.append(ticks[i] + (-1) ** i * offset)  # type: ignore
+
+        # Add text to the bar
+        crash_type = crash_types[i // n]
+        fuzzer_ver = plot_data["Fuzzer & kernel version"].values[i % n]
+        num = plot_data[plot_data["Fuzzer & kernel version"] == fuzzer_ver][crash_type].values[0]
+        text = f"{num:.1f}"
+        color = "black" if crash_type == "valid" else "white"
+        x = bar.get_x() + bar.get_width() / 2  # type: ignore
+        y = bar.get_height() / 2  # type: ignore
+        if crash_type == "invalid":
+            valid_height = plot_data[plot_data["Fuzzer & kernel version"] == fuzzer_ver]["valid"].values[0]
+            y = valid_height + (bar.get_height() - valid_height) / 2  # type: ignore
+        ax.text(x, y, text, ha="center", va="center", fontdict={"size": FONT_SIZE - 2, "family": FONT_FAMILY, "color": color})
+
+    # Update x-ticks postion
+    ax.set_xticks(ntickpos)
+
+    plt.tight_layout()
+    plt.savefig("crash.pdf")
+    print("Successfully draw crash figure.")
 
 
 def genMRIdenFig(args: argparse.Namespace):
@@ -35,7 +107,6 @@ def genMRIdenFig(args: argparse.Namespace):
     drivers = df["driver"].unique().tolist()
 
     # Initialize the plot
-    plt.rcParams.update({"font.size": FONT_SIZE, "font.family": FONT})
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 8))
     axes = axes.flatten()
 
@@ -104,8 +175,32 @@ def genMRIdenFig(args: argparse.Namespace):
     print("Successfully draw MR identification result figure.")
 
 
+def prepare():
+    """Some preparation before drawing figures."""
+    plt.rcParams.update({"font.size": FONT_SIZE, "font.family": FONT_FAMILY})
+
+
+def main(args: argparse.Namespace):
+    """Main function to generate figures based on command line arguments.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments.
+    """
+    prepare()
+    for fig in args.figs:
+        if fig == "all" or fig == "MRIden":
+            genMRIdenFig(args)
+        elif fig == "all" or fig == "crash":
+            genCrashFig(args)
+        else:
+            print(f"Unknown figure type: {fig}. Skipping.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Draw plots from data")
     parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
+    parser.add_argument("--figs", nargs="+", default="all", choices=["all", "MRIden", "crash"], help="Type of figures to generate")
     args = parser.parse_args()
-    genMRIdenFig(args)
+    main(args)
