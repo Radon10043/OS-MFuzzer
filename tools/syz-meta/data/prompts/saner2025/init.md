@@ -2,7 +2,7 @@ Please identify the metamorphic relation of the linux kernel based on the follow
 
 [specification]
 
-Please identify the metamorphic relation of the linux kernel as much as possible and codify it. Note that you should just output the code block. For example:
+Please output a metamorphic relation of the linux kernel as accurately as possible and codify it. Do not implement the main function. Note that you should just output the code block. For example:
 
 ```c
 // Description of the metamorphic relation
