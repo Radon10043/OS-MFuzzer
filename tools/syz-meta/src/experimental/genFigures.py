@@ -15,7 +15,7 @@ FONT_FAMILY = "Consolas"
 ######################################
 
 
-def read_fuzzing_log(log: str) -> list:
+def read_fuzzing_log(log: str, gap: int = 60) -> list:
     """Read a fuzzing log file and extract related information.
 
     Parameters
@@ -32,7 +32,6 @@ def read_fuzzing_log(log: str) -> list:
         lines = f.readlines()
 
     # Extract related information from the log
-    gap = 60    # Seconds
     data = list()
     timepoint = 0
     for i in range(0, len(lines), int(gap / 10)):
@@ -46,7 +45,7 @@ def read_fuzzing_log(log: str) -> list:
             if kv == "exec":
                 continue
             if kv.endswith("/sec)"):
-                datum["speed"] = kv[1:-5]
+                datum["speed"] = int(kv[1:-5])
                 continue
             k, v = kv.split("=")
             if k == "total":
@@ -80,7 +79,7 @@ def genCoverageFig(args: argparse.Namespace):
     fuzzers = list(fuzzers)
     fuzzers.sort()
 
-    # Prepare the data for plotting
+    # Prepare the data for coverage line graph
     plot_data_list = list()
     data2d = list()
     samplen = int(1e9+7)
@@ -88,7 +87,7 @@ def genCoverageFig(args: argparse.Namespace):
         for fuzzer in fuzzers:
             logs = os.listdir(os.path.join(args.logdir, ver, fuzzer))
             for log in logs:
-                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log))
+                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log), gap=60)
                 for datum in data:
                     datum["kernel version"] = ver
                     datum["fuzzer"] = fuzzer
@@ -97,11 +96,39 @@ def genCoverageFig(args: argparse.Namespace):
         samplen = min(samplen, len(data))
     for data in data2d:
         plot_data_list.extend(data[:samplen])
-    plot_data = pd.DataFrame(plot_data_list)
+    plot_data_cov = pd.DataFrame(plot_data_list)
 
-    # Plot the line graph
-    sns.set_theme(style="darkgrid")
-    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer")
+    # Prepare the data for exec speed line graph
+    plot_data_list = list()
+    data2d = list()
+    samplen = int(1e9+7)
+    for ver in vers:
+        for fuzzer in fuzzers:
+            logs = os.listdir(os.path.join(args.logdir, ver, fuzzer))
+            for log in logs:
+                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log), gap=60)
+                for datum in data:
+                    datum["kernel version"] = ver
+                    datum["fuzzer"] = fuzzer
+                data2d.extend([data])
+    for data in data2d:
+        samplen = min(samplen, len(data))
+    for data in data2d:
+        plot_data_list.extend(data[:samplen])
+    plot_data_speed = pd.DataFrame(plot_data_list)
+
+    # Plot the line graph for coverage & exec speed
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+
+    # Line graph for coverage
+    sns.lineplot(data=plot_data_cov, x="timepoint", y="coverage", hue="fuzzer", linestyle="--", ax=ax1)
+    ax1.set_xlabel("Time (seconds)")
+
+    # Line graph for exec speed
+    ax2 = ax1.twinx()
+    sns.lineplot(data=plot_data_speed, x="timepoint", y="speed", hue="fuzzer", ax=ax2, legend=False)
+
+    # Fine-tune & save the figure
     plt.tight_layout()
     plt.savefig("coverage.pdf")
 
