@@ -1,10 +1,10 @@
 import argparse
 import os
+import re
 
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import seaborn.objects as so
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
@@ -15,7 +15,105 @@ FONT_FAMILY = "Consolas"
 ######################################
 
 
+def read_fuzzing_log(log: str) -> list:
+    """Read a fuzzing log file and extract related information.
+
+    Parameters
+    ----------
+    log : str
+        Path to the log file.
+
+    Returns
+    -------
+    list
+        A list of dictionaries containing the extracted information.
+    """
+    with open(log, "r") as f:
+        lines = f.readlines()
+
+    # Extract related information from the log
+    gap = 60    # Seconds
+    data = list()
+    timepoint = 0
+    for i in range(0, len(lines), int(gap / 10)):
+        line = lines[i]
+        if not "coverage=" in line:
+            continue
+        kvs = line.split(" ")
+        kvs = kvs[2:-1]
+        datum = dict()
+        for kv in kvs:  # Shit
+            if kv == "exec":
+                continue
+            if kv.endswith("/sec)"):
+                datum["speed"] = kv[1:-5]
+                continue
+            k, v = kv.split("=")
+            if k == "total":
+                k = "exec total"
+            datum[k] = int(v)
+        datum["timepoint"] = timepoint
+        data.append(datum)
+        timepoint += gap
+
+    return data
+
+
+def genCoverageFig(args: argparse.Namespace):
+    """Generate figure of coverage results.
+       args.logdir should be the following structure:
+       logdir/[kernel version]/[fuzzer name]/*.log
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments.
+    """
+    # Get unique kernel versions and fuzzers from the log directory
+    vers = os.listdir(args.logdir)
+    vers.sort()
+    fuzzers = set()
+    for ver in vers:
+        vals = os.listdir(os.path.join(args.logdir, ver))
+        for val in vals:
+            fuzzers.add(val)
+    fuzzers = list(fuzzers)
+    fuzzers.sort()
+
+    # Prepare the data for plotting
+    plot_data_list = list()
+    data2d = list()
+    samplen = int(1e9+7)
+    for ver in vers:
+        for fuzzer in fuzzers:
+            logs = os.listdir(os.path.join(args.logdir, ver, fuzzer))
+            for log in logs:
+                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log))
+                for datum in data:
+                    datum["kernel version"] = ver
+                    datum["fuzzer"] = fuzzer
+                data2d.extend([data])
+    for data in data2d:
+        samplen = min(samplen, len(data))
+    for data in data2d:
+        plot_data_list.extend(data[:samplen])
+    plot_data = pd.DataFrame(plot_data_list)
+
+    # Plot the line graph
+    sns.set_theme(style="darkgrid")
+    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer")
+    plt.tight_layout()
+    plt.savefig("coverage.pdf")
+
+
 def genCrashFig(args: argparse.Namespace):
+    """Generate figure of crash results.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments.
+    """
     excel = args.excel
     df = pd.read_excel(excel, sheet_name="Fuzzing", header=1, engine="calamine")
 
@@ -200,7 +298,22 @@ def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Draw plots from data")
-    parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
-    parser.add_argument("--figs", nargs="+", default="all", choices=["all", "MRIden", "crash"], help="Type of figures to generate")
+    subparser = parser.add_subparsers(title="subcommands", required=True)
+
+    # Subcommand for generating figure of MR identification results
+    mri_parser = subparser.add_parser("mri", help="Generate figure of MR identification results")
+    mri_parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
+    mri_parser.set_defaults(func=genMRIdenFig)
+
+    # Subcommand for generating figure of crash results
+    crash_parser = subparser.add_parser("crash", help="Generate figure of crash results")
+    crash_parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
+    crash_parser.set_defaults(func=genCrashFig)
+
+    # Subcommand for generating figure of coverage results
+    coverage_parser = subparser.add_parser("coverage", help="Generate figure of coverage results")
+    coverage_parser.add_argument("--logdir", type=str, required=True, help="Path to the log directory containing kernel fuzzing logs")
+    coverage_parser.set_defaults(func=genCoverageFig)
+
     args = parser.parse_args()
-    main(args)
+    args.func(args)
