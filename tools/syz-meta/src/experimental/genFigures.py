@@ -278,24 +278,6 @@ def prepare():
     plt.rcParams.update({"font.size": FONT_SIZE, "font.family": FONT_FAMILY})
 
 
-def main(args: argparse.Namespace):
-    """Main function to generate figures based on command line arguments.
-
-    Parameters
-    ----------
-    args : argparse.Namespace
-        Command line arguments.
-    """
-    prepare()
-    for fig in args.figs:
-        if fig == "all" or fig == "MRIden":
-            genMRIdenFig(args)
-        elif fig == "all" or fig == "crash":
-            genCrashFig(args)
-        else:
-            print(f"Unknown figure type: {fig}. Skipping.")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Draw plots from data")
     subparser = parser.add_subparsers(title="subcommands", required=True)
@@ -316,4 +298,5 @@ if __name__ == "__main__":
     coverage_parser.set_defaults(func=genCoverageFig)
 
     args = parser.parse_args()
+    prepare()
     args.func(args)
