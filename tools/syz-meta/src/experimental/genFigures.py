@@ -7,7 +7,9 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.ticker as ScalarFormatter
 
+from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
 
@@ -82,6 +84,74 @@ def read_fuzzing_log(log: str, gap: int = 60) -> list:
     return data
 
 
+def gen_line_graph_prev12(plot_data: pd.DataFrame, ax: Axes):
+    """Generate a line graph for the first 12 hours of fuzzing data.
+
+    Parameters
+    ----------
+    plot_data : pd.DataFrame
+        The data to plot.
+    ax : Axes
+        The axes to plot on.
+    """
+    plot_data = plot_data[plot_data["timepoint"] <= 43200]  # Only keep data within 12 hours
+    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer", ax=ax, palette="bright")
+    axc = ax.twinx()
+    sns.lineplot(data=plot_data, x="timepoint", y="speed", hue="fuzzer", ax=axc, legend=False, linestyle="dashed", palette="bright")
+
+    # Set properties of legend
+    line_cov = Line2D([], [], color="black", label="Edge coverage")
+    line_speed = Line2D([], [], color="black", linestyle="dashed", label="Execution speed")
+    handles, labels = ax.get_legend_handles_labels()
+    handles.extend([line_cov, line_speed])
+    labels.extend(["Edge coverage", "Execution speed"])
+    ax.legend(handles=handles, labels=labels, loc="upper left", prop={"size": FONT_SIZE - 2, "family": FONT_FAMILY}, frameon=True)
+
+    # Set properties of x-axis & y-axis
+    ax.set_xticks(np.arange(0, 43201, 14400), [f"{i // 3600}h" for i in range(0, 43201, 14400)])
+    ax.set_yticks(np.arange(0, 250001, 50000), [str(i) for i in range(0, 250001, 50000)])
+    ax.set_ylim(-10000, 260000)
+    ax.set_xlabel("Fuzzing time")
+    ax.set_ylabel("Edge coverage")
+    axc.set_yticks(np.arange(0, 200, 30), [str(i) for i in range(0, 200, 30)])
+    axc.set_ylim(-5, 185)
+    axc.set_ylabel("Execution speed (exec/sec)")
+
+    formatter = ScalarFormatter.ScalarFormatter(useMathText=True)
+    formatter.set_powerlimits((0, 0))
+    ax.yaxis.set_major_formatter(formatter)
+
+
+def gen_line_graph_last12(plot_data: pd.DataFrame, ax: Axes):
+    """Generate a line graph for the last 12 hours of fuzzing data.
+
+    Parameters
+    ----------
+    plot_data : pd.DataFrame
+        The data to plot.
+    ax : Axes
+        The axes to plot on.
+    """
+    plot_data = plot_data[plot_data["timepoint"] >= 43200]  # Only keep data within 12 hours
+    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer", ax=ax, palette="bright")
+    axc = ax.twinx()
+    sns.lineplot(data=plot_data, x="timepoint", y="speed", hue="fuzzer", ax=axc, legend=False, linestyle="dashed", palette="bright")
+
+    # Set properties of x-axis & y-axis
+    ax.set_xticks(np.arange(43200, 86401, 14400), [f"{i // 3600}h" for i in range(43200, 86401, 14400)])
+    ax.set_yticks(np.arange(200000, 260001, 15000), [str(i) for i in range(200000, 260001, 15000)])
+    ax.set_ylim(190000, 270000)
+    ax.set_xlabel("Fuzzing time")
+    ax.set_ylabel("Edge coverage")
+    axc.set_yticks(np.arange(0, 200, 30), [str(i) for i in range(0, 200, 30)])
+    axc.set_ylim(-5, 185)
+    axc.set_ylabel("Execution speed (exec/sec)")
+
+    formatter = ScalarFormatter.ScalarFormatter(useMathText=True)
+    formatter.set_powerlimits((0, 0))
+    ax.yaxis.set_major_formatter(formatter)
+
+
 def gen_coverage_figure(args: argparse.Namespace):
     """Generate figure of coverage results.
        args.logdir should be the following structure:
@@ -127,37 +197,33 @@ def gen_coverage_figure(args: argparse.Namespace):
     samplen -= 1  # We need to keep the last datum, so we reduce the sample length by 1
     for data in data2d:
         plot_data_list.extend(data[0:samplen] + [data[-1]])  # Keep the last datum
-    plot_data = pd.DataFrame(plot_data_list)
+    plot_data_df = pd.DataFrame(plot_data_list)
 
     # Plot the line graph for coverage & exec speed
-    fig, ax1 = plt.subplots(figsize=(8, 6))
+    fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(20, 10))
+    axes = axes.flatten()
 
     # Line graph for coverage & exec speed
-    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer", ax=ax1, palette="bright")
-    ax2 = ax1.twinx()
-    sns.lineplot(data=plot_data, x="timepoint", y="speed", hue="fuzzer", ax=ax2, legend=False, linestyle="dashed", palette="bright")
+    for i in range(len(vers)):
+        plot_data = plot_data_df[plot_data_df["kernel version"] == vers[i]]
+        gen_line_graph_prev12(plot_data, axes[i])
+        axes[i].set_title(f"({chr(ord('a') + i)}) {vers[i]} (0~12h)", y=-0.25)
+        gen_line_graph_last12(plot_data, axes[i + 4])
+        axes[i + 4].set_title(f"({chr(ord('a') + i + 4)}) {vers[i]} (12~24h)", y=-0.25)
 
-    # Set properties of legend
+    # Set the legend
+    handles, labels = axes[0].get_legend_handles_labels()
+    for ax in axes:
+        ax.get_legend().remove()
     line_cov = Line2D([], [], color="black", label="Edge coverage")
     line_speed = Line2D([], [], color="black", linestyle="dashed", label="Execution speed")
-    handles, labels = ax1.get_legend_handles_labels()
     handles.extend([line_cov, line_speed])
     labels.extend(["Edge coverage", "Execution speed"])
-    ax1.legend(handles=handles, labels=labels, loc="upper left", prop={"size": FONT_SIZE - 2, "family": FONT_FAMILY}, frameon=True)
-
-    # Set properties of x-axis & y-axis
-    ax1.set_xticks(np.arange(0, 86401, 14400), [f"{i // 3600}h" for i in range(0, 86401, 14400)])
-    ax1.set_yticks(np.arange(-50000, 250001, 50000), [str(i) for i in range(-50000, 250001, 50000)])
-    ax1.set_ylim(-60000, 260000)
-    ax1.set_xlabel("Fuzzing time")
-    ax1.set_ylabel("Edge coverage")
-    ax2.set_yticks(np.arange(0, 200, 20), [str(i) for i in range(0, 200, 20)])
-    ax2.set_ylim(-5, 185)
-    ax2.set_ylabel("Execution speed (exec/sec)")
+    fig.legend(handles, labels, loc="upper center", ncol=4, prop={"size": FONT_SIZE, "family": FONT_FAMILY})
 
     # Fine-tune & save the figure
     sns.despine(right=False)
-    plt.tight_layout()
+    plt.tight_layout(rect=(0, 0, 1, 0.97))
     plt.savefig("coverage.pdf")
 
 
