@@ -8,11 +8,42 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
+from matplotlib.lines import Line2D
+
 
 ########## GLOBAL VARIABLES ##########
 FONT_SIZE = 14
 FONT_FAMILY = "Consolas"
 ######################################
+
+
+def parse_log_line(line: str) -> dict:
+    """Parse a line from the fuzzing log file to extract relevant data.
+
+    Parameters
+    ----------
+    line : str
+        A line from the fuzzing log file.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the extracted data.
+    """
+    kvs = line.split(" ")
+    kvs = kvs[2:-1]
+    datum = dict()
+    for kv in kvs:  # Shit
+        if kv == "exec":
+            continue
+        if kv.endswith("/sec)"):
+            datum["speed"] = int(kv[1:-5])
+            continue
+        k, v = kv.split("=")
+        if k == "total":
+            k = "exec total"
+        datum[k] = int(v)
+    return datum
 
 
 def read_fuzzing_log(log: str, gap: int = 60) -> list:
@@ -22,35 +53,28 @@ def read_fuzzing_log(log: str, gap: int = 60) -> list:
     ----------
     log : str
         Path to the log file.
+    gap : int, optional
+        Time gap between each data point in seconds, by default 60
 
     Returns
     -------
     list
         A list of dictionaries containing the extracted information.
     """
+    # Read the log file and filter lines
+    lines = list()
     with open(log, "r") as f:
-        lines = f.readlines()
+        tmp = f.readlines()
+    for elem in tmp:
+        if not "coverage=" in elem:
+            continue
+        lines.append(elem)
 
     # Extract related information from the log
     data = list()
     timepoint = 0
     for i in range(0, len(lines), int(gap / 10)):
-        line = lines[i]
-        if not "coverage=" in line:
-            continue
-        kvs = line.split(" ")
-        kvs = kvs[2:-1]
-        datum = dict()
-        for kv in kvs:  # Shit
-            if kv == "exec":
-                continue
-            if kv.endswith("/sec)"):
-                datum["speed"] = int(kv[1:-5])
-                continue
-            k, v = kv.split("=")
-            if k == "total":
-                k = "exec total"
-            datum[k] = int(v)
+        datum = parse_log_line(lines[i])
         datum["timepoint"] = timepoint
         data.append(datum)
         timepoint += gap
@@ -58,7 +82,7 @@ def read_fuzzing_log(log: str, gap: int = 60) -> list:
     return data
 
 
-def genCoverageFig(args: argparse.Namespace):
+def gen_coverage_figure(args: argparse.Namespace):
     """Generate figure of coverage results.
        args.logdir should be the following structure:
        logdir/[kernel version]/[fuzzer name]/*.log
@@ -79,61 +103,65 @@ def genCoverageFig(args: argparse.Namespace):
     fuzzers = list(fuzzers)
     fuzzers.sort()
 
-    # Prepare the data for coverage line graph
+    # Prepare the data for coverage & exec speed line graph
     plot_data_list = list()
     data2d = list()
-    samplen = int(1e9+7)
+    samplen = int(1e9 + 7)
     for ver in vers:
         for fuzzer in fuzzers:
             logs = os.listdir(os.path.join(args.logdir, ver, fuzzer))
             for log in logs:
-                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log), gap=60)
+                log_path = os.path.join(args.logdir, ver, fuzzer, log)
+                data = read_fuzzing_log(log_path, gap=600)
+                last_datum = read_fuzzing_log(log_path, gap=10)[-1]
                 for datum in data:
-                    datum["kernel version"] = ver
-                    datum["fuzzer"] = fuzzer
-                data2d.extend([data])
-    for data in data2d:
-        samplen = min(samplen, len(data))
-    for data in data2d:
-        plot_data_list.extend(data[:samplen])
-    plot_data_cov = pd.DataFrame(plot_data_list)
+                    datum["kernel version"] = last_datum["kernel version"] = ver
+                    datum["fuzzer"] = last_datum["fuzzer"] = fuzzer
+                last_datum["timepoint"] = 86400  # Timepoint of the last datum is set to 86400s (24h), I'm not sure if this is appropriate
+                data.append(last_datum)
+                data2d.append(data)
 
-    # Prepare the data for exec speed line graph
-    plot_data_list = list()
-    data2d = list()
-    samplen = int(1e9+7)
-    for ver in vers:
-        for fuzzer in fuzzers:
-            logs = os.listdir(os.path.join(args.logdir, ver, fuzzer))
-            for log in logs:
-                data = read_fuzzing_log(os.path.join(args.logdir, ver, fuzzer, log), gap=60)
-                for datum in data:
-                    datum["kernel version"] = ver
-                    datum["fuzzer"] = fuzzer
-                data2d.extend([data])
+    # Uniform the length of data list
     for data in data2d:
         samplen = min(samplen, len(data))
+    samplen -= 1  # We need to keep the last datum, so we reduce the sample length by 1
     for data in data2d:
-        plot_data_list.extend(data[:samplen])
-    plot_data_speed = pd.DataFrame(plot_data_list)
+        plot_data_list.extend(data[0:samplen] + [data[-1]])  # Keep the last datum
+    plot_data = pd.DataFrame(plot_data_list)
 
     # Plot the line graph for coverage & exec speed
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    fig, ax1 = plt.subplots(figsize=(8, 6))
 
-    # Line graph for coverage
-    sns.lineplot(data=plot_data_cov, x="timepoint", y="coverage", hue="fuzzer", linestyle="--", ax=ax1)
-    ax1.set_xlabel("Time (seconds)")
-
-    # Line graph for exec speed
+    # Line graph for coverage & exec speed
+    sns.lineplot(data=plot_data, x="timepoint", y="coverage", hue="fuzzer", ax=ax1, palette="bright")
     ax2 = ax1.twinx()
-    sns.lineplot(data=plot_data_speed, x="timepoint", y="speed", hue="fuzzer", ax=ax2, legend=False)
+    sns.lineplot(data=plot_data, x="timepoint", y="speed", hue="fuzzer", ax=ax2, legend=False, linestyle="dashed", palette="bright")
+
+    # Set properties of legend
+    line_cov = Line2D([], [], color="black", label="Edge coverage")
+    line_speed = Line2D([], [], color="black", linestyle="dashed", label="Execution speed")
+    handles, labels = ax1.get_legend_handles_labels()
+    handles.extend([line_cov, line_speed])
+    labels.extend(["Edge coverage", "Execution speed"])
+    ax1.legend(handles=handles, labels=labels, loc="upper left", prop={"size": FONT_SIZE - 2, "family": FONT_FAMILY}, frameon=True)
+
+    # Set properties of x-axis & y-axis
+    ax1.set_xticks(np.arange(0, 86401, 14400), [f"{i // 3600}h" for i in range(0, 86401, 14400)])
+    ax1.set_yticks(np.arange(-50000, 250001, 50000), [str(i) for i in range(-50000, 250001, 50000)])
+    ax1.set_ylim(-60000, 260000)
+    ax1.set_xlabel("Fuzzing time")
+    ax1.set_ylabel("Edge coverage")
+    ax2.set_yticks(np.arange(0, 200, 20), [str(i) for i in range(0, 200, 20)])
+    ax2.set_ylim(-5, 185)
+    ax2.set_ylabel("Execution speed (exec/sec)")
 
     # Fine-tune & save the figure
+    sns.despine(right=False)
     plt.tight_layout()
     plt.savefig("coverage.pdf")
 
 
-def genCrashFig(args: argparse.Namespace):
+def gen_crash_figure(args: argparse.Namespace):
     """Generate figure of crash results.
 
     Parameters
@@ -211,7 +239,7 @@ def genCrashFig(args: argparse.Namespace):
     print("Successfully draw crash figure.")
 
 
-def genMRIdenFig(args: argparse.Namespace):
+def gen_mriden_figure(args: argparse.Namespace):
     """Generate figure of MR identification results.
 
     Parameters
@@ -312,17 +340,17 @@ if __name__ == "__main__":
     # Subcommand for generating figure of MR identification results
     mri_parser = subparser.add_parser("mri", help="Generate figure of MR identification results")
     mri_parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
-    mri_parser.set_defaults(func=genMRIdenFig)
+    mri_parser.set_defaults(func=gen_mriden_figure)
 
     # Subcommand for generating figure of crash results
     crash_parser = subparser.add_parser("crash", help="Generate figure of crash results")
     crash_parser.add_argument("--excel", type=str, required=True, help="Path to the Excel file containing data")
-    crash_parser.set_defaults(func=genCrashFig)
+    crash_parser.set_defaults(func=gen_crash_figure)
 
     # Subcommand for generating figure of coverage results
     coverage_parser = subparser.add_parser("coverage", help="Generate figure of coverage results")
     coverage_parser.add_argument("--logdir", type=str, required=True, help="Path to the log directory containing kernel fuzzing logs")
-    coverage_parser.set_defaults(func=genCoverageFig)
+    coverage_parser.set_defaults(func=gen_coverage_figure)
 
     args = parser.parse_args()
     prepare()
