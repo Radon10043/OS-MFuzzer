@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-06-11 06:52:52
 LastEditors  : Radon
-LastEditTime : 2025-06-14 04:11:04
+LastEditTime : 2025-06-18 08:16:27
 Description  : 改进Zhang等人提出方法, 识别内核中的MR
                论文名称: Can large language models discover metamorphic relations? A large-scale empirical study
                发表源: SANER 2025
@@ -93,10 +93,10 @@ def main(config: dict):
         mr_code = get_first_code_block(response, {"c"})
         mr_code = mr_code.lstrip("`c\n").rstrip("`\n")
         if len(mr_code) == 0:
-            FATAL("No code block found in the response. Please check the prompt and try again.")
+            BADF("No code block found in the response. Please check the prompt and try again.")
+            break
         valid_res, stderr, stdout = validate(mr_code, config["syzkaller"])
         err_msgs = stderr + "\n\n" + stdout
-        iter += 1
         index += 1
         if index >= len(usr_prompts):
             index -= 1
@@ -104,6 +104,7 @@ def main(config: dict):
             gen_succ = True
             break
         WARNF("Failed to integreate encoded-MR into syzkaller, retrying ...")
+        iter += 1
 
     # 保存mr_code(如果生成成功)和LLM交互记录
     out_dir = config["output"]
