@@ -1,3 +1,11 @@
+"""
+Author       : Radon
+Date         : 2025-07-22 16:25:40
+LastEditors  : Radon
+LastEditTime : 2025-07-22 20:58:39
+Description  : Evaluate quality of encoded metamorphic relation
+"""
+
 import argparse
 import json
 import os
@@ -189,6 +197,12 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
     -------
     Tuple[int, int, int]
         coverage, total execs, mrvio execs
+
+        Please note that, `mrvio execs` may more than `total execs` since we got the latter from
+        the log of syzkaller, while the former is got from counting files under `out_dir/mrvio`,
+        time difference may cause the inconsistency.
+
+        TODO: We can modify syzkaller to output `mrvio execs` in the same way as `total execs`
     """
     id = uuid.uuid4().hex[:8]
     os.makedirs(os.path.join(syzkaller, "workdir"), exist_ok=True)
@@ -260,17 +274,20 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
 
 
 def main(args):
-    # Check whether syzkaller image directory, as well as csource and syzlang description file
+    # Check whether syzkaller image directory, as well as csource, syzlang description, and patch file
     ACTF("Checking configs ...")
     syzkaller = args.syzkaller
     csource_path = args.csource
     syzlang_path = args.syzlang
+    patch = args.patch
     if not os.path.exists(syzkaller):
         FATAL(f"{syzkaller} does not exist.")
     if not os.path.exists(csource_path):
         FATAL(f"{csource_path} does not exist.")
     if not os.path.exists(syzlang_path):
         FATAL(f"{syzlang_path} does not exist.")
+    if not os.path.exists(patch):
+        FATAL(f"{patch} does not exist.")
     csource = Path(csource_path).read_text(encoding="utf-8")
     syzlang = Path(syzlang_path).read_text(encoding="utf-8")
     func = syzlang.split("(")[0]
@@ -298,7 +315,6 @@ def main(args):
 
     # Patch syzkaller to support metamorphic testing
     ACTF("Patching syzkaller ...")
-    patch = os.path.join(os.path.dirname(__file__), "..", "SyzMeta.patch")
     patch_syzkaller(syzkaller, patch)
 
     # Add csource & syzlang desc to syzkaller, then build it
@@ -323,5 +339,6 @@ if __name__ == "__main__":
     parser.add_argument("--syzlang", type=str, required=True, help="Path to the syzlang description of pseudo-syscall")
     parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
+    parser.add_argument("--patch", type=str, default=os.path.join(os.path.dirname(__file__), "..", "patch", "debug.patch"), help="Path to the patch file to apply to syzkaller")
     args = parser.parse_args()
     main(args)
