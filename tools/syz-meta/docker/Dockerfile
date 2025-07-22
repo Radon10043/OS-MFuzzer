@@ -13,7 +13,7 @@ ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
 # go1.23.6.linux-amd64.tar.gz, Python-3.12.3.tar.xz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 COPY go1.23.6.linux-amd64.tar.gz Python-3.12.3.tar.xz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
 RUN apt update && \
-    apt install -y sudo wget curl git vim make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake gdb && \
+    apt install -y sudo wget curl git vim build-essential make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake gdb libdw-dev && \
     # Download
     wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
     wget -nc https://www.python.org/ftp/python/3.12.3/Python-3.12.3.tar.xz && \
