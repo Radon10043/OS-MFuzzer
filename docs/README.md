@@ -185,6 +185,11 @@ tools/syz-meta/src/mt.go is used to insert the metamorphosis relation implementa
 - image: path of image file.
 - sshkey: path of ssh key file, which used to connect VM, copy binaries into it, and execute commands.
 
+Build syzkaller under SyzMeta:
+
+```sh
+make -C syzkaller all
+```
 
 ## References
 
