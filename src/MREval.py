@@ -66,6 +66,39 @@ def get_commit(dir: str) -> str:
     return commit
 
 
+def patch_syzkaller(syzkaller: str, patch: str):
+    """Patch syzkaller to support metamorphic testing.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory, must be commit 4b25d554.
+    patch : str
+        Path to the patch file to apply to syzkaller.
+    """
+    # Clean the syzkaller repository first
+    res = subprocess.run(
+        "git checkout . && git clean -fd",
+        cwd=syzkaller,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if res.returncode != 0:
+        FATAL(f"Failed to clean syzkaller repository: {res.stderr.decode('utf-8')}")
+
+    try:
+        subprocess.run(
+            ["git", "apply", patch],
+            cwd=syzkaller,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+    except BaseException as e:
+        FATAL(f"Failed to apply patch {patch} to syzkaller: {e}")
+
+
 def build_syzkaller(syzkaller: str) -> Tuple[int, str, str]:
     """Run `make generate -j` and `make clean all -j` to build the syzkaller.
 
@@ -113,26 +146,10 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
         syzlang description of the pseudo-syscall
     func : str
         Name of the pseudo-syscall function, used to modify linux_syscalls.go
-
-    Returns
-    -------
-    Tuple[int, str, str]
-        集成后的返回值, stderr和stdout
     """
     linux_syscall_file = os.path.join(syzkaller, "pkg", "vminfo", "linux_syscalls.go")
     linux_syscall_content = str()
     common_linux_file = os.path.join(syzkaller, "executor", "common_linux.h")
-
-    # Clean the syzkaller repository first
-    res = subprocess.run(
-        "git checkout . && git clean -fd",
-        cwd=syzkaller,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if res.returncode != 0:
-        FATAL(f"Failed to clean syzkaller repository: {res.stderr.decode('utf-8')}")
 
     # Add syzlang description to syzkaller
     syzlang_fn = os.path.join(syzkaller, "sys", "linux", "metamorphic.txt")
@@ -222,19 +239,29 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
         FATAL(f"Failed to run syzkaller: {e}")
 
     # Get latest coverage, total execs, and mrvio execs
-    last_line = Path(dryrun_log).read_text(encoding="utf-8").splitlines()[-1]
+    lines = Path(dryrun_log).read_text(encoding="utf-8").splitlines()
+    lines.reverse()
+    last_line = str()
+    for line in lines:
+        if "coverage=" in line:
+            last_line = line
+            break
+
+    # Check coverage, total execs, and mrvio execs
     coverage = get_field_val(last_line, "coverage")
     exec_total = get_field_val(last_line, "exec total")
     mrvio_execs = 0
     for _, _, files in os.walk(os.path.join(out_dir, "mrvio")):
         mrvio_execs += len(files)
-    shutil.rmtree(out_dir)  # Remove the output directory after dry run
+    # shutil.rmtree(out_dir)  # Remove the output directory & config file after dry run
+    # os.remove(config_path)
 
     return coverage, exec_total, mrvio_execs
 
 
 def main(args):
     # Check whether syzkaller image directory, as well as csource and syzlang description file
+    ACTF("Checking configs ...")
     syzkaller = args.syzkaller
     csource_path = args.csource
     syzlang_path = args.syzlang
@@ -267,8 +294,15 @@ def main(args):
     commit = get_commit(syzkaller)[:8]
     if commit != "4b25d554":
         FATAL(f"Current commit of syzkaller is {commit}, but expected 4b25d554. Please checkout first.")
+    OKF("Configs are valid!")
+
+    # Patch syzkaller to support metamorphic testing
+    ACTF("Patching syzkaller ...")
+    patch = os.path.join(os.path.dirname(__file__), "..", "SyzMeta.patch")
+    patch_syzkaller(syzkaller, patch)
 
     # Add csource & syzlang desc to syzkaller, then build it
+    ACTF("Add pseudo-syscall & build syzkaller ...")
     add_pseudo_syscall(syzkaller, csource, syzlang, func)
     retval, stderr, stdout = build_syzkaller(syzkaller)
     if retval != 0:
@@ -277,6 +311,7 @@ def main(args):
     # Dryrun for fuzzing, check whether pseudo-syscall can cover kernel code,
     # and if many violations are reported, we should consider that the pseudo-syscall
     # is low-quality
+    ACTF("Dry run syzkaller to evaluate the quality of pseudo-syscall ...")
     coverage, total_execs, mrvio_execs = dryrun(syzkaller, kernel_obj, image_obj, func)
     SAYF(f"Coverage: {coverage}, Total Execs: {total_execs}, MRVIO Execs: {mrvio_execs}\n")
 
