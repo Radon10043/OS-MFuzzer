@@ -212,16 +212,19 @@ def analyze(args: argparse.Namespace):
         if "<TASK>" in line:
             analyze = True
             continue
-        if "RIP: " in line:
+        if "RIP: " in line or "</TASK>" in line:
             analyze = False
             continue
         if not analyze:
             continue
-        func = line.split("] ")[-1].split("+")[0].lstrip("? ")
-        offset = line.split("+")[-1].split("/")[0]
-        base_addr = func_dict[func]
-        addr = hex(int(base_addr, 16) + int(offset, 16))
-        addrs.append((i, addr))
+        try:
+            func = line.split("] ")[-1].split("+")[0].lstrip("? ")
+            offset = line.split("+")[-1].split("/")[0]
+            base_addr = func_dict[func]
+            addr = hex(int(base_addr, 16) + int(offset, 16))
+            addrs.append((i, addr))
+        except BaseException as e:
+            continue
 
     res = subprocess.run(["llvm-addr2line", *[addr for _, addr in addrs], "-e", vmlinux], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     src_lines = res.stdout.decode("utf-8").splitlines()
