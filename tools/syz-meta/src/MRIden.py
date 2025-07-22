@@ -2,19 +2,19 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-05-09 21:32:08
+LastEditTime : 2025-07-22 13:53:20
 Description  : 提示两个LLM进行MR识别和校对
 """
 
 import argparse
+import json
 import os
 import shutil
-import json
 
 from utils import *
-from wrappers.openai import OpenAI
 from wrappers.anthropic import Anthropic
 from wrappers.googleai import GoogleAI
+from wrappers.openai import OpenAI
 
 
 def check_config(args: argparse.Namespace):

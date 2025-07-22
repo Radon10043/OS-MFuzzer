@@ -1,6 +1,7 @@
 import time
-import marko
+from pathlib import Path
 
+import marko
 from marko.md_renderer import MarkdownRenderer
 
 
@@ -51,7 +52,7 @@ def BADF(msg: str):
 
 
 def FATAL(msg: str):
-    SAYF(TerminalColors.cLRD + "[-] PROGRAM ABORT :  " + TerminalColors.cRST + msg + "\n")
+    SAYF(TerminalColors.cLRD + "[-] PROGRAM ABORT : " + TerminalColors.cRST + msg + "\n")
     exit(1)
 
 
@@ -63,23 +64,20 @@ def PFATAL(msg: str):
 ###############################
 ### Miscellaneous functions ###
 ###############################
-def read_file(path: str) -> str:
-    """读取指定文件的内容
+def read_file(filepath: str) -> str:
+    """Read the content of filepath
 
     Parameters
     ----------
-    path : str
-        文件路径
+    filepath : str
+        The path to the file
 
     Returns
     -------
     str
-        文件的内容
+        Content of the file
     """
-    content = str()
-    with open(path, "r") as f:
-        content = f.read()
-    return content
+    return Path(filepath).read_text(encoding="utf-8")
 
 
 def get_cur_time() -> str:
@@ -121,8 +119,8 @@ def get_first_code_block(md_text: str, langs: set) -> str:
     # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个指定语言的代码块后就退出
     for child in md_ast.children:
         child_type = child.get_type()
-        if child_type == "FencedCode" and child.lang in langs:
-            code_list.extend(md_instance.render(child).split("\n"))
+        if child_type == "FencedCode" and child.lang in langs:  # type: ignore
+            code_list.extend(md_instance.render(child).split("\n"))  # type: ignore
             break
 
     # 返回代码块内容, 包含开头的```xxx和结尾的```
