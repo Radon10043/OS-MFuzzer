@@ -23,6 +23,6 @@ static long syz_mr(volatile long a0, volatile long a1) {
     // 3. Get the corresponding source output and follow-up output
     // 4. If outputs do not satisfy the output relation, a prompt message is printed
     if (output_relation_violated)
-        printf("[SyzMeta]: MR is violated!")
+        fprintf(stderr, "[SyzMeta]: MR is violated!")
 }
 ```
