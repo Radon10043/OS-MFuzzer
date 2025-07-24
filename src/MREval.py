@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-07-24 14:55:31
+LastEditTime : 2025-07-24 17:28:29
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -185,7 +185,11 @@ def main(args):
     if not os.path.exists(patch):
         FATAL(f"{patch} does not exist.")
     csource = Path(csource_path).read_text(encoding="utf-8")
-    syzlang = Path(syzlang_path).read_text(encoding="utf-8")
+    syz_lines = Path(syzlang_path).read_text(encoding="utf-8").split("\n")
+    for line in syz_lines:
+        if not line.startswith("#"):
+            syzlang = line
+            break
     func = syzlang.split("(")[0]
 
     # Check whether vmlinux exist under kernel_obj
@@ -226,7 +230,16 @@ def main(args):
     # is low-quality
     ACTF("Dry run syzkaller to evaluate the quality of pseudo-syscall ...")
     coverage, total_execs, mrvio_execs = dryrun(syzkaller, kernel_obj, image_obj, func)
-    SAYF(f"Coverage: {coverage}, Total Execs: {total_execs}, MRVIO Execs: {mrvio_execs}\n")
+    mark_path = os.path.join(os.path.dirname(os.path.abspath(csource_path)), ".low_quality")
+    reason = list()
+    if coverage == 0:
+        reason.append("0 kernel coverage.")
+    elif mrvio_execs / total_execs >= 0.9:
+        reason.append(f"High MRVIO execs: {mrvio_execs} / {total_execs} >= 0.9")
+    if len(reason) > 0:
+        Path(mark_path).write_text("\n".join(reason), encoding="utf-8")
+        WARNF(f"Pseudo-syscall is low-quality, please check {mark_path} for details.")
+    OKF("We are done here!")
 
 
 if __name__ == "__main__":
