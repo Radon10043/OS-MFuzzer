@@ -78,10 +78,10 @@ class OpenAI(Wrapper):
         # 调用对话模型, 获取回复信息
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=self.messages,
+            messages=self.messages, # type: ignore
             temperature=self.temperature,
             stream=self.stream,
-        )
+        ) # type: ignore
 
         # 处理回复信息
         content = str()
@@ -115,7 +115,7 @@ class OpenAI(Wrapper):
         """
         models = list()
         for val in self.client.models.list():
-            models.append(val.id)
+            models.append(val.id.split("/")[-1])
         models.sort()
         return models
 

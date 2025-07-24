@@ -1,5 +1,8 @@
+import os
+import subprocess
 import time
 from pathlib import Path
+from typing import Tuple
 
 import marko
 from marko.md_renderer import MarkdownRenderer
@@ -125,3 +128,115 @@ def get_first_code_block(md_text: str, langs: set) -> str:
 
     # 返回代码块内容, 包含开头的```xxx和结尾的```
     return "\n".join(code_list)
+
+
+def build_syzkaller(syzkaller: str) -> Tuple[int, str, str]:
+    """Run `make generate -j` and `make clean all -j` to build the syzkaller.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory
+
+    Returns
+    -------
+    Tuple[int, str, str]
+        The return code, stderr, and stdout of the build process.
+    """
+    res = subprocess.run(
+        ["make", "generate", "-j"],
+        cwd=syzkaller,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if res.returncode != 0:
+        return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
+
+    res = subprocess.run(
+        ["make", "clean", "all", "-j"],
+        cwd=syzkaller,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
+
+
+def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: str):
+    """Add pseudo-syscall to syzkaller, including:
+    - Insert C source to syzkaller/executor/common_linux.h;
+    - Create metamorphic.txt under syzkaller/sys/linux and write syzlang description;
+    - Modify syzkaller/pkg/vminfo/linux_syscalls.go to add corresponding syscall.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory, must be commit 4b25d554
+    csource : str
+        C source code of the pseudo-syscall
+    syzlang_desc : str
+        syzlang description of the pseudo-syscall
+    func : str
+        Name of the pseudo-syscall function, used to modify linux_syscalls.go
+    """
+    linux_syscall_file = os.path.join(syzkaller, "pkg", "vminfo", "linux_syscalls.go")
+    linux_syscall_content = str()
+    common_linux_file = os.path.join(syzkaller, "executor", "common_linux.h")
+
+    # Add syzlang description to syzkaller
+    syzlang_fn = os.path.join(syzkaller, "sys", "linux", "metamorphic.txt")
+    with open(syzlang_fn, "w", encoding="utf-8") as f:
+        f.write(syzlang_desc)
+
+    # Add C source code to common_linux.h
+    with open(common_linux_file, "a", encoding="utf-8") as f:
+        f.write("#if SYZ_EXECUTOR || __NR_syz_mr\n")
+        f.write(csource)
+        f.write("\n#endif\n")
+
+    # Add syscall to linux_syscalls.go
+    with open(linux_syscall_file, "r", encoding="utf-8") as f:
+        linux_syscall_content = f.readlines()
+    with open(linux_syscall_file, "w", encoding="utf-8") as f:
+        linux_syscall_content[104] += f'"{func}": alwaysSupported,'
+        f.writelines(linux_syscall_content)
+
+
+def clean_syzkaller(syzkaller: str):
+    """Clean the syzkaller repository by checking out and removing untracked files.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory, must be commit 4b25d554.
+    """
+    res = subprocess.run(
+        "git checkout . && git clean -fd",
+        cwd=syzkaller,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if res.returncode != 0:
+        FATAL(f"Failed to clean syzkaller repository: {res.stderr.decode('utf-8')}")
+
+
+def patch_syzkaller(syzkaller: str, patch: str):
+    """Patch syzkaller to support metamorphic testing.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory, must be commit 4b25d554.
+    patch : str
+        Path to the patch file to apply to syzkaller.
+    """
+    try:
+        subprocess.run(
+            ["git", "apply", patch],
+            cwd=syzkaller,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+    except BaseException as e:
+        FATAL(f"Failed to apply patch {patch} to syzkaller: {e}")
