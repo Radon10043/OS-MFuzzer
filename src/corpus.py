@@ -6,36 +6,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from git import Repo
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from utils import *
-
-
-def get_patch_commits(args: argparse.Namespace):
-    kernel_obj = args.kernel_obj
-    if not os.path.exists(kernel_obj):
-        FATAL(f"{kernel_obj} doesn't exist.")
-
-    # Get patch commits via keywork matching
-    ACTF(f"Finding patch commits in {kernel_obj} ...")
-    out_dir = "workdir/tmp/patch_commits"
-    repo = Repo(kernel_obj)
-    commits = list(repo.iter_commits())
-    patch_cnt = 0
-    os.makedirs(out_dir, exist_ok=True)
-    for i in range(len(commits)):
-        if (i + 1) % 10000 == 0:
-            ACTF(f"Processing commit {i + 1} / {len(commits)} ...")
-        commit = commits[i]
-        message = str(commit.message.strip())
-        sha = commit.hexsha
-        if "[PATCH]" in message.upper():
-            Path(os.path.join(out_dir, sha)).write_text(message)
-            patch_cnt += 1
-
-    OKF(f"{kernel_obj}: {len(commits)} commits, {patch_cnt} patch commits found.\n")
 
 
 def get_email_body(s: str) -> str:
@@ -149,8 +124,8 @@ def create_ext_corpus(args: argparse.Namespace):
     embeddings = OpenAIEmbeddings(model=args.embeddings)
     chroma_dir = os.path.join(out_dir, "chroma")
     os.makedirs(chroma_dir, exist_ok=True)
-    db = Chroma.from_documents(docs, embeddings, persist_directory=chroma_dir)
-    print("nice")
+    Chroma.from_documents(docs, embeddings, persist_directory=chroma_dir)
+    OKF("Done! Corpus created in " + chroma_dir)
 
 
 def main(args: argparse.Namespace):
@@ -161,7 +136,6 @@ def main(args: argparse.Namespace):
 if __name__ == "__main__":
     load_dotenv()
     parser = argparse.ArgumentParser(description="Corpus construction script")
-    parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     parser.add_argument("--git_obj", type=str, required=True, help="Path to the git object directory (e.g. linux-cve-announce/git/0.git)")
     parser.add_argument("--outdir", type=str, required=True, help="Output directory for the corpus")
     parser.add_argument("--embeddings", type=str, required=True, help="Model name for embeddings (e.g. 'text-embedding-3-large')")
