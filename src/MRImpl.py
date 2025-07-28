@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-07-28 12:57:01
+LastEditTime : 2025-07-28 16:57:33
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -363,10 +363,6 @@ def main(config: dict):
     config : dict
         User-provided configuration information
     """
-    text = f"*   MR description: {config['mr_desc']}   *"
-    width = len(text)
-    SAYF("*" * width + "\n" + "*  " + " " * (width - 6) + "  *\n" + text + "\n" + "*  " + " " * (width - 6) + "  *\n" + "*" * width + "\n")
-
     # Preprocessing configs
     langs = ["c", "syzlang"]
     for lang in langs:
