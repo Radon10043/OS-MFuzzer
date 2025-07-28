@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-07-24 16:46:56
+LastEditTime : 2025-07-28 12:57:01
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -39,7 +39,7 @@ def check_args(args: argparse.Namespace):
 
     # Check if config file contains required keys
     if not os.path.exists(config["mr_desc"]):
-        FATAL(f"File not found: {config["mr_desc"]}")
+        FATAL(f"File not found: {config['mr_desc']}")
 
     # Check if compiler exists
     compiler = config["compiler"]
@@ -329,7 +329,7 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.json"))
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
     if not gen_succ:
-        FATAL(f"Failed to generate C code implementation of MR after {config["max_iter"]} iterations.")
+        FATAL(f"Failed to generate C code implementation of MR after {config['max_iter']} iterations.")
     OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
 
     # Chating iteratively to generate syzlang description
@@ -337,7 +337,7 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.json"))
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.md"))
     if not gen_succ:
-        FATAL(f"Failed to generate syzlang description of MR after {config["max_iter"]} iterations.")
+        FATAL(f"Failed to generate syzlang description of MR after {config['max_iter']} iterations.")
     OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
 
     # Save C code implementation & syzlang description
@@ -363,7 +363,7 @@ def main(config: dict):
     config : dict
         User-provided configuration information
     """
-    text = f"*   MR description: {config["mr_desc"]}   *"
+    text = f"*   MR description: {config['mr_desc']}   *"
     width = len(text)
     SAYF("*" * width + "\n" + "*  " + " " * (width - 6) + "  *\n" + text + "\n" + "*  " + " " * (width - 6) + "  *\n" + "*" * width + "\n")
 
@@ -398,7 +398,7 @@ def main(config: dict):
     if framework not in setup_func_dict:
         FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
     syz_pgmr = setup_func_dict[framework](config["syzlang"])
-    OKF(f"Programmer model ({config["syzlang"]["model"]}) successfully initialized!.")
+    OKF(f"Programmer model ({config['syzlang']['model']}) successfully initialized!.")
 
     # Prompt llms to generate C code & syzlang description
     ACTF("Generating C code implementation of MR ...")
