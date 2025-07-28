@@ -14,7 +14,7 @@ For example, an MR for sine function is:
 - Input relation: The follow-up input can be obtained by adding $2\pi$ to the source input.
 - Output relation: The source and follow-up outputs should be equal.
 
-Note that only output one MR that you think is most accurate. The format of input and output should be as follows：
+Note that only output one MR that you think is most accurate. The format of input and output should be as follows:
 
 User:
 [Text from the specification of [Driver name]]
