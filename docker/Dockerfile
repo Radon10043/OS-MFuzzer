@@ -9,12 +9,21 @@ ENV GOPATH=/usr/local/go/bin
 ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
 ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
 
+# Use Tsinghua University mirror for faster package downloads if necessary
+# RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy main restricted universe multiverse" > /etc/apt/sources.list && \
+#     echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+#     echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+#     echo "deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse" >> /etc/apt/sources.list
+
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
-RUN apt update && \
-    apt install -y sudo wget curl git vim build-essential make gcc g++ flex bison libffi-dev libncurses-dev libelf-dev libssl-dev bc debootstrap qemu-system-x86 xz-utils cmake gdb libdw-dev sqlite3 libsqlite3-dev && \
-    pip3 install dotenv chromadb GitPython langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
+RUN apt update
+RUN apt install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
+RUN apt install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
+RUN apt install -y python3 python3-pip python3-dev
+RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
+RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 
 # Download
 RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
@@ -27,9 +36,10 @@ RUN tar -C /usr/local -xzf go1.23.6.linux-amd64.tar.gz && \
 
 # Install LLVM-19.1.7 (binary)
 RUN tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
-    rm LLVM-19.1.7-Linux-X64.tar.xz && \
-    # Install flatbuffers-2.0.8
-    tar -xzvf v2.0.8.tar.gz && \
+    rm LLVM-19.1.7-Linux-X64.tar.xz
+
+# Install flatbuffers-2.0.8
+RUN tar -xzvf v2.0.8.tar.gz && \
     pushd flatbuffers-2.0.8 && \
     cmake -G "Unix Makefiles" && \
     make -j && \
