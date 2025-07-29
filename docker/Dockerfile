@@ -24,7 +24,7 @@ RUN apt install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlit
 RUN apt install -y python3 python3-pip python3-dev
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
-RUN pip install langchain-chroma
+RUN pip install langchain-google-genai langchain-chroma
 
 # Download
 RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
