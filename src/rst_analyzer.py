@@ -1,16 +1,29 @@
 import argparse
 import os
+import re
 import shutil
-import uuid
 from pathlib import Path
+from typing import Any
 
 from docutils.core import publish_doctree
-from docutils.nodes import block_quote, field, field_list, literal_block, table, footnote
+from docutils.nodes import block_quote, field, field_list, footnote, literal_block, table, title
 
 from utils import *
 
 
 def fieldlist2text(node: field_list) -> str:
+    """Convert a field_list node to text.
+
+    Parameters
+    ----------
+    node : field_list
+        The field_list node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the field_list node.
+    """
     lst = list()
     for child in node.children:  # Each child should be a field node
         if not isinstance(child, field):
@@ -23,19 +36,60 @@ def fieldlist2text(node: field_list) -> str:
 
 
 def literal2text(node: literal_block) -> str:
+    """Convert a literal_block node to text.
+
+    Parameters
+    ----------
+    node : literal_block
+        The literal_block node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the literal_block node.
+    """
     return f"```\n{node.astext()}\n```"
 
 
 def blockquote2text(node: block_quote) -> str:
-    """Convert a blockquote node to text."""
+    """Convert a block_quote node to text.
+
+    Parameters
+    ----------
+    node : block_quote
+        The block_quote node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the block_quote node.
+    """
     return node.rawsource
 
 
 def table2text(node: table) -> str:
+    """Convert a table node to text.
+
+    Parameters
+    ----------
+    node : table
+        The table node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the table node.
+    """
     nrow = 0
 
-    # Use dfs to get the number of columns in the table
-    def dfs(o):
+    def dfs(o: Any):
+        """Traverse the table node to find the number of rows.
+
+        Parameters
+        ----------
+        o : Any
+            The current node in the table to traverse.
+        """
         nonlocal nrow
         if nrow > 0:
             return
@@ -49,10 +103,10 @@ def table2text(node: table) -> str:
         dfs(child)
         if nrow > 0:
             break
-
     if nrow == 0:
         FATAL("No rows found in the table node.")
 
+    # Get number of rows and columns, represent the table as a csv string
     tmp = node.astext().lstrip("\n")
     sep = node.child_text_separator
     lst = tmp.split(sep)
@@ -65,11 +119,46 @@ def table2text(node: table) -> str:
     return text.rstrip(",")
 
 
+def title2text(node: title) -> str:
+    """Convert a title node to text.
+
+    Parameters
+    ----------
+    node : title
+        The title node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the title node.
+    """
+    return node.astext().strip()
+
+
 def footnote2text(node: footnote) -> str:
-    return ""
+    """Convert a footnote node to text.
+
+    Parameters
+    ----------
+    node : footnote
+        The footnote node to convert.
+
+    Returns
+    -------
+    str
+        The text representation of the footnote node.
+    """
+    return node.rawsource.replace("\n", " ").rstrip()
 
 
 def main(args: argparse.Namespace):
+    """Main function to analyze RST files and extract sections.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments.
+    """
     file = args.file
     outdir = args.outdir
     mxdepth = args.max_depth
@@ -77,8 +166,24 @@ def main(args: argparse.Namespace):
     doctree = publish_doctree(content, source_path=file)
 
     # Use dfs to split documentation into sections (max depth is 3)
-    def dfs(o, depth: int) -> str:
+    def dfs(o: Any, depth: int) -> str:
+        """Traverse the doctree and extract text from each section.
+        Note that if the section is too short (<10 lines), it will not be saved.
+
+        Parameters
+        ----------
+        o : Any
+            The doctree node to traverse.
+        depth : int
+            The current depth in the document structure.
+
+        Returns
+        -------
+        str
+            The extracted text from the section.
+        """
         text = str()
+        title = str()
         for child in o.children:
             if child.tagname == "comment":
                 continue
@@ -92,16 +197,30 @@ def main(args: argparse.Namespace):
                 text += blockquote2text(child) + o.child_text_separator
             elif child.tagname == "table":
                 text += table2text(child) + o.child_text_separator
+            elif child.tagname == "footnote":
+                text += footnote2text(child) + o.child_text_separator
+            elif child.tagname == "title":
+                title = title2text(child)
+                text += title + o.child_text_separator
             else:
                 text += child.astext() + o.child_text_separator
         if depth <= mxdepth:
-            Path(os.path.join(outdir), "debug.txt").write_text(text, encoding="utf-8")
+            fn = re.sub(r'[\\/:*?"<>|()\s$]', "-", title)
+            fp = os.path.join(outdir, fn + ".txt")
+            if os.path.exists(fp):
+                FATAL("Duplicate file name detected.")
+            if len(text.splitlines()) < 10:
+                WARNF(f"Section '{title}' is too short, skipping it.")
+            else:
+                Path(fp).write_text(text, encoding="utf-8")
             return ""
         return text
 
+    # Use dfs to traverse the doctree, extract text, and save to the local
+    ACTF("Start to analyze RST file ...")
     os.makedirs(outdir, exist_ok=True)
     dfs(doctree, 0)
-    pass
+    OKF("RST file analysis completed.")
 
 
 def check_args(args: argparse.Namespace):
@@ -116,7 +235,7 @@ def check_args(args: argparse.Namespace):
         FATAL(f"{args.file} does not exist.")
     if args.remove_exist:
         shutil.rmtree(args.outdir, ignore_errors=True)
-    if os.path.exists(args.outdir):
+    elif os.path.exists(args.outdir):
         FATAL(f"{args.outdir} already exists. Please remove it first.")
 
 
