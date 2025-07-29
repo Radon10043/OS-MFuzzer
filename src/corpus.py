@@ -113,6 +113,7 @@ def create_chroma_db(args: argparse.Namespace):
         Command line arguments containing the output directory.
     """
     # Load CVE announcements & split them
+    ACTF("Splitting CVE announcements into chunks ...")
     out_dir = args.input
     md_dir = os.path.join(out_dir, "md")
     loader = DirectoryLoader(md_dir, glob="**/*.md", loader_cls=UnstructuredMarkdownLoader)
@@ -121,6 +122,7 @@ def create_chroma_db(args: argparse.Namespace):
     docs = splitter.split_documents(documents)
 
     # Create local chroma db for persist storage
+    ACTF("Creating local chroma database ...")
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     chroma_dir = os.path.join(out_dir, "chroma")
     os.makedirs(chroma_dir, exist_ok=True)
