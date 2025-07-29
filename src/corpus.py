@@ -113,7 +113,7 @@ def create_chroma_db(args: argparse.Namespace):
         Command line arguments containing the output directory.
     """
     # Load CVE announcements & split them
-    out_dir = args.outdir
+    out_dir = args.input
     md_dir = os.path.join(out_dir, "md")
     loader = DirectoryLoader(md_dir, glob="**/*.md", loader_cls=UnstructuredMarkdownLoader)
     documents = loader.load()
