@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from git import Repo
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from utils import *
@@ -104,7 +104,7 @@ def get_kernel_cves(args: argparse.Namespace):
     OKF(f"{git_obj}: \n\t{cnt} commits, \n\t{len(accept_shas)} accepted SHAs.\n\t{len(accept_cves)} accepted CVEs.\n\t{len(reject_shas)} rejected SHAs.\n\t{len(reject_cves)} rejected CVEs\n\t{len(invalid_shas)} invalid commits.\n")
 
 
-def create_ext_corpus(args: argparse.Namespace):
+def create_chroma_db(args: argparse.Namespace):
     """Create an external corpus from the kernel MR identification.
 
     Parameters
@@ -121,23 +121,34 @@ def create_ext_corpus(args: argparse.Namespace):
     docs = splitter.split_documents(documents)
 
     # Create local chroma db for persist storage
-    embeddings = OpenAIEmbeddings(model=args.embeddings)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     chroma_dir = os.path.join(out_dir, "chroma")
     os.makedirs(chroma_dir, exist_ok=True)
     Chroma.from_documents(docs, embeddings, persist_directory=chroma_dir)
     OKF("Done! Corpus created in " + chroma_dir)
 
 
-def main(args: argparse.Namespace):
-    get_kernel_cves(args)
-    create_ext_corpus(args)
-
-
 if __name__ == "__main__":
     load_dotenv()
-    parser = argparse.ArgumentParser(description="Corpus construction script")
-    parser.add_argument("--git_obj", type=str, required=True, help="Path to the git object directory (e.g. linux-cve-announce/git/0.git)")
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory for the corpus")
-    parser.add_argument("--embeddings", type=str, required=True, help="Model name for embeddings (e.g. 'text-embedding-3-large')")
+    parser = argparse.ArgumentParser(description="Corpus creation script")
+    subparsers = parser.add_subparsers(title="Subcommand for creating external corpus", required=True)
+
+    # Subcommand for getting kernel CVEs
+    cve_parser = subparsers.add_parser("get_kernel_cves", help="Get kernel CVEs from linux-cve-announce git repository")
+    cve_parser.add_argument("--git_obj", type=str, required=True, help="Path to the git object directory (e.g. linux-cve-announce/git/0.git)")
+    cve_parser.add_argument("--outdir", type=str, required=True, help="Output directory for the CVE announcements")
+    cve_parser.set_defaults(func=get_kernel_cves)
+
+    # Subcommand for creating chroma database
+    cdb_parser = subparsers.add_parser("create_chroma_db", help="Create an external corpus from the kernel MR identification")
+    cdb_parser.add_argument("--input", type=str, required=True, help="Path of the output directory of 'get_kernel_cves' command")
+    cdb_parser.set_defaults(func=create_chroma_db)
+
+    # TODO: We can use tools to analyze RST file and split them into snippets
+    # to assist LLMs in MR identification?
     args = parser.parse_args()
-    main(args)
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
+        exit(1)
