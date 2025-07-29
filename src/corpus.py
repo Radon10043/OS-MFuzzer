@@ -5,8 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from git import Repo
-from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
 from langchain_chroma import Chroma
+from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # TODO: We can use tools to analyze RST file and split them into snippets
     # to assist LLMs in MR identification?
     args = parser.parse_args()
-    if hasattr(args, 'func'):
+    if hasattr(args, "func"):
         args.func(args)
     else:
         parser.print_help()
