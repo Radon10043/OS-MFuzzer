@@ -7,6 +7,7 @@ from typing import Any
 
 from docutils.core import publish_doctree
 from docutils.nodes import block_quote, field, field_list, footnote, literal_block, table, title
+from docutils import nodes
 
 from utils import *
 
@@ -185,21 +186,21 @@ def main(args: argparse.Namespace):
         text = str()
         title = str()
         for child in o.children:
-            if child.tagname == "comment":
+            if isinstance(child, nodes.comment) or isinstance(child, nodes.system_message):
                 continue
-            if child.tagname == "section":
+            if isinstance(child, nodes.section):
                 text += dfs(child, depth + 1)
-            elif child.tagname == "field_list":
+            elif isinstance(child, nodes.field_list):
                 text += fieldlist2text(child) + o.child_text_separator
-            elif child.tagname == "literal_block":
+            elif isinstance(child, nodes.literal_block):
                 text += literal2text(child) + o.child_text_separator
-            elif child.tagname == "block_quote":
+            elif isinstance(child, nodes.block_quote):
                 text += blockquote2text(child) + o.child_text_separator
-            elif child.tagname == "table":
+            elif isinstance(child, nodes.table):
                 text += table2text(child) + o.child_text_separator
-            elif child.tagname == "footnote":
+            elif isinstance(child, nodes.footnote):
                 text += footnote2text(child) + o.child_text_separator
-            elif child.tagname == "title":
+            elif isinstance(child, nodes.title):
                 title = title2text(child)
                 text += title + o.child_text_separator
             else:
@@ -212,7 +213,7 @@ def main(args: argparse.Namespace):
             if len(text.splitlines()) < 10:
                 WARNF(f"Section '{title}' is too short, skipping it.")
             else:
-                Path(fp).write_text(text, encoding="utf-8")
+                Path(fp).write_text(text.rstrip("\n"), encoding="utf-8")
             return ""
         return text
 
