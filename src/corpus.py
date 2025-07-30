@@ -34,6 +34,44 @@ def get_email_body(s: str) -> str:
     return body
 
 
+def extract_description(body: str) -> str:
+    """Extract the description from the email body.
+
+    Parameters
+    ----------
+    body : str
+        The body of the email message.
+
+    Returns
+    -------
+    str
+        The extracted description.
+    """
+    lines = body.splitlines()
+    add = False
+    lst = []
+    for line in lines:
+        if line.startswith("===="):
+            continue
+        if line.startswith("Description"):
+            add = True
+            continue
+        if line.startswith("Affected and fixed versions"):
+            break
+        if add:
+            lst.append(line)
+    sections = "\n".join(lst).split("\n\n")
+    filtered = list()
+    for section in sections:
+        # If the section has more than 10 lines, it may a call stack or
+        # kernel log messages, skip it.
+        if len(section.splitlines()) >= 10:
+            continue
+        else:
+            filtered.append(section)
+    return "\n\n".join(filtered)
+
+
 def split_markdowns(dir: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> list:
     """Split markdown files in a directory into chunks.
 
@@ -119,7 +157,8 @@ def get_kernel_cves(args: argparse.Namespace):
             blob = commit.tree.blobs[0]
             tmp = blob.data_stream.read().decode("utf-8")
             body = get_email_body(tmp)
-            Path(os.path.join(md_dir, sha[:8] + ".md")).write_text(f"{subject}\n\n{body}")
+            desc = extract_description(body)
+            Path(os.path.join(md_dir, sha[:8] + ".md")).write_text(f"{subject}\n\n{desc}")
         except Exception as e:
             WARNF(f"Failed to process commit {sha}: {e}")
 
@@ -194,8 +233,6 @@ if __name__ == "__main__":
     cdb_parser.add_argument("--input", type=str, required=True, help="Path of the output directory of 'get_kernel_cves' command")
     cdb_parser.set_defaults(func=create_chroma_db)
 
-    # TODO: We can use tools to analyze RST file and split them into snippets
-    # to assist LLMs in MR identification?
     args = parser.parse_args()
     if hasattr(args, "func"):
         args.func(args)
