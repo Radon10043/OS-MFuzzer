@@ -206,7 +206,8 @@ def main(args: argparse.Namespace):
             else:
                 text += child.astext() + o.child_text_separator
         if depth <= mxdepth:
-            fn = re.sub(r'[\\/:*?"<>|()\s$]', "-", title)
+            fn = re.sub(r'[\\/:*?"<>|()$]', "", title)
+            fn = fn.replace(" ", "-")
             fp = os.path.join(outdir, fn + ".txt")
             if os.path.exists(fp):
                 FATAL("Duplicate file name detected.")
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RST file analyzer")
     parser.add_argument("-f", "--file", type=str, required=True, help="Path to the RST file")
     parser.add_argument("-o", "--outdir", type=str, required=True, help="Path to the output directory")
-    parser.add_argument("-m", "--max-depth", type=int, default=3, help="Maximum depth of the documentation sections to analyze")
+    parser.add_argument("-m", "--max-depth", type=int, default=2, help="Maximum depth of the documentation sections to analyze")
     parser.add_argument("--remove-exist", action="store_true", help="Remove existing output directory if it exists")
     args = parser.parse_args()
     check_args(args)
