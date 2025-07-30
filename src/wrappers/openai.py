@@ -139,7 +139,7 @@ class OpenAI(Wrapper):
         elif ext_name == ".md" or ext_name == ".markdown":
             with open(os.path.join(path), "w") as f:
                 for msg in self.messages:
-                    f.write(f"### {msg["role"]}\n\n{msg["content"]}\n")
+                    f.write(f"### {msg['role']}\n\n{msg['content']}\n")
                     f.write("\n")
 
         # 不支持的文件后缀名
