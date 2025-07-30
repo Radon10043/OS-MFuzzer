@@ -1,12 +1,15 @@
+import random
 import argparse
 import email
 import os
+import pickle
 from pathlib import Path
 
 from dotenv import load_dotenv
 from git import Repo
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
+from langchain_core.documents import Document
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -29,6 +32,30 @@ def get_email_body(s: str) -> str:
     msg = email.message_from_string(s)
     body = msg.get_payload(decode=True).decode("utf-8")  # type: ignore
     return body
+
+
+def split_markdowns(dir: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> list:
+    """Split markdown files in a directory into chunks.
+
+    Parameters
+    ----------
+    dir : str
+        The directory containing the markdown files to be split.
+    chunk_size : int, optional
+        The size of each chunk, by default 1000
+    chunk_overlap : int, optional
+        The overlap between chunks, by default 200
+
+    Returns
+    -------
+    list
+        _description_
+    """
+    loader = DirectoryLoader(dir, glob="**/*.md", loader_cls=UnstructuredMarkdownLoader)
+    documents = loader.load()
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap, add_start_index=True)
+    docs = splitter.split_documents(documents)
+    return docs
 
 
 def get_kernel_cves(args: argparse.Namespace):
@@ -80,7 +107,7 @@ def get_kernel_cves(args: argparse.Namespace):
         accept_shas.add(sha)
         accept_cves.add(cve)
 
-    # Save to the local
+    # Save md files to the local
     out_dir = args.outdir
     md_dir = os.path.join(out_dir, "md")
     os.makedirs(md_dir, exist_ok=True)
@@ -101,7 +128,14 @@ def get_kernel_cves(args: argparse.Namespace):
         if cve in reject_cves:
             FATAL("WTF?")
 
-    OKF(f"{git_obj}: \n\t{cnt} commits, \n\t{len(accept_shas)} accepted SHAs.\n\t{len(accept_cves)} accepted CVEs.\n\t{len(reject_shas)} rejected SHAs.\n\t{len(reject_cves)} rejected CVEs\n\t{len(invalid_shas)} invalid commits.\n")
+    # Split md files into chunks and save to the local
+    ACTF("Splitting markdown files into chunks ...")
+    docs = split_markdowns(md_dir)
+    pkl_path = os.path.join(out_dir, "docs.pkl")
+    with open(pkl_path, "wb") as f:
+        pickle.dump(docs, f)
+
+    OKF(f"{git_obj}: \n\t{cnt} commits, \n\t{len(accept_shas)} accepted SHAs.\n\t{len(accept_cves)} accepted CVEs.\n\t{len(reject_shas)} rejected SHAs.\n\t{len(reject_cves)} rejected CVEs\n\t{len(invalid_shas)} invalid commits.\n\tpickle file path: {pkl_path}")
 
 
 def create_chroma_db(args: argparse.Namespace):
@@ -112,21 +146,35 @@ def create_chroma_db(args: argparse.Namespace):
     args : argparse.Namespace
         Command line arguments containing the output directory.
     """
-    # Load CVE announcements & split them
-    ACTF("Splitting CVE announcements into chunks ...")
-    out_dir = args.input
-    md_dir = os.path.join(out_dir, "md")
-    loader = DirectoryLoader(md_dir, glob="**/*.md", loader_cls=UnstructuredMarkdownLoader)
-    documents = loader.load()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, add_start_index=True)
-    docs = splitter.split_documents(documents)
+    # Load CVE announcements
+    ACTF("Load pickle file ...")
+    pkl_path = os.path.join(args.input, "docs.pkl")
+    docs = list[Document]()
+    with open(pkl_path, "rb") as f:
+        docs = pickle.load(f)
 
     # Create local chroma db for persist storage
     ACTF("Creating local chroma database ...")
+    out_dir = args.input
+    batchsize = 500
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     chroma_dir = os.path.join(out_dir, "chroma")
     os.makedirs(chroma_dir, exist_ok=True)
-    Chroma.from_documents(docs, embeddings, persist_directory=chroma_dir)
+    vectordb = Chroma()
+    start = 0
+    while start < len(docs):
+        try:
+            ACTF(f"Creating local chroma database ({start / len(docs) * 100:.2f}%) ...")
+            if start == 0:
+                vectordb = Chroma.from_documents(docs[:batchsize], embeddings, persist_directory=chroma_dir)
+            else:
+                vectordb.add_documents(docs[start : start + batchsize])
+            start += batchsize
+        except Exception as e:
+            t = random.randint(0, 60)
+            WARNF(f"Failed to add documents {start} to {start + batchsize}: {e}")
+            WARNF(f"Have a break for {t} seconds and retry ...")
+            time.sleep(t)
     OKF("Done! Corpus created in " + chroma_dir)
 
 
