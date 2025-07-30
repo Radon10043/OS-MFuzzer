@@ -21,7 +21,7 @@ COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /hom
 RUN apt update
 RUN apt install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
 RUN apt install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
-RUN apt install -y python3 python3-pip python3-dev
+RUN apt install -y python3 python3-pip python3-dev language-pack-en-base
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 RUN pip install langchain-google-genai langchain-chroma docutils anthropic
