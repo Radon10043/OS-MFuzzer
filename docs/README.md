@@ -51,6 +51,62 @@ sudo make install
 
 ## Run
 
+### External corpus construction
+
+Extract all CVE announcements and create a chroma database.
+
+```bash
+git clone --mirror https://lore.kernel.org/linux-cve-announce/0 linux-cve-announce/git/0.git
+python3 src/corpus.py get_kernel_cves --git_obj linux-cve-announce/git/0.git --outdir workdir/external-corpus
+python3 src/corpus.py create_chroma_db --input workdir/external-corpus
+```
+
+### Kernel documents preprocessing
+
+Split documents to many document snippets.
+
+**KVM:**
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/virt/kvm/api.rst --outdir workdir/kernel-docs/kvm/api
+```
+
+**autofs:**
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/autofs.rst --outdir workdir/kernel-docs/autofs/autofs
+```
+
+**ppp:**
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/networking/ppp_generic.rst --outdir workdir/kernel-docs/ppp/ppp_generic
+```
+
+fuse:
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/fuse.rst --outdir workdir/kernel-docs/fuse/fuse
+```
+
+**ptmx:**
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/devpts.rst --outdir workdir/kernel-docs/ptmx/devpts
+```
+
+**rdma_cm:**
+
+```bash
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/core_locking.rst --outdir workdir/kernel-docs/rdma_cm/core_locking
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/ipoib.rst --outdir workdir/kernel-docs/rdma_cm/ipoib
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/opa_vnic.rst  --outdir workdir/kernel-docs/rdma_cm/opa_vnic
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/tag_matching.rst --outdir workdir/kernel-docs/rdma_cm/tag_matching
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_mad.rst --outdir workdir/kernel-docs/rdma_cm/user_mad
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_verb.rst --outdir workdir/kernel-docs/rdma_cm/user_verb
+```
+
+
 ### MR Identification
 
 Create a json file (e.g. `MRIden.cfg.json`), write the following content:
