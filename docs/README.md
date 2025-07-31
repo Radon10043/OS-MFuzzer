@@ -51,6 +51,20 @@ sudo make install
 
 ## Run
 
+### Involved kernel versions
+
+linux v5.15.189, v6.1.147, v6.6.100, v6.12.40
+
+candidate: linux v5.10.240, v5.4.296, android15-6.6, android14-6.1, android13-5.15, android12-5.4, androidXX-6.12?
+
+### Download syzbot's config files
+
+```bash
+wget -O 'v5.15.189.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=f3b1215b3cf4119f'
+wget -O 'v6.1.147.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=30b8ca4950f83e04'
+wget -O 'v6.6.100.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=293251cfa8d8100'
+```
+
 ### External corpus construction
 
 Extract all CVE announcements and create a chroma database.
@@ -68,42 +82,43 @@ Split documents to many document snippets.
 **KVM:**
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/virt/kvm/api.rst --outdir workdir/kernel-docs/kvm/api
+VERSION=v5.15.189
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/virt/kvm/api.rst --outdir workdir/kernel-docs/$VERSION/kvm/api
 ```
 
 **autofs:**
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/autofs.rst --outdir workdir/kernel-docs/autofs/autofs
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/filesystems/autofs.rst --outdir workdir/kernel-docs/$VERSION/autofs/autofs
 ```
 
 **ppp:**
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/networking/ppp_generic.rst --outdir workdir/kernel-docs/ppp/ppp_generic
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/networking/ppp_generic.rst --outdir workdir/kernel-docs/$VERSION/ppp/ppp_generic
 ```
 
 fuse:
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/fuse.rst --outdir workdir/kernel-docs/fuse/fuse
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/filesystems/fuse.rst --outdir workdir/kernel-docs/$VERSION/fuse/fuse
 ```
 
 **ptmx:**
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/filesystems/devpts.rst --outdir workdir/kernel-docs/ptmx/devpts
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/filesystems/devpts.rst --outdir workdir/kernel-docs/$VERSION/ptmx/devpts
 ```
 
 **rdma_cm:**
 
 ```bash
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/core_locking.rst --outdir workdir/kernel-docs/rdma_cm/core_locking
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/ipoib.rst --outdir workdir/kernel-docs/rdma_cm/ipoib
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/opa_vnic.rst  --outdir workdir/kernel-docs/rdma_cm/opa_vnic
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/tag_matching.rst --outdir workdir/kernel-docs/rdma_cm/tag_matching
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_mad.rst --outdir workdir/kernel-docs/rdma_cm/user_mad
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_verbs.rst --outdir workdir/kernel-docs/rdma_cm/user_verbs
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/core_locking.rst --outdir workdir/kernel-docs/$VERSION/rdma_cm/core_locking
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/ipoib.rst --outdir workdir/kernel-docs/$VERSION/rdma_cm/ipoib
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/opa_vnic.rst  --outdir workdir/kernel-docs/$VERSION/rdma_cm/opa_vnic
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/tag_matching.rst --outdir workdir/kernel-docs/$VERSION/rdma_cm/tag_matching
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/user_mad.rst --outdir workdir/kernel-docs/$VERSION/rdma_cm/user_mad
+python3 src/rst_analyzer.py --file ../linux/$VERSION/Documentation/infiniband/user_verbs.rst --outdir workdir/kernel-docs/$VERSION/rdma_cm/user_verbs
 ```
 
 
