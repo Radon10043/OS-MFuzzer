@@ -103,7 +103,7 @@ python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/ipoib
 python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/opa_vnic.rst  --outdir workdir/kernel-docs/rdma_cm/opa_vnic
 python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/tag_matching.rst --outdir workdir/kernel-docs/rdma_cm/tag_matching
 python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_mad.rst --outdir workdir/kernel-docs/rdma_cm/user_mad
-python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_verb.rst --outdir workdir/kernel-docs/rdma_cm/user_verb
+python3 src/rst_analyzer.py --file ../linux/v5.15/Documentation/infiniband/user_verbs.rst --outdir workdir/kernel-docs/rdma_cm/user_verbs
 ```
 
 
