@@ -202,7 +202,7 @@ if __name__ == "__main__":
             body = "Hi,\n\n"
             body += "An error occurred during the experiment:\n\n"
             body += error_message + "\n\n"
-            body += "Running command is: " + " ".join(sys.argv) + "\n\n"
+            body += "Program args: " + " ".join(sys.argv) + "\n\n"
             body += "Best regards,\nSyzMeta Experiment Runner"
             send_email(subject, body, args.email)
             OKF("Successfully send email notification to " + args.email)
