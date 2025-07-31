@@ -137,7 +137,8 @@ def perf_iden(cfg: dict):
             if retry == 0:
                 FATAL(f"MR identification failed after {retry} attempts: {e}")
             t = random.randint(1, 60)
-            WARNF(f"MR identification failed, have a break for {t} seconds ... ({retry} attempts left)")
+            WARNF(f"MR identification failed: {e}")
+            WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
             time.sleep(t)
 
 
