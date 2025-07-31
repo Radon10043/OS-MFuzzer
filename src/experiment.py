@@ -119,6 +119,66 @@ def gen_iden_config(specdir: str, driver: str, spec: str, corpus: str) -> dict:
     return config
 
 
+def gen_impl_config(filepath: str, syzkaller: str) -> dict:
+    """Generate configuration for MR implementation.
+
+    Parameters
+    ----------
+    filepath : str
+        Absolute path to the MR specification file, i.e., mr_final.md
+    syzkaller : str
+        Absolute path to the syzkaller directory
+
+    Returns
+    -------
+    dict
+        Configuration dictionary for MR implementation
+    """
+    from os.path import dirname, join
+
+    proj = str(os.getenv("PROJECT"))
+    pmptdir = join(proj, "data", "prompts")
+    outdir = join(dirname(dirname(filepath)), "impl")
+    config = {
+        "c": {
+            "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
+            "api_key": os.getenv("GOOGLE_API_KEY"),
+            "framework": "openai",
+            "model": "gemini-2.5-pro",
+            "temperature": 0.5,
+            "stream": False,
+            "prompts": {
+                "system": join(pmptdir, "c-programmer", "system.md"),
+                "user": [
+                    join(pmptdir, "c-programmer", "init.md"),
+                    join(pmptdir, "c-programmer", "follow.md"),
+                ],
+            },
+        },
+        "syzlang": {
+            "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
+            "api_key": os.getenv("GOOGLE_API_KEY"),
+            "framework": "openai",
+            "model": "gemini-2.5-pro",
+            "temperature": 0.5,
+            "stream": False,
+            "prompts": {
+                "system": join(pmptdir, "syzlang-programmer", "system.md"),
+                "user": [
+                    join(pmptdir, "syzlang-programmer", "init.md"),
+                    join(pmptdir, "syzlang-programmer", "follow.md"),
+                ],
+            },
+        },
+        "mr_desc": filepath,
+        "max_iter": 10,
+        "output": outdir,
+        "compiler": "gcc",
+        "syzkaller": syzkaller,
+    }
+    return config
+
+
 def perf_iden(cfg: dict):
     """Perform MR identification
 
@@ -171,10 +231,65 @@ def iden(args: argparse.Namespace):
                     WARNF(f"Output directory {outdir} already exists, skipping...")
                     continue
                 perf_iden(cfg)
-    if args.email:  # Send email notification if email is provided
+    if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Identification Completed"
         body = "Hi,\n\n"
-        body += "The MR identification experiment has been completed successfully.\n\n"
+        body += "The MR identification experiment is completed.\n\n"
+        body += "Best regards,\nSyzMeta Experiment Runner"
+        send_email(subject, body, args.email)
+        OKF("Successfully send email notification to " + args.email)
+    OKF("We're done here!")
+
+
+def perf_impl(cfg: dict):
+    """Perform MR implementation
+
+    Parameters
+    ----------
+    cfg : dict
+        Configuration dictionary for MR implementation
+    """
+    retry = 3
+    while retry > 0:
+        try:
+            MRImpl.main(cfg)
+            break
+        except Exception as e:
+            retry -= 1
+            if retry == 0:
+                FATAL(f"MR implementation failed after {retry} attempts: {e}")
+            t = random.randint(1, 60)
+            WARNF(f"MR implementation failed: {e}")
+            WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
+
+
+def impl(args: argparse.Namespace):
+    """Run MR implementation experiment.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    # Traverse each file under args.path, read mr_final.md and generate code
+    idendir = os.path.abspath(args.idendir)
+    syzkaller = os.path.abspath(args.syzkaller)
+    for root, _, files in os.walk(idendir):
+        for file in files:
+            if file != "mr_final.md":
+                continue
+            SAYF(f"========== [MR: {root} / syzkaller: {syzkaller}]  ==========\n")
+            cfg = gen_impl_config(os.path.join(root, file), syzkaller)
+            outdir = cfg["output"]
+            # If the output directory already exists, skip it so we can resume the last run
+            if os.path.exists(outdir):
+                WARNF(f"Output directory {outdir} already exists, skipping...")
+                continue
+            perf_impl(cfg)
+    if len(args.email) > 0:  # Send email notification if email is provided
+        subject = "SyzMeta MR Implementation Completed"
+        body = "Hi,\n\n"
+        body += "The MR Implementation experiment is completed.\n\n"
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
@@ -192,9 +307,15 @@ if __name__ == "__main__":
     iden_parser.add_argument("--specdir", type=str, required=True, help="Specification directory")
     iden_parser.add_argument("--corpus", type=str, required=True, help="Corpus directory")
     iden_parser.set_defaults(func=iden)
-    args = parser.parse_args()
+
+    # Subparser for MR implementation
+    impl_parser = subparser.add_parser("impl", help="Run MR implementation")
+    impl_parser.add_argument("--idendir", type=str, required=True, help="Root directory of identification result")
+    impl_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
+    impl_parser.set_defaults(func=impl)
 
     load_dotenv()
+    args = parser.parse_args()
     try:
         args.func(args)
     except BaseException as e:
