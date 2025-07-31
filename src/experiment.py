@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import smtplib
 import sys
 import traceback
@@ -135,7 +136,9 @@ def perf_iden(cfg: dict):
             retry -= 1
             if retry == 0:
                 FATAL(f"MR identification failed after {retry} attempts: {e}")
-            WARNF(f"MR identification failed, retrying... ({3 - retry} attempts left)")
+            t = random.randint(1, 60)
+            WARNF(f"MR identification failed, have a break for {t} seconds ... ({3 - retry} attempts left)")
+            time.sleep(t)
 
 
 def iden(args: argparse.Namespace):
