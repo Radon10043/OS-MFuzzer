@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-07-30 16:04:47
+LastEditTime : 2025-07-31 14:46:25
 Description  : Prompt iden llm & cali llm to identify and calibrate metamorphic relation.
 """
 
@@ -50,13 +50,12 @@ def check_config(args: argparse.Namespace):
         WARNF('Key "stream" not found in config file for "calibrator", using default value: False')
         config["calibrator"]["stream"] = False
 
-    # Prepare the output directory
+    # Check the output directory
     out_dir = config["output"]
     if args.remove_exist_outdir:
         shutil.rmtree(out_dir, ignore_errors=True)
     elif os.path.exists(out_dir):
         FATAL(f"Output directory already exists: {out_dir}, please remove it first.")
-    os.makedirs(out_dir, exist_ok=True)
 
 
 def setup_openai(config: dict, role: str) -> OpenAI:
@@ -267,12 +266,14 @@ def loop(
 
     # Save chat messages of iden llm & cali llm to the output directory
     # Save the final MR to the output directory
-    identifier.save_messages(os.path.join(config["output"], "iden_messages.md"))
-    identifier.save_messages(os.path.join(config["output"], "iden_messages.json"))
-    calibrator.save_messages(os.path.join(config["output"], "cali_messages.md"))
-    calibrator.save_messages(os.path.join(config["output"], "cali_messages.json"))
+    outdir = config["output"]
+    os.makedirs(outdir, exist_ok=True)
+    identifier.save_messages(os.path.join(outdir, "iden_messages.md"))
+    identifier.save_messages(os.path.join(outdir, "iden_messages.json"))
+    calibrator.save_messages(os.path.join(outdir, "cali_messages.md"))
+    calibrator.save_messages(os.path.join(outdir, "cali_messages.json"))
     if gen_success:
-        with open(os.path.join(config["output"], "mr_final.md"), "w") as f:
+        with open(os.path.join(outdir, "mr_final.md"), "w") as f:
             f.write("### FINAL DISCUSSION RESULT\n\n")
             f.write(prev_mr + "\n\n")
             f.write(f"IDENTIFIER: {config['identifier']['model']}\n\n")
