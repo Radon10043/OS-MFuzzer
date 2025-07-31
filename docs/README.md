@@ -60,9 +60,10 @@ candidate: linux v5.10.240, v5.4.296, android15-6.6, android14-6.1, android13-5.
 ### Download syzbot's config files
 
 ```bash
-wget -O 'v5.15.189.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=f3b1215b3cf4119f'
-wget -O 'v6.1.147.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=30b8ca4950f83e04'
-wget -O 'v6.6.100.config' 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=293251cfa8d8100'
+wget -O v5.15.189.config https://github.com/google/syzkaller/raw/f8f2b4da0e6eaaf0aeed6f6d613d86d599aafcd3/dashboard/config/linux/stable-5.15-kasan.config
+wget -O v6.1.147.config https://github.com/google/syzkaller/raw/f8f2b4da0e6eaaf0aeed6f6d613d86d599aafcd3/dashboard/config/linux/stable-6.1-kasan.config
+wget -O v6.6.100.config https://github.com/google/syzkaller/raw/f8f2b4da0e6eaaf0aeed6f6d613d86d599aafcd3/dashboard/config/linux/stable-6.6-kasan.config
+wget -O v6.12.40.config https://github.com/google/syzkaller/raw/afe4eff51a06f6aa1ebb3d457836a3adec5ee82f/dashboard/config/linux/upstream-apparmor-kasan.config
 ```
 
 ### External corpus construction
@@ -262,10 +263,14 @@ Build syzkaller under SyzMeta:
 make -C syzkaller all
 ```
 
+## Experioment
+
+Run experiment.py to reproduce our experiments.
+
+TODO
+
 ## References
 
 [1] [https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html](https://clang.llvm.net.cn/docs/LibASTMatchersTutorial.html)
 
 [2] [https://github.com/google/syzkaller](https://github.com/google/syzkaller)
-
-[3] [https://devtool.tech/en](https://devtool.tech/en)
