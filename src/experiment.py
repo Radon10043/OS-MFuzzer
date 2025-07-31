@@ -161,8 +161,12 @@ def iden(args: argparse.Namespace):
                     continue
                 SAYF(f"========== [driver: {driver} / spec: {file}]  ==========\n")
                 cfg = gen_iden_config(specdir, driver, os.path.join(root, file), corpus)
+                outdir = cfg["output"]
+                # If the output directory already exists, skip it so we can resume the last run
+                if os.path.exists(outdir):
+                    WARNF(f"Output directory {outdir} already exists, skipping...")
+                    continue
                 perf_iden(cfg)
-    OKF("We're done here!")
     if args.email:  # Send email notification if email is provided
         subject = "SyzMeta MR Identification Completed"
         body = "Hi,\n\n"
@@ -170,6 +174,7 @@ def iden(args: argparse.Namespace):
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
+    OKF("We're done here!")
 
 
 if __name__ == "__main__":
