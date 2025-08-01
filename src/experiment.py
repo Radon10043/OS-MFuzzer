@@ -261,6 +261,7 @@ def perf_impl(cfg: dict):
             t = random.randint(1, 60)
             WARNF(f"MR implementation failed: {e}")
             WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
+            time.sleep(t)
 
 
 def impl(args: argparse.Namespace):
