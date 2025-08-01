@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-07-28 16:57:33
+LastEditTime : 2025-08-01 10:16:18
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -52,7 +52,6 @@ def check_args(args: argparse.Namespace):
     shutil.rmtree(out_dir, ignore_errors=True)  # NOTE: Just for testing ...
     if os.path.exists(out_dir):
         FATAL(f"Output directory already exists: {out_dir}, please remove it first.")
-    os.makedirs(config["output"])
 
     # Check if syzkaller directory exists
     syzkaller = config["syzkaller"]
@@ -325,6 +324,7 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
 
     # Generate C code & save chat messages
     # TODO: May be we should set max_iter for C code generation & syzlang description generation respectively
+    os.makedirs(config["output"])
     gen_succ, mr_code, c_iter = generate_c(c_pgmr, mr_desc, config)
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.json"))
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
