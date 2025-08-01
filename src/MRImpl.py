@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-08-01 10:16:18
+LastEditTime : 2025-08-01 21:31:29
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -324,21 +324,23 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
 
     # Generate C code & save chat messages
     # TODO: May be we should set max_iter for C code generation & syzlang description generation respectively
-    os.makedirs(config["output"])
+    os.makedirs(config["output"], exist_ok=True)
     gen_succ, mr_code, c_iter = generate_c(c_pgmr, mr_desc, config)
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.json"))
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
     if not gen_succ:
-        FATAL(f"Failed to generate C code implementation of MR after {config['max_iter']} iterations.")
-    OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
+        BADF(f"Failed to generate C code implementation of MR after {config['max_iter']} iterations.")
+    else:
+        OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
 
     # Chating iteratively to generate syzlang description
     gen_succ, syz_desc, syz_iter = generate_syz(syz_pgmr, mr_code, config)
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.json"))
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.md"))
     if not gen_succ:
-        FATAL(f"Failed to generate syzlang description of MR after {config['max_iter']} iterations.")
-    OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
+        BADF(f"Failed to generate syzlang description of MR after {config['max_iter']} iterations.")
+    else:
+        OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
 
     # Save C code implementation & syzlang description
     cm = config["c"]["model"]
