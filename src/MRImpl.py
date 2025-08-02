@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-08-01 21:31:29
+LastEditTime : 2025-08-02 14:10:04
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -330,6 +330,7 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
     if not gen_succ:
         BADF(f"Failed to generate C code implementation of MR after {config['max_iter']} iterations.")
+        return
     else:
         OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
 
@@ -339,6 +340,7 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.md"))
     if not gen_succ:
         BADF(f"Failed to generate syzlang description of MR after {config['max_iter']} iterations.")
+        return
     else:
         OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
 
