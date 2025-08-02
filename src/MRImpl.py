@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-08-02 14:10:04
+LastEditTime : 2025-08-02 15:29:23
 Description  : 提示LLM用C语言实现指定的MR
 """
 
@@ -188,7 +188,7 @@ def get_params(input: str, func: str, input_file: bool = True) -> list:
     return params
 
 
-def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict) -> Tuple[bool, str, int]:
+def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict) -> Tuple[bool, str, int, str]:
     # Get user prompts
     c_prompts = list()
     for fn in config["c"]["prompts"]["user"]:
@@ -200,6 +200,7 @@ def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict
     err_msgs = str()  # Errors reported by compiler
     iter = 0
     mr_code = str()
+    err = str() # Errors of generation failed
     while not gen_succ and iter < config["max_iter"]:
         # Prompt C programmer to generate C code implementation of MR
         cp = c_prompts[min(iter, len(c_prompts) - 1)]  # C code generation prompt
@@ -212,7 +213,8 @@ def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict
 
         # In some cases, llm may failed to generate code
         if len(mr_code) == 0:
-            FATAL(f"{cm} generated empty C code implementation of MR.")
+            err = "empty c code"
+            break
 
         # We first use a fake desc to verify whether the generated C code is valid
         ACTF("Integrating pseudo-syscall into syzkaller ...")
@@ -232,10 +234,13 @@ def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict
         WARNF(f"Oops, some errors occured during C program building, try to prompt {cm} to regenerate.")
         iter += 1
 
-    return gen_succ, mr_code, iter + 1
+    if not gen_succ:
+        err = "exceeding max iterations"
+
+    return gen_succ, mr_code, iter + 1, err
 
 
-def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: dict) -> Tuple[bool, str, int]:
+def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: dict) -> Tuple[bool, str, int, str]:
     syz_prompts = list()  # Syzlang description generation prompts
     for fn in config["syzlang"]["prompts"]["user"]:
         syz_prompts.append(Path(fn).read_text(encoding="utf-8"))
@@ -246,6 +251,7 @@ def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: 
     syz_desc = str()
     sm = config["syzlang"]["model"]
     err_msgs = str()
+    err = ""
 
     # Chating iteratively, until stop condition is satisfied
     while not gen_succ and iter < config["max_iter"]:
@@ -260,7 +266,8 @@ def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: 
 
         # In some cases, llm may failed to generate description
         if len(syz_desc) == 0:
-            FATAL(f"{sm} generated empty Syzlang description.")
+            err = "empty syz code"
+            break
 
         # Integrated to syzkaller to verify
         ACTF("Integrating pseudo-syscall into syzkaller ...")
@@ -279,7 +286,10 @@ def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: 
         WARNF(f"Oops, some errors occured during C program building, try to prompt {sm} to regenerate.")
         iter += 1
 
-    return gen_succ, syz_desc, iter + 1
+    if not gen_succ:
+        err = "exceeding max iterations"
+
+    return gen_succ, syz_desc, iter + 1, err
 
 
 def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic | GoogleAI, config: dict):
@@ -325,21 +335,21 @@ def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic
     # Generate C code & save chat messages
     # TODO: May be we should set max_iter for C code generation & syzlang description generation respectively
     os.makedirs(config["output"], exist_ok=True)
-    gen_succ, mr_code, c_iter = generate_c(c_pgmr, mr_desc, config)
+    gen_succ, mr_code, c_iter, err = generate_c(c_pgmr, mr_desc, config)
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.json"))
     c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
     if not gen_succ:
-        BADF(f"Failed to generate C code implementation of MR after {config['max_iter']} iterations.")
+        BADF(f"Failed to generate C code implementation of MR after {c_iter} iterations, err: {err}")
         return
     else:
         OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
 
     # Chating iteratively to generate syzlang description
-    gen_succ, syz_desc, syz_iter = generate_syz(syz_pgmr, mr_code, config)
+    gen_succ, syz_desc, syz_iter, err = generate_syz(syz_pgmr, mr_code, config)
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.json"))
     syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.md"))
     if not gen_succ:
-        BADF(f"Failed to generate syzlang description of MR after {config['max_iter']} iterations.")
+        BADF(f"Failed to generate syzlang description of MR after {c_iter} iterations, err: {err}")
         return
     else:
         OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
