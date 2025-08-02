@@ -9,6 +9,9 @@ ENV GOPATH=/usr/local/go/bin
 ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
 ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
 
+# Enable it to avoid "server certificate verification failed"
+# ENV GIT_SSL_NO_VERIFY=1
+
 # Use Tsinghua University mirror for faster package downloads if necessary
 # RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy main restricted universe multiverse" > /etc/apt/sources.list && \
 #     echo "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
@@ -18,10 +21,11 @@ ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
-RUN apt update
-RUN apt install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
-RUN apt install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
-RUN apt install -y python3 python3-pip python3-dev language-pack-en-base
+RUN apt-get update
+RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
+RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
+RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
+RUN apt-get install -y config-package-dev debhelper-compat repo
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 RUN pip install langchain-google-genai langchain-chroma docutils anthropic
