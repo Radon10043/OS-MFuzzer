@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-03 16:27:08
+LastEditTime : 2025-08-03 21:25:51
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -147,6 +147,10 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
         Path(dryrun_log).write_text(e.stderr.decode("utf-8"), encoding="utf-8")  # type: ignore
     except Exception as e:
         FATAL(f"Failed to run syzkaller: {e}")
+
+    # Return 0, 0, 0 if dryrun_log does not exist
+    if not os.path.exists(dryrun_log):
+        return 0, 0, 0
 
     # Get latest coverage, total execs, and mrvio execs
     lines = Path(dryrun_log).read_text(encoding="utf-8").splitlines()

@@ -310,7 +310,7 @@ def perf_eval(args: argparse.Namespace):
         try:
             MREval.main(args)
             break
-        except Exception as e:
+        except BaseException as e:
             retry -= 1
             if retry == 0:
                 FATAL(f"MR evaluation failed after {retry} attempts: {e}")
