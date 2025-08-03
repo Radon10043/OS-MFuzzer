@@ -297,6 +297,60 @@ def impl(args: argparse.Namespace):
     OKF("We're done here!")
 
 
+def perf_eval(args: argparse.Namespace):
+    """Perform MR evaluation.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    retry = 3
+    while retry > 0:
+        try:
+            MREval.main(args)
+            break
+        except Exception as e:
+            retry -= 1
+            if retry == 0:
+                FATAL(f"MR evaluation failed after {retry} attempts: {e}")
+            t = random.randint(1, 60)
+            WARNF(f"MR evaluation failed: {e}")
+            WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
+            time.sleep(t)
+
+
+def eval(args: argparse.Namespace):
+    """Run MR evaluation experiment.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    root_path = os.path.abspath(args.path)
+    kernel_obj = os.path.abspath(args.kernel_obj)
+    syzkaller = os.path.abspath(args.syzkaller)
+    image_obj = os.path.abspath(args.image_obj)
+    for root, _, files in os.walk(root_path):
+        for file in files:
+            if file != "mr.h":
+                continue
+            SAYF(f"========== [MR: {os.path.join(root, file)} ==========")
+            csource = os.path.join(root, "mr.h")
+            syzlang = os.path.join(root, "syzlang.txt")
+            subargs = argparse.Namespace(syzkaller=syzkaller, csource=csource, syzlang=syzlang, kernel_obj=kernel_obj, image_obj=image_obj, patch=os.path.join(os.path.dirname(__file__), "..", "patch", "debug.patch"))
+            perf_eval(subargs)
+    if len(args.email) > 0:  # Send email notification if email is provided
+        subject = "SyzMeta MR Evaluation Completed"
+        body = "Hi,\n\n"
+        body += "The MR Evaluation experiment is completed.\n\n"
+        body += "Best regards,\nSyzMeta Experiment Runner"
+        send_email(subject, body, args.email)
+        OKF("Successfully send email notification to " + args.email)
+    OKF("We're done here!")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SyzMeta Experiment Runner")
     parser.add_argument("--email", type=str, default="", help="Email address to receive notifications")
@@ -314,6 +368,14 @@ if __name__ == "__main__":
     impl_parser.add_argument("--idendir", type=str, required=True, help="Root directory of identification result")
     impl_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
     impl_parser.set_defaults(func=impl)
+
+    # Subparer for MR evaluation
+    eval_parser = subparser.add_parser("eval", help="Run MR evaluation")
+    eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
+    eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
+    eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
+    eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
+    eval_parser.set_defaults(func=eval)
 
     load_dotenv()
     args = parser.parse_args()
