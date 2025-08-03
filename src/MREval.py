@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-03 21:25:51
+LastEditTime : 2025-08-04 00:20:52
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -191,7 +191,7 @@ def main(args):
     csource = Path(csource_path).read_text(encoding="utf-8")
     syz_lines = Path(syzlang_path).read_text(encoding="utf-8").split("\n")
     for line in syz_lines:
-        if not line.startswith("#"):
+        if not line.startswith("#") and not line.startswith("include"):
             syzlang = line
             break
     func = syzlang.split("(")[0]
