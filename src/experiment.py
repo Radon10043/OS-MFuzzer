@@ -333,10 +333,13 @@ def eval(args: argparse.Namespace):
     syzkaller = os.path.abspath(args.syzkaller)
     image_obj = os.path.abspath(args.image_obj)
     for root, _, files in os.walk(root_path):
+        if os.path.exists(os.path.join(root, ".eval")):
+            WARNF(f"Evaluation mark file already exists in {root}, skipping...")
+            continue
         for file in files:
             if file != "mr.h":
                 continue
-            SAYF(f"========== [MR: {os.path.join(root, file)} ==========")
+            SAYF(f"========== [MR: {os.path.join(root, file)} ==========\n")
             csource = os.path.join(root, "mr.h")
             syzlang = os.path.join(root, "syzlang.txt")
             subargs = argparse.Namespace(syzkaller=syzkaller, csource=csource, syzlang=syzlang, kernel_obj=kernel_obj, image_obj=image_obj, patch=os.path.join(os.path.dirname(__file__), "..", "patch", "debug.patch"))

@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-07-24 17:28:29
+LastEditTime : 2025-08-03 16:27:08
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -230,15 +230,18 @@ def main(args):
     # is low-quality
     ACTF("Dry run syzkaller to evaluate the quality of pseudo-syscall ...")
     coverage, total_execs, mrvio_execs = dryrun(syzkaller, kernel_obj, image_obj, func)
-    mark_path = os.path.join(os.path.dirname(os.path.abspath(csource_path)), ".low_quality")
+    mark_root = os.path.dirname(os.path.abspath(csource_path))
+    lqmk = os.path.join(mark_root, ".low_quality")  # Low-Quality MarK
     reason = list()
     if coverage == 0:
         reason.append("0 kernel coverage.")
     elif mrvio_execs / total_execs >= 0.9:
         reason.append(f"High MRVIO execs: {mrvio_execs} / {total_execs} >= 0.9")
     if len(reason) > 0:
-        Path(mark_path).write_text("\n".join(reason), encoding="utf-8")
-        WARNF(f"Pseudo-syscall is low-quality, please check {mark_path} for details.")
+        Path(lqmk).write_text("\n".join(reason), encoding="utf-8")
+        WARNF(f"Pseudo-syscall is low-quality, please check {lqmk} for details.")
+    evmk = os.path.join(mark_root, ".eval")  # EValuation MarK, indicating that the evaluation is done
+    Path(evmk).write_text(f"coverage={coverage}, total_execs={total_execs}, mrvio_execs={mrvio_execs}", encoding="utf-8")
     OKF("We are done here!")
 
 
