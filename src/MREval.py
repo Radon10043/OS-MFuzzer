@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-04 00:20:52
+LastEditTime : 2025-08-04 00:23:03
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -189,12 +189,12 @@ def main(args):
     if not os.path.exists(patch):
         FATAL(f"{patch} does not exist.")
     csource = Path(csource_path).read_text(encoding="utf-8")
-    syz_lines = Path(syzlang_path).read_text(encoding="utf-8").split("\n")
+    syzlang = Path(syzlang_path).read_text(encoding="utf-8")
+    syz_lines = syzlang.split("\n")
     for line in syz_lines:
         if not line.startswith("#") and not line.startswith("include"):
-            syzlang = line
+            func = line.split("(")[0]
             break
-    func = syzlang.split("(")[0]
 
     # Check whether vmlinux exist under kernel_obj
     kernel_obj = args.kernel_obj
