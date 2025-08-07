@@ -26,7 +26,7 @@ RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex 
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
 RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
 RUN apt-get install -y config-package-dev debhelper-compat repo adb fastboot gcc-aarch64-linux-gnu
-RUN apt-get install -y g++-aarch64-linux-gnu qemu-system-aarch64 libncurses5
+RUN apt-get install -y g++-aarch64-linux-gnu qemu-system-aarch64 libncurses5 cloc
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 RUN pip install langchain-google-genai langchain-chroma docutils anthropic
@@ -89,6 +89,12 @@ RUN make -C syzkaller generate -j`nproc` && \
     make -C syzkaller clean all -j`nproc`
 RUN make -C SyzMeta/syzkaller generate -j`nproc` && \
     make -C SyzMeta/syzkaller clean all -j`nproc`
+
+# Build image
+RUN mkdir Debian && \
+    cp /home/syzkaller/tools/create-image.sh Debian/ && \
+    cd Debian && \
+    ./create-image.sh
 
 # After the container is constructed, we need to build the Debian, Linux kernels, syzkaller and SyzMeta.
 # It is recommended to save above contents in a docker volume. We can run the following commands on the host:
