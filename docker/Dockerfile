@@ -7,7 +7,7 @@ SHELL [ "/bin/bash", "-c" ]
 
 ENV GOPATH=/usr/local/go/bin
 ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
-ENV PATH=$PATH:$GOPATH:${LLVM_HOME}/bin
+ENV PATH=$GOPATH:${LLVM_HOME}/bin:$PATH
 
 # Enable it to avoid "server certificate verification failed"
 # ENV GIT_SSL_NO_VERIFY=1
@@ -26,7 +26,7 @@ RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex 
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
 RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
 RUN apt-get install -y config-package-dev debhelper-compat repo adb fastboot gcc-aarch64-linux-gnu
-RUN apt-get install -y g++-aarch64-linux-gnu
+RUN apt-get install -y g++-aarch64-linux-gnu qemu-system-aarch64 libncurses5
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 RUN pip install langchain-google-genai langchain-chroma docutils anthropic
@@ -55,6 +55,20 @@ RUN tar -xzvf v2.0.8.tar.gz && \
     make install && \
     popd && \
     rm -rf v2.0.8.tar.gz
+
+# Install android-cuttlefish
+RUN git clone https://github.com/google/android-cuttlefish
+COPY cuttlefish.patch /home/android-cuttlefish/
+WORKDIR /home/android-cuttlefish
+RUN git checkout v1.15.0 && \
+    git apply cuttlefish.patch
+RUN tools/buildutils/installbazel.sh
+RUN tools/buildutils/build_packages.sh
+RUN dpkg -i ./cuttlefish-base_*_*64.deb || apt-get install -f -y
+RUN dpkg -i ./cuttlefish-user_*_*64.deb || apt-get install -f -y
+RUN usermod -aG kvm,cvdnetwork,render root
+
+WORKDIR /home
 
 # Donwload mockery
 RUN go install github.com/vektra/mockery/v2@v2.45.1
