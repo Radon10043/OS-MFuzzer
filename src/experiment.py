@@ -9,10 +9,12 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 from dotenv import load_dotenv
+from git import Repo
 
 import MREval
 import MRIden
 import MRImpl
+import MRIntg
 from utils import *
 
 
@@ -354,6 +356,52 @@ def eval(args: argparse.Namespace):
     OKF("We're done here!")
 
 
+def integrate(args: argparse.Namespace):
+    """Integrate MRs to syzkaller
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    impl_root = os.path.abspath(args.impl_root)
+    syzkaller = os.path.abspath(args.syzkaller)
+    ACTF(f"Going to traverse the {impl_root} and integrate MRs into {syzkaller} ...")
+    headers = list(Path(impl_root).glob("**/mr.h"))
+    paths = [str(header.parent) for header in headers]
+
+    # Make sure the syzkaller directory is clean and commit is 4b25d554
+    if not os.path.exists(syzkaller):
+        FATAL(f"Syzkaller directory {syzkaller} does not exist, please check the path.")
+    if get_commit(syzkaller)[:8] != "4b25d554":
+        FATAL(f"Current commit of syzkaller is {get_commit(syzkaller)[:8]}, but expected 4b25d554. Please checkout first.")
+    repo = Repo(syzkaller)
+    if repo.is_dirty(untracked_files=True):
+        if args.clean:
+            ACTF("Cleaning syzkaller directory ...")
+            clean_repo(syzkaller)
+        else:
+            FATAL("Syzkaller directory is dirty, please clean it first or use --clean-syzkaller option.")
+
+    # Filter low-quality implementations
+    impls = list()
+    for path in paths:
+        evmk = os.path.join(path, ".eval")
+        lqmk = os.path.join(path, ".low_quality")
+        if not os.path.exists(evmk) or os.path.exists(lqmk):
+            continue
+        impls.append(path)
+
+    # Integrate to syzkaller
+    subargs = argparse.Namespace(
+        syzkaller=syzkaller,
+        impls=impls,
+        patch=Path(__file__).parent.parent / "patch" / "release.patch",
+    )
+    MRIntg.main(subargs)
+    OKF("We're done here!")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SyzMeta Experiment Runner")
     parser.add_argument("--email", type=str, default="", help="Email address to receive notifications")
@@ -379,6 +427,13 @@ if __name__ == "__main__":
     eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
     eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
     eval_parser.set_defaults(func=eval)
+
+    # Subparser for MR integration
+    integrate_parser = subparser.add_parser("integrate", help="Integrate MR implementation into syzkaller")
+    integrate_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
+    integrate_parser.add_argument("--impl_root", type=str, required=True, help="Path to the root directory of MR implementation")
+    integrate_parser.add_argument("--clean", action="store_true", help="Whether to clean syzkaller directory")
+    integrate_parser.set_defaults(func=integrate)
 
     load_dotenv()
     args = parser.parse_args()

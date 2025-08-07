@@ -201,23 +201,23 @@ def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: st
         f.writelines(linux_syscall_content)
 
 
-def clean_syzkaller(syzkaller: str):
-    """Clean the syzkaller repository by checking out and removing untracked files.
+def clean_repo(path: str):
+    """Clean the repository by checking out and removing untracked files.
 
     Parameters
     ----------
-    syzkaller : str
-        Path to the syzkaller directory, must be commit 4b25d554.
+    path : str
+        Path to the repository to clean.
     """
     res = subprocess.run(
         "git checkout . && git clean -fd",
-        cwd=syzkaller,
+        cwd=path,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
     if res.returncode != 0:
-        FATAL(f"Failed to clean syzkaller repository: {res.stderr.decode('utf-8')}")
+        FATAL(f"Failed to clean repository: {res.stderr.decode('utf-8')}")
 
 
 def patch_syzkaller(syzkaller: str, patch: str):
@@ -240,3 +240,31 @@ def patch_syzkaller(syzkaller: str, patch: str):
         )
     except BaseException as e:
         FATAL(f"Failed to apply patch {patch} to syzkaller: {e}")
+
+
+def get_commit(dir: str) -> str:
+    """Get the current commit hash of the given directory.
+
+    Parameters
+    ----------
+    dir : str
+        The directory to get the commit hash from.
+
+    Returns
+    -------
+    str
+        The current commit hash of the given directory.
+    """
+    try:
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=dir,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+    except Exception as e:
+        FATAL(f"Failed to get commit hash: {e}")
+    return commit

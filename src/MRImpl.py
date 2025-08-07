@@ -222,7 +222,7 @@ def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict
         params = get_params(mr_code, func, input_file=False)
         fake_desc = func + "(" + ", ".join([f"{param} int32" for param in params]) + ")"
         syzkaller = config["syzkaller"]
-        clean_syzkaller(syzkaller)
+        clean_repo(syzkaller)
         add_pseudo_syscall(syzkaller, mr_code, fake_desc, func)
         ret_code, stderr, stdout = build_syzkaller(syzkaller)
         if ret_code == 0:
@@ -273,7 +273,7 @@ def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: 
         ACTF("Integrating pseudo-syscall into syzkaller ...")
         func = "syz_mr"
         syzkaller = config["syzkaller"]
-        clean_syzkaller(syzkaller)
+        clean_repo(syzkaller)
         add_pseudo_syscall(syzkaller, csource, syz_desc, func)
         ret_code, stderr, stdout = build_syzkaller(syzkaller)
 

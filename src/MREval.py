@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-04 00:23:03
+LastEditTime : 2025-08-07 09:27:07
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -44,34 +44,6 @@ def get_field_val(line: str, field: str) -> int:
         else:
             break
     return val
-
-
-def get_commit(dir: str) -> str:
-    """Get the current commit hash of the given directory.
-
-    Parameters
-    ----------
-    dir : str
-        The directory to get the commit hash from.
-
-    Returns
-    -------
-    str
-        The current commit hash of the given directory.
-    """
-    try:
-        commit = (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"],
-                cwd=dir,
-                stderr=subprocess.DEVNULL,
-            )
-            .decode("utf-8")
-            .strip()
-        )
-    except Exception as e:
-        FATAL(f"Failed to get commit hash: {e}")
-    return commit
 
 
 def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[int, int, int]:
@@ -219,7 +191,7 @@ def main(args):
 
     # Patch syzkaller to support metamorphic testing
     ACTF("Patching syzkaller ...")
-    clean_syzkaller(syzkaller)
+    clean_repo(syzkaller)
     patch_syzkaller(syzkaller, patch)
 
     # Add csource & syzlang desc to syzkaller, then build it
