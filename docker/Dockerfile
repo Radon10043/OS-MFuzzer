@@ -54,20 +54,6 @@ RUN tar -xzvf v2.0.8.tar.gz && \
     popd && \
     rm -rf v2.0.8.tar.gz
 
-# Install android-cuttlefish
-RUN git clone https://github.com/google/android-cuttlefish
-COPY cuttlefish.patch /home/android-cuttlefish/
-WORKDIR /home/android-cuttlefish
-RUN git checkout v1.15.0 && \
-    git apply cuttlefish.patch
-RUN tools/buildutils/installbazel.sh
-RUN tools/buildutils/build_packages.sh
-RUN dpkg -i ./cuttlefish-base_*_*64.deb || apt-get install -f -y
-RUN dpkg -i ./cuttlefish-user_*_*64.deb || apt-get install -f -y
-RUN usermod -aG kvm,cvdnetwork,render root
-
-WORKDIR /home
-
 # Donwload mockery
 RUN go install github.com/vektra/mockery/v2@v2.45.1
 
@@ -93,3 +79,17 @@ RUN mkdir Debian && \
     cp /home/SyzMeta/syzkaller/tools/create-image.sh Debian/ && \
     cd Debian && \
     ./create-image.sh
+
+# Install android-cuttlefish
+RUN git clone https://github.com/google/android-cuttlefish
+COPY /home/SyzMeta/patch/cuttlefish.patch /home/android-cuttlefish/
+WORKDIR /home/android-cuttlefish
+RUN git checkout v1.15.0 && \
+    git apply cuttlefish.patch
+RUN tools/buildutils/installbazel.sh
+RUN tools/buildutils/build_packages.sh
+RUN dpkg -i ./cuttlefish-base_*_*64.deb || apt-get install -f -y
+RUN dpkg -i ./cuttlefish-user_*_*64.deb || apt-get install -f -y
+RUN usermod -aG kvm,cvdnetwork,render root
+
+WORKDIR /home
