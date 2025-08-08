@@ -1,5 +1,3 @@
-# If host has proxy, you can run "docker run --network host" to make container use host's proxy.
-
 FROM ubuntu:22.04
 
 WORKDIR /home
@@ -82,7 +80,7 @@ RUN --mount=type=secret,id=github_token \
 # Patch fuzzers
 RUN git -C syzkaller checkout 4b25d554 && \
     git -C syzkaller apply /home/SyzMeta/patch/offline.patch && \
-    git -C SyzMeta/syzkaller apply /home/SyzMeta/patch/offline.patch
+    git -C SyzMeta/syzkaller apply /home/SyzMeta/patch/offline.patch /home/SyzMeta/patch/create-image.patch
 
 # Build fuzzers
 RUN make -C syzkaller generate -j`nproc` && \
@@ -92,25 +90,6 @@ RUN make -C SyzMeta/syzkaller generate -j`nproc` && \
 
 # Build image
 RUN mkdir Debian && \
-    cp /home/syzkaller/tools/create-image.sh Debian/ && \
+    cp /home/SyzMeta/syzkaller/tools/create-image.sh Debian/ && \
     cd Debian && \
     ./create-image.sh
-
-# After the container is constructed, we need to build the Debian, Linux kernels, syzkaller and SyzMeta.
-# It is recommended to save above contents in a docker volume. We can run the following commands on the host:
-# **NOTE: THE FOLLOWING COMMANDS ARE JUST EXAMPLES, PLEASE MODIFY THEM ACCORDING TO THE ACTUAL SITUATION**
-# TODO: Write them in a script
-#
-# docker volume create vol-syzmeta
-# docker run -d -v /vol-syzmeta:/vol --cpuset-cpus 16-19 --network host --privileged --name kernel-fuzzing syzmeta:v1 tail -f /dev/null
-# docker exec --workdir /vol git clone https://github.com/google/syzkaller
-# docker exec --workdir /vol/syzkaller git checkout 4b25d554
-# docker exec --workdir /vol git clone https://github.com/Radon10043/SyzMeta
-# docker exec --workdir /vol cp SyzMeta/tools/syz-meta/docker/linux .
-# docker exec --workdir /vol mkdir Debian
-# docker exec --workdir /vol/Debian cp SyzMeta/tools/create-image.sh .
-# docker exec --workdir /vol/Debian create-image.sh
-# docker exec --workdir /vol/linux ./build.sh v5.15 syzbot
-# docker exec --workdir /vol/linux ./build.sh v6.1 syzbot
-# docker exec --workdir /vol/linux ./build.sh v6.2 syzbot
-# docker exec --workdir /vol/linux ./build.sh v6.7 syzbot
