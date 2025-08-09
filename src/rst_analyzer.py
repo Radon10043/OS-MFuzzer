@@ -206,14 +206,16 @@ def main(args: argparse.Namespace):
             else:
                 text += child.astext() + o.child_text_separator
         if depth <= mxdepth:
-            fn = re.sub(r'[\\/:*?"<>|()$]', "", title)
-            fn = fn.replace(" ", "-")
-            fp = os.path.join(outdir, fn + ".txt")
+            dn = re.sub(r'[\\/:*?"<>|()$]', "", title)
+            dn = dn.replace(" ", "-")
+            dp = os.path.join(outdir, dn)
+            fp = os.path.join(dp, "content.txt")
             if os.path.exists(fp):
                 FATAL("Duplicate file name detected.")
             if len(text.splitlines()) < 10:
                 WARNF(f"Section '{title}' is too short, skipping it.")
             else:
+                os.makedirs(dp)
                 Path(fp).write_text(text.rstrip("\n"), encoding="utf-8")
             return ""
         return text
