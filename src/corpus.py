@@ -10,7 +10,7 @@ from git import Repo
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredMarkdownLoader
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from utils import *
@@ -195,9 +195,8 @@ def create_chroma_db(args: argparse.Namespace):
     # Create local chroma db for persist storage
     ACTF("Creating local chroma database ...")
     out_dir = args.input
-    embedding = args.embedding
     batchsize = 500
-    embedding = OpenAIEmbeddings(model=embedding)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     chroma_dir = os.path.join(out_dir, "chroma")
     os.makedirs(chroma_dir, exist_ok=True)
     vectordb = Chroma()
@@ -206,7 +205,7 @@ def create_chroma_db(args: argparse.Namespace):
         try:
             ACTF(f"Creating local chroma database ({start / len(docs) * 100:.2f}%) ...")
             if start == 0:
-                vectordb = Chroma.from_documents(docs[:batchsize], embedding, persist_directory=chroma_dir)
+                vectordb = Chroma.from_documents(docs[:batchsize], embeddings, persist_directory=chroma_dir)
             else:
                 vectordb.add_documents(docs[start : start + batchsize])
             start += batchsize
@@ -232,7 +231,6 @@ if __name__ == "__main__":
     # Subcommand for creating chroma database
     cdb_parser = subparsers.add_parser("create_chroma_db", help="Create an external corpus from the kernel MR identification")
     cdb_parser.add_argument("--input", type=str, required=True, help="Path of the output directory of 'get_kernel_cves' command")
-    cdb_parser.add_argument("--embedding", type=str, required=True, help="embedding model")
     cdb_parser.set_defaults(func=create_chroma_db)
 
     args = parser.parse_args()
