@@ -79,8 +79,8 @@ def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
     outdir = os.path.join(os.path.dirname(spec), "iden")
     config = {
         "identifier": {
-            "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
-            "api_key": os.getenv("GOOGLE_API_KEY"),
+            "base_url": os.getenv("CA_OPENAI_API_BASE"),
+            "api_key": os.getenv("CA_API_KEY"),
             "framework": "openai",
             "model": "gemini-2.5-pro",
             "temperature": 0.5,
@@ -94,8 +94,8 @@ def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
             },
         },
         "calibrator": {
-            "base_url": os.getenv("OPENAI_API_BASE"),
-            "api_key": os.getenv("OPENAI_API_KEY"),
+            "base_url": os.getenv("CA_OPENAI_API_BASE"),
+            "api_key": os.getenv("CA_API_KEY"),
             "framework": "openai",
             "model": "o3",
             "temperature": 0.2,
@@ -136,8 +136,8 @@ def gen_impl_config(filepath: str, syzkaller: str) -> dict:
     outdir = join(dirname(dirname(filepath)), "impl")
     config = {
         "c": {
-            "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
-            "api_key": os.getenv("GOOGLE_API_KEY"),
+            "base_url": os.getenv("CA_OPENAI_API_BASE"),
+            "api_key": os.getenv("CA_API_KEY"),
             "framework": "openai",
             "model": "gemini-2.5-pro",
             "temperature": 0.5,
@@ -151,8 +151,8 @@ def gen_impl_config(filepath: str, syzkaller: str) -> dict:
             },
         },
         "syzlang": {
-            "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
-            "api_key": os.getenv("GOOGLE_API_KEY"),
+            "base_url": os.getenv("CA_OPENAI_API_BASE"),
+            "api_key": os.getenv("CA_API_KEY"),
             "framework": "openai",
             "model": "gemini-2.5-pro",
             "temperature": 0.5,
