@@ -57,13 +57,11 @@ def send_email(subject: str, body: str, receiver: str):
         FATAL(f"Failed to send email: {e}")
 
 
-def gen_iden_config(specdir: str, driver: str, spec: str, corpus: str) -> dict:
+def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
     """Generate configuration for MR identification.
 
     Parameters
     ----------
-    specdir : str
-        Path to the specification directory
     driver : str
         Driver name, e.g., "autofs"
     spec : str
@@ -78,12 +76,7 @@ def gen_iden_config(specdir: str, driver: str, spec: str, corpus: str) -> dict:
     """
     proj = str(os.getenv("PROJECT"))
     pmptdir = os.path.join(proj, "data", "prompts")
-    lst = spec.split(os.path.sep)
-    ver = os.path.basename(specdir)
-    while lst[0] != driver:
-        lst.pop(0)
-    lst[-1] = lst[-1].replace(".txt", "")
-    outdir = os.path.join(proj, "workdir", "MRs", ver, *lst, "iden")
+    outdir = os.path.join(os.path.dirname(spec), "iden")
     config = {
         "identifier": {
             "base_url": os.getenv("GOOGLE_OPENAI_API_BASE"),
@@ -213,8 +206,9 @@ def iden(args: argparse.Namespace):
         Command line arguments
     """
     # Traverse each file under specdir, get driver name, specification contents
-    # Path structure is expected to be: {version}/{driver}/{doc}/{text file or subdir}
-    # Here is an exmaple: v5.15.189/autofs/autofs/Catatonic-mode.txt
+    # Path structure is expected to be: {version}/{driver}/{docname}/{subdir}/{section name}/content.txt
+    # Identification result will be save in `iden` in the same directory of content.txt
+    # Here is an exmaple: v5.15.189/autofs/autofs/Catatonic-mode/content.txt
     specdir = os.path.abspath(args.specdir)
     corpus = os.path.abspath(args.corpus)
     if not os.path.basename(specdir).startswith("v"):
@@ -223,10 +217,10 @@ def iden(args: argparse.Namespace):
     for driver in os.listdir(specdir):
         for root, _, files in os.walk(os.path.join(specdir, driver)):
             for file in files:
-                if not file.endswith(".txt"):
+                if not file == "content.txt":
                     continue
                 SAYF(f"========== [driver: {driver} / spec: {file}]  ==========\n")
-                cfg = gen_iden_config(specdir, driver, os.path.join(root, file), corpus)
+                cfg = gen_iden_config(driver, os.path.join(root, file), corpus)
                 outdir = cfg["output"]
                 # If the output directory already exists, skip it so we can resume the last run
                 if os.path.exists(outdir):
