@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-07-31 14:46:25
+LastEditTime : 2025-08-10 12:04:00
 Description  : Prompt iden llm & cali llm to identify and calibrate metamorphic relation.
 """
 
@@ -12,7 +12,7 @@ import os
 import shutil
 
 from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 from utils import *
 from wrappers.anthropic import Anthropic
@@ -317,10 +317,11 @@ def main(config: dict):
 
     # Load the external corpus if exists
     vector_db = None
+    embedding = config["embedding"]
     if "corpus" in config.keys():
         chroma_dir = os.path.join(config["corpus"], "chroma")
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-        vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
+        embedding = OpenAIEmbeddings(model=embedding)
+        vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embedding)
 
     # Prompt iden llm & cali llm to identify and calibrate metamorphic relations
     ACTF("Let identifier and calibrator discuss ...")

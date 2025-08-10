@@ -106,6 +106,7 @@ def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
             },
         },
         "corpus": corpus,
+        "embedding": "text-embedding-3-large",
         "max_iter": 10,
         "output": outdir,
         "specification": spec,
