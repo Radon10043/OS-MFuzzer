@@ -219,7 +219,7 @@ def iden(args: argparse.Namespace):
             for file in files:
                 if not file == "content.txt":
                     continue
-                SAYF(f"========== [driver: {driver} / spec: {file}]  ==========\n")
+                SAYF(f"========== [driver: {driver} / spec: {os.path.join(root, file)}]  ==========\n")
                 cfg = gen_iden_config(driver, os.path.join(root, file), corpus)
                 outdir = cfg["output"]
                 # If the output directory already exists, skip it so we can resume the last run
