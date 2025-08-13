@@ -146,7 +146,7 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
 
 
 def main(args):
-    # Check whether syzkaller image directory, as well as csource, syzlang description, and patch file
+    # Check whether syzkaller directory exists, as well as csource, syzlang description, and patch file
     ACTF("Checking configs ...")
     syzkaller = args.syzkaller
     csource_path = args.csource

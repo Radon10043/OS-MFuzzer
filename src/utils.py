@@ -35,7 +35,7 @@ class TerminalColors:
 ### Debug & error functions ###
 ###############################
 def SAYF(msg: str):
-    print(msg, end="")
+    print(get_cur_time() + " " + msg, end="")
 
 
 def WARNF(msg: str):
@@ -84,49 +84,46 @@ def read_file(filepath: str) -> str:
 
 
 def get_cur_time() -> str:
-    """获取当前时间
+    """Get current time
 
     Returns
     -------
     str
-        返回当前时间, 格式为"年月日时分秒"
-
-    Notes
-    -----
-    _description_
+        Current time in "yyyy/mm/dd hh:mm:ss" format
     """
-    cur_time = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
+    cur_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time()))
     return cur_time
 
 
 def get_first_code_block(md_text: str, langs: set) -> str:
-    """从markdown文本中获取第一个指定语言(langs中存在的语言)的代码块内容
+    """Get the first code block in markdown text that matches the specified languages.
 
     Parameters
     ----------
     md_text : str
-        markdown文本
+        markdown text
     langs: set
-        指定语言集合
+        specified language set
 
     Returns
     -------
     str
-        makrdonw中代码块的内容, 包含表示代码块开头和结尾的标志
+        The content of the code block in markdown, including the fences
     """
-    # 初始化markdown解析器, 将markdown文本解析为AST
+    # Initialize markdown parser, parser markdown text to AST
     md_instance = marko.Markdown(renderer=MarkdownRenderer)
     md_ast = md_instance.parse(md_text)
     code_list = list()
 
-    # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个指定语言的代码块后就退出
+    # Traverse AST, get content of code block. We only return the content of the
+    # first code block
     for child in md_ast.children:
         child_type = child.get_type()
         if child_type == "FencedCode" and child.lang in langs:  # type: ignore
             code_list.extend(md_instance.render(child).split("\n"))  # type: ignore
             break
 
-    # 返回代码块内容, 包含开头的```xxx和结尾的```
+    # Return content of the code block, including fences
     return "\n".join(code_list)
 
 
