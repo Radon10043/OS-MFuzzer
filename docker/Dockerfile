@@ -84,7 +84,7 @@ RUN mkdir Debian && \
 RUN git clone https://github.com/google/android-cuttlefish
 COPY /home/SyzMeta/patch/cuttlefish.patch /home/android-cuttlefish/
 WORKDIR /home/android-cuttlefish
-RUN git checkout v1.15.0 && \
+RUN git checkout v1.16.0 && \
     git apply cuttlefish.patch
 RUN tools/buildutils/installbazel.sh
 RUN tools/buildutils/build_packages.sh
