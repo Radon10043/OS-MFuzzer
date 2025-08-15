@@ -338,7 +338,14 @@ def eval(args: argparse.Namespace):
             SAYF(f"========== [MR: {os.path.join(root, file)} ==========\n")
             csource = os.path.join(root, "mr.h")
             syzlang = os.path.join(root, "syzlang.txt")
-            subargs = argparse.Namespace(syzkaller=syzkaller, csource=csource, syzlang=syzlang, kernel_obj=kernel_obj, image_obj=image_obj, patch=os.path.join(os.path.dirname(__file__), "..", "patch", "debug.patch"))
+            subargs = argparse.Namespace(
+                syzkaller=syzkaller,
+                csource=csource,
+                syzlang=syzlang,
+                kernel_obj=kernel_obj,
+                image_obj=image_obj,
+                patch=os.path.join(os.path.dirname(__file__), "..", "patch", "release.patch"),
+            )
             perf_eval(subargs)
     if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Evaluation Completed"

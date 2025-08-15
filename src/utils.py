@@ -35,7 +35,7 @@ class TerminalColors:
 ### Debug & error functions ###
 ###############################
 def SAYF(msg: str):
-    print(get_cur_time() + " " + msg, end="")
+    print(msg, end="")
 
 
 def WARNF(msg: str):
@@ -81,18 +81,6 @@ def read_file(filepath: str) -> str:
         Content of the file
     """
     return Path(filepath).read_text(encoding="utf-8")
-
-
-def get_cur_time() -> str:
-    """Get current time
-
-    Returns
-    -------
-    str
-        Current time in "yyyy/mm/dd hh:mm:ss" format
-    """
-    cur_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(time.time()))
-    return cur_time
 
 
 def get_first_code_block(md_text: str, langs: set) -> str:

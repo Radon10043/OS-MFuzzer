@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-07 09:27:07
+LastEditTime : 2025-08-15 10:31:23
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -228,6 +228,6 @@ if __name__ == "__main__":
     parser.add_argument("--syzlang", type=str, required=True, help="Path to the syzlang description of pseudo-syscall")
     parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
-    parser.add_argument("--patch", type=str, default=os.path.join(os.path.dirname(__file__), "..", "patch", "debug.patch"), help="Path to the patch file to apply to syzkaller")
+    parser.add_argument("--patch", type=str, default=os.path.join(os.path.dirname(__file__), "..", "patch", "release.patch"), help="Path to the patch file to apply to syzkaller")
     args = parser.parse_args()
     main(args)
