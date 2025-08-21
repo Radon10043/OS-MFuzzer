@@ -27,26 +27,24 @@ RUN apt-get install -y config-package-dev debhelper-compat repo adb fastboot gcc
 RUN apt-get install -y g++-aarch64-linux-gnu qemu-system-aarch64 libncurses5 cloc
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
-RUN pip install langchain-google-genai langchain-chroma docutils anthropic
+RUN pip install langchain-google-genai langchain-chroma docutils anthropic pandas
 RUN groupadd --system kvm || true
 RUN groupadd --system cvdnetwork || true
 RUN groupadd --system render || true
 
-# Download
-RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
-    wget -nc https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz && \
-    wget -nc https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz
-
 # Install golang-1.23.6
-RUN tar -C /usr/local -xzf go1.23.6.linux-amd64.tar.gz && \
+RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.23.6.linux-amd64.tar.gz && \
     rm go1.23.6.linux-amd64.tar.gz
 
 # Install LLVM-19.1.7 (binary)
-RUN tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
+RUN wget -nc https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz && \
+    tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
     rm LLVM-19.1.7-Linux-X64.tar.xz
 
 # Install flatbuffers-2.0.8
-RUN tar -xzvf v2.0.8.tar.gz && \
+RUN wget -nc https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz && \
+    tar -xzvf v2.0.8.tar.gz && \
     pushd flatbuffers-2.0.8 && \
     cmake -G "Unix Makefiles" && \
     make -j && \
@@ -54,19 +52,17 @@ RUN tar -xzvf v2.0.8.tar.gz && \
     popd && \
     rm -rf v2.0.8.tar.gz
 
-# Donwload mockery
-RUN go install github.com/vektra/mockery/v2@v2.45.1
-
 # Download syzkaller & SyzMeta
 RUN git clone https://github.com/google/syzkaller
 RUN --mount=type=secret,id=github_token \
     SECRET_CONTENT=$(cat /run/secrets/github_token) && \
     git clone -b dev --recurse-submodules https://Radon10043:${SECRET_CONTENT}@github.com/Radon10043/SyzMeta.git
 
-# Patch fuzzers
-RUN git -C syzkaller checkout 4b25d554 && \
-    git -C syzkaller apply /home/SyzMeta/patch/offline.patch && \
-    git -C SyzMeta/syzkaller apply /home/SyzMeta/patch/offline.patch /home/SyzMeta/patch/create-image.patch
+# Patch fuzzers (for offline environment)
+# RUN go install github.com/vektra/mockery/v2@v2.45.1
+# RUN git -C syzkaller checkout 4b25d554 && \
+#     git -C syzkaller apply /home/SyzMeta/patch/offline.patch && \
+#     git -C SyzMeta/syzkaller apply /home/SyzMeta/patch/offline.patch /home/SyzMeta/patch/create-image.patch
 
 # Build fuzzers
 RUN make -C syzkaller generate -j`nproc` && \
