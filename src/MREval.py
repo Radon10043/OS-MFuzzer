@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-08-15 10:31:23
+LastEditTime : 2025-08-28 13:32:53
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -134,13 +134,18 @@ def dryrun(syzkaller: str, kernel_obj: str, image_obj: str, func: str) -> Tuple[
             break
 
     # Check coverage, total execs, and mrvio execs
-    coverage = get_field_val(last_line, "coverage")
-    exec_total = get_field_val(last_line, "exec total")
+    coverage, exec_total = 0, 0
+    try:
+        coverage = get_field_val(last_line, "coverage")
+        exec_total = get_field_val(last_line, "exec total")
+    except BaseException as e:
+        # No such field? Maybe syz_mr is running too slow.
+        WARNF(f"Failed to get coverage and exec total, error: {e}")
     mrvio_execs = 0
     for _, _, files in os.walk(os.path.join(out_dir, "mrvio")):
         mrvio_execs += len(files)
-    # shutil.rmtree(out_dir)  # Remove the output directory & config file after dry run
-    # os.remove(config_path)
+    shutil.rmtree(out_dir)  # Remove the output directory & config file after dry run
+    os.remove(config_path)
 
     return coverage, exec_total, mrvio_execs
 
