@@ -13,7 +13,8 @@ source $(dirname $0)/utils.sh
 print_help() {
     echo "Usage: $0 -i/--image <Path to GSI> \\"
     echo "          -k/--kernel <Path to GKI>"
-    echo "Example: $0 --image ./android13-gsi --kernel ./common-android13-5.15"
+    echo "          [-y/--yes] [-h/--help]"
+    echo "Example: $0 --image ./android13-gsi --kernel ./common-android13-5.15 -y"
 }
 
 if [[ $(id -u) -ne 0 ]]; then
@@ -24,7 +25,7 @@ fi
 # Analyze arguments
 if [[ $# -eq 0 ]]; then
     print_help
-    exit 0
+    exit 1
 fi
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -48,7 +49,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             print_help
-            exit 0
+            exit 1
             ;;
     esac
 done
@@ -75,11 +76,13 @@ if [[ -z $CONFIRM ]]; then
 fi
 
 # Launch virtual device
-CFHOME=/tmp/cuttlefish-$BRANCH
+rm -rf ~/cuttlefish/instances
+KERNEL_DIR=$(dirname "$KERNEL")
 cd $IMAGE
-source build/envsetup.sh
-lunch $TARGET
-rm -rf $CFHOME
-HOME=$CFHOME launch_cvd -daemon \
-           -kernel_path=$KERNEL/out/$(basename KERNEL)/dist/bzImage \
-           -initramfs_path=$KERNEL/out/$(basename KERNEL)/dist/initramfs.img
+bash -c "
+    source build/envsetup.sh
+    lunch $TARGET
+    yes | launch_cvd -daemon \
+                     -kernel_path=$KERNEL \
+                     -initramfs_path=$KERNEL_DIR/initramfs.img
+"
