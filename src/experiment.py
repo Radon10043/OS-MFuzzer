@@ -211,22 +211,21 @@ def iden(args: argparse.Namespace):
     # Here is an exmaple: v5.15.189/autofs/autofs/Catatonic-mode/content.txt
     specdir = os.path.abspath(args.specdir)
     corpus = os.path.abspath(args.corpus)
-    if not os.path.basename(specdir).startswith("v"):
-        FATAL("Use version directory as specdir is recommended, e.g. /path/to/v5.15.189")
+    drivers = os.listdir(specdir)
+    OKF("Drivers: " + ", ".join(drivers))
     ACTF("Running MR identification ...")
-    for driver in os.listdir(specdir):
-        for root, _, files in os.walk(os.path.join(specdir, driver)):
-            for file in files:
-                if not file == "content.txt":
-                    continue
-                SAYF(f"========== [driver: {driver} / spec: {os.path.join(root, file)}]  ==========\n")
-                cfg = gen_iden_config(driver, os.path.join(root, file), corpus)
-                outdir = cfg["output"]
-                # If the output directory already exists, skip it so we can resume the last run
-                if os.path.exists(outdir):
-                    WARNF(f"Output directory {outdir} already exists, skipping...")
-                    continue
-                perf_iden(cfg)
+    for driver in drivers:
+        files = Path(os.path.join(specdir, driver)).rglob("content.txt")
+        for file in files:
+            filepath = str(file)
+            SAYF(f"========== [driver: {driver} / spec: {filepath}]  ==========\n")
+            cfg = gen_iden_config(driver, filepath, corpus)
+            outdir = cfg["output"]
+            # If the output directory already exists, skip it so we can resume the last run
+            if os.path.exists(outdir):
+                WARNF(f"Output directory {outdir} already exists, skipping...")
+                continue
+            perf_iden(cfg)
     if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Identification Completed"
         body = "Hi,\n\n"
@@ -271,18 +270,18 @@ def impl(args: argparse.Namespace):
     # Traverse each file under args.path, read mr_final.md and generate code
     idendir = os.path.abspath(args.idendir)
     syzkaller = os.path.abspath(args.syzkaller)
-    for root, _, files in os.walk(idendir):
-        for file in files:
-            if file != "mr_final.md":
-                continue
-            SAYF(f"========== [MR: {root} / syzkaller: {syzkaller}]  ==========\n")
-            cfg = gen_impl_config(os.path.join(root, file), syzkaller)
-            outdir = cfg["output"]
-            # If the output directory already exists, skip it so we can resume the last run
-            if os.path.exists(outdir):
-                WARNF(f"Output directory {outdir} already exists, skipping...")
-                continue
-            perf_impl(cfg)
+    files = Path(idendir).rglob("mr_final.md")
+    for file in files:
+        root = file.parent
+        filepath = str(file)
+        SAYF(f"========== [MR: {root} / syzkaller: {syzkaller}]  ==========\n")
+        cfg = gen_impl_config(filepath, syzkaller)
+        outdir = cfg["output"]
+        # If the output directory already exists, skip it so we can resume the last run
+        if os.path.exists(outdir):
+            WARNF(f"Output directory {outdir} already exists, skipping...")
+            continue
+        perf_impl(cfg)
     if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Implementation Completed"
         body = "Hi,\n\n"
