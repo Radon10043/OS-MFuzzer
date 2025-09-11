@@ -91,6 +91,7 @@ if [[ $BUILD == "build.sh" ]]; then
     cd $KERNEL
     BUILD_CONFIG=common/build.config.gki_kasan.x86_64 build/build.sh
     BUILD_CONFIG=common-modules/virtual-device/build.config.virtual_device_kasan.x86_64 build/build.sh
+    cp -r $(find out/ -name dist) .
 elif [[ $BUILD == "bazel" ]]; then
     cd $KERNEL
     # If system cannot boot, try enable optimize for size
@@ -98,5 +99,5 @@ elif [[ $BUILD == "bazel" ]]; then
     tools/bazel run \
         --defconfig_fragment=common-modules/virtual-device:optsize.fragment \
         --kasan \
-        //common-modules/virtual-device:virtual_device_x86_64_dist
+        //common-modules/virtual-device:virtual_device_x86_64_dist --destdir=dist
 fi
