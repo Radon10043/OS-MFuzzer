@@ -1,23 +1,44 @@
 #!/bin/bash
 
 # Script for building Android GSI
-# Possible branches: android12-gsi, android13-gsi, android14-gsi, android-15.0.0_r36, android-16.0.0_r2
+#
+# Possible branches: android13-gsi, android14-gsi, android-15.0.0_r10, android-16.0.0_r2
+#
+# Recommended lunch target for different branches:
+#   < 15: aosp_cf_x86_64_phone-userdebug
+#   >= 15: aosp_cf_x86_64_phone_64-trunk_staging-userdebug
 
-set -euo pipefail
+set -e
 
 source $(dirname $0)/utils.sh
 
-BRANCH=""
+IMAGE=""
 TARGET=""
-CONFIRM=""
 
-PRODUCT_NAME=aosp_cf_x86_64_phone
-RELEASE_CONFIG=trunk_staging
-BUILD_VARIANT=userdebug
-
+# Show help message
 print_help() {
-    echo "Usage: $0 -b/--branch <branch>"
-    echo "Example: $0 android13-gsi"
+    echo
+    echo "Usage: $0 [ARGS]"
+    echo "  Arguments [Required]:"
+    echo "    -i, --image <IMAGE>: Path to GSI directory."
+    echo "    -t, --target <TARGET>: Lunch target, e.g. aosp_cf_x86_64_phone-userdebug."
+    echo "  Arguments [Optional]:"
+    echo "    -h, --help: Show help message."
+    echo "Example:"
+    echo "  $0 -i android13-gsi -t aosp_cf_x86_64_phone-userdebug"
+    echo
+}
+
+# Show download prompt for kernel source
+print_download_prompt() {
+    # USTC mirror: https://mirrors.ustc.edu.cn/aosp/kernel/manifest
+    echo
+    echo "Oops, looks like '$1' doesn't exist, you need to download it via repo first."
+    echo "Try following commands:"
+    echo "  mkdir $1 && cd $1"
+    echo "  repo init --partial-clone -u https://android.googlesource.com/platform/manifest -b $1"
+    echo "  repo sync -c"
+    echo
 }
 
 if [[ $(id -u) -ne 0 ]]; then
@@ -41,52 +62,24 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
-        -y|--yes)
-            CONFIRM="y"
-            shift
-            ;;
         *)
             print_help
-            exit 0
+            exit 1
             ;;
     esac
 done
 
-# Determine build target through branch
-TARGET=$(get_lunch_target $BRANCH)
-
-# Prompt for confirmation
-if [[ -z $CONFIRM ]]; then
-    echo "BRANCH: $BRANCH"
-    echo "TARGET: $TARGET"
-    echo -n "Are you sure? (y/n) "
-    read -r CONFIRM
-    if [ "$CONFIRM" != "y" ]; then
-        echo "Aborted."
-        exit 1
-    fi
-fi
-
 apt update
 apt install -y git wget curl repo libncurses5 vim gcc make bison bc zip rsync language-pack-en-base
 
-# Checkout source code of GSI
-if [[ ! -d $BRANCH ]]; then
-    mkdir $BRANCH
+# Check path to GSI
+if [[ ! -d $IMAGE ]]; then
+    print_download_prompt $IMAGE
+    exit 1
 fi
-cd $BRANCH
-# USTC mirror: https://mirrors.ustc.edu.cn/aosp/platform/manifest
-repo init --partial-clone -u https://android.googlesource.com/platform/manifest -b $BRANCH
-repo sync -c
 
 # Build GSI, using 16 CPU cores takes about two hours
-cd $BRANCH
+cd $IMAGE
 source build/envsetup.sh
 lunch $TARGET
 m
-
-echo "Done. You can run the Android Virtual Device by following commands:"
-echo "  cd $BRANCH"
-echo "  source build/envsetup.sh"
-echo "  lunch $TARGET"
-echo "  launch_cvd"
