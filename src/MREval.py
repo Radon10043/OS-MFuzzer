@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-09-12 17:41:49
+LastEditTime : 2025-09-13 15:33:11
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -20,6 +20,7 @@ from utils import *
 ### GLOBAL VARIABLES ###
 # Lunch targets for android generic system image (GSI), the former is for GSI < 15, and the latter is for GSI >= 15
 TARGETS = ["aosp_cf_x86_64_phone-userdebug", "aosp_cf_x86_64_phone-trunk_staging-userdebug"]
+CFHOME = "/tmp/syzeta-eval"
 ########################
 
 
@@ -169,8 +170,8 @@ def prepare(args: argparse.Namespace) -> None:
         cmd = (
             "source build/envsetup.sh && "
             f"lunch {target} && "
-            "rm -rf /tmp/syzmeta-eval && "
-            "mkdir -p /tmp/syzmeta-eval && "
+            f"rm -rf {CFHOME} && "
+            f"mkdir -p {CFHOME} && "
             f"yes | launch_cvd -kernel_path={bzImage} -initramfs_path={initramfs} -daemon && "
             "adb connect 0.0.0.0:6520"
         )
@@ -180,7 +181,7 @@ def prepare(args: argparse.Namespace) -> None:
             shell=True,
             cwd=image_obj,
             executable="/bin/bash",
-            env={"HOME": "/tmp/syzmeta-eval"},
+            env={"HOME": CFHOME},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -203,7 +204,6 @@ def wipe_butt(args: argparse.Namespace, out_dir: str) -> None:
     # Generic cleanup
     shutil.rmtree(out_dir, ignore_errors=True)
     clean_repo(args.syzkaller)
-    shutil.rmtree("/tmp/syzmeta-eval", ignore_errors=True)
 
     # For linux, we do not need to do anything
     kernel_typ = args.kernel_typ
@@ -225,7 +225,7 @@ def wipe_butt(args: argparse.Namespace, out_dir: str) -> None:
             shell=True,
             cwd=image_obj,
             executable="/bin/bash",
-            env={"HOME": "/tmp/syzmeta-eval"},
+            env={"HOME": CFHOME},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -233,6 +233,7 @@ def wipe_butt(args: argparse.Namespace, out_dir: str) -> None:
             break
         elif target == TARGETS[-1]:  # Last target, still failed
             FATAL(f"Failed to stop launched emulator")
+    shutil.rmtree(CFHOME, ignore_errors=True)
 
 
 def dryrun(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
@@ -261,7 +262,6 @@ def dryrun(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
     id = uuid.uuid4().hex[:8]
 
     # Generate fuzzing config via kernel type, then make some preparations
-    ACTF("Generating fuzzing config ...")
     cfg = gen_fuzzing_config(args, psyscall)
 
     # Add unique ID as suffix
@@ -272,7 +272,6 @@ def dryrun(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
     cfg_path.write_text(json.dumps(cfg, indent=4), encoding="utf-8")  # Write config to file
 
     # Do some preparations
-    ACTF("Preparing for dry run ...")
     prepare(args)
 
     # Dry run
