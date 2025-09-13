@@ -1,0 +1,7 @@
+{
+    // Light & Dark theme settings
+    // "workbench.iconTheme": "catppuccin-latte",
+    // "workbench.colorTheme": "Catppuccin Latte",
+    "workbench.colorTheme": "One Dark Pro",
+    "workbench.iconTheme": "vscode-icons",
+}
