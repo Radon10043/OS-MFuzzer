@@ -203,6 +203,7 @@ data/*
 !data/prompts/
 !data/spec/
 .vscode/*
+!.vscode/settings.json
 bin/*
 docker/*.tar.*
 workdir/*
