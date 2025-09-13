@@ -349,6 +349,11 @@ def eval(args: argparse.Namespace):
             timeout=timeout,
         )
         perf_eval(subargs)
+        # Frequent launch & stop may cause unexpected issues on Android emulator,
+        # let's have a break before next evaluation
+        if kernel_typ == "android":
+            t = random.randint(30, 60)
+            time.sleep(t)
     if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Evaluation Completed"
         body = "Hi,\n\n"

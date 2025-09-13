@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-09-13 15:33:11
+LastEditTime : 2025-09-13 21:10:49
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
@@ -20,7 +20,7 @@ from utils import *
 ### GLOBAL VARIABLES ###
 # Lunch targets for android generic system image (GSI), the former is for GSI < 15, and the latter is for GSI >= 15
 TARGETS = ["aosp_cf_x86_64_phone-userdebug", "aosp_cf_x86_64_phone-trunk_staging-userdebug"]
-CFHOME = "/tmp/syzeta-eval"
+CFHOME = "/tmp/syzmeta-eval"
 ########################
 
 
@@ -294,32 +294,30 @@ def dryrun(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
     except Exception as e:
         FATAL(f"Failed to run syzkaller: {e}")
 
-    # Exit program if dryrun log does not exist, for this situation, we should evaluate whether
-    # pseudo-syscall is low-quality manually.
+    coverage, exec_total, mrvio_execs = 0, 0, 0
+    # If dryrun log does not exist, we consider the coverage, total execs, and mrvio execs as the initial value, i.e., 0
     if not os.path.exists(dryrun_log):
-        FATAL("Dry run log does not exist, please check manually.")
-
-    # Get latest coverage, total execs, and mrvio execs
-    lines = Path(dryrun_log).read_text(encoding="utf-8").splitlines()
-    lines.reverse()
-    last_line = str()
-    for line in lines:
-        if "coverage=" in line:
-            last_line = line
-            break
-
-    # Check coverage, total execs, and mrvio execs
-    coverage, exec_total = 0, 0
-    try:
-        coverage = get_field_val(last_line, "coverage")
-        exec_total = get_field_val(last_line, "exec total")
-    except BaseException as e:
-        # No such field? Maybe syz_mr is running too slow, or other unexpected errors
-        # This also requires us to evaluate pseudo-syscall manually
-        FATAL(f"Failed to get coverage and exec total, error: {e}")
-    mrvio_execs = 0
-    for _, _, files in os.walk(os.path.join(out_dir, "mrvio")):
-        mrvio_execs += len(files)
+        pass
+    else:
+        # Get latest coverage, total execs, and mrvio execs
+        lines = Path(dryrun_log).read_text(encoding="utf-8").splitlines()
+        lines.reverse()
+        last_line = str()
+        for line in lines:
+            if "coverage=" in line:
+                last_line = line
+                break
+        # Check coverage, total execs, and mrvio execs
+        try:
+            coverage = get_field_val(last_line, "coverage")
+            exec_total = get_field_val(last_line, "exec total")
+        except BaseException as e:
+            # No such field? Maybe syz_mr is running too slow, or other unexpected errors.
+            # For this situation, we also consider the coverage, total execs, and mrvio execs as the initial value (0)
+            pass
+        mrvio_execs = 0
+        for _, _, files in os.walk(os.path.join(out_dir, "mrvio")):
+            mrvio_execs += len(files)
 
     # Wipe my butt :)
     wipe_butt(args, out_dir)
