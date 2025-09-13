@@ -327,25 +327,26 @@ def eval(args: argparse.Namespace):
     kernel_obj = os.path.abspath(args.kernel_obj)
     syzkaller = os.path.abspath(args.syzkaller)
     image_obj = os.path.abspath(args.image_obj)
-    for root, _, files in os.walk(root_path):
-        if os.path.exists(os.path.join(root, ".eval")):
-            WARNF(f"Evaluation mark file already exists in {root}, skipping...")
+    timeout = args.timeout
+    mrs = Path(root_path).rglob("mr.h")
+    for mr in mrs:
+        dp = mr.parent
+        if (dp / ".eval").exists():
+            WARNF(f"Evaluation mark file already exists in {dp}, skipping...")
             continue
-        for file in files:
-            if file != "mr.h":
-                continue
-            SAYF(f"========== [MR: {os.path.join(root, file)} ==========\n")
-            csource = os.path.join(root, "mr.h")
-            syzlang = os.path.join(root, "syzlang.txt")
-            subargs = argparse.Namespace(
-                syzkaller=syzkaller,
-                csource=csource,
-                syzlang=syzlang,
-                kernel_obj=kernel_obj,
-                image_obj=image_obj,
-                patch=os.path.join(os.path.dirname(__file__), "..", "patch", "release.patch"),
-            )
-            perf_eval(subargs)
+        SAYF(f"========== [MR: {mr} ==========\n")
+        csource = dp / "mr.h"
+        syzlang = dp / "syzlang.txt"
+        subargs = argparse.Namespace(
+            syzkaller=syzkaller,
+            csource=csource,
+            syzlang=syzlang,
+            kernel_obj=kernel_obj,
+            image_obj=image_obj,
+            patch=str(Path(__file__).parent.parent / "patch" / "release.patch"),
+            timeout=timeout,
+        )
+        perf_eval(subargs)
     if len(args.email) > 0:  # Send email notification if email is provided
         subject = "SyzMeta MR Evaluation Completed"
         body = "Hi,\n\n"
@@ -426,6 +427,7 @@ if __name__ == "__main__":
     eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
     eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
+    eval_parser.add_argument("--timeout", type=int, default=120, help="Timeout for a single evaluation (seconds)")
     eval_parser.set_defaults(func=eval)
 
     # Subparser for MR integration
