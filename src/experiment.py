@@ -325,6 +325,7 @@ def eval(args: argparse.Namespace):
     """
     root_path = os.path.abspath(args.path)
     kernel_obj = os.path.abspath(args.kernel_obj)
+    kernel_typ = args.kernel_typ
     syzkaller = os.path.abspath(args.syzkaller)
     image_obj = os.path.abspath(args.image_obj)
     timeout = args.timeout
@@ -334,7 +335,7 @@ def eval(args: argparse.Namespace):
         if (dp / ".eval").exists():
             WARNF(f"Evaluation mark file already exists in {dp}, skipping...")
             continue
-        SAYF(f"========== [MR: {mr} ==========\n")
+        SAYF(f"========== [MR: {mr}] ==========\n")
         csource = dp / "mr.h"
         syzlang = dp / "syzlang.txt"
         subargs = argparse.Namespace(
@@ -342,6 +343,7 @@ def eval(args: argparse.Namespace):
             csource=csource,
             syzlang=syzlang,
             kernel_obj=kernel_obj,
+            kernel_typ=kernel_typ,
             image_obj=image_obj,
             patch=str(Path(__file__).parent.parent / "patch" / "release.patch"),
             timeout=timeout,
@@ -425,6 +427,7 @@ if __name__ == "__main__":
     eval_parser = subparser.add_parser("eval", help="Run MR evaluation")
     eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
     eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
+    eval_parser.add_argument("--kernel_typ", type=str, required=True, choices=["android", "linux"], help="Type of the kernel")
     eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
     eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
     eval_parser.add_argument("--timeout", type=int, default=120, help="Timeout for a single evaluation (seconds)")
