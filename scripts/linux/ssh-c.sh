@@ -1,4 +1,4 @@
-
+#!/bin/bash
 ssh -p 2324 \
     -F /dev/null \
     -o UserKnownHostsFile=/dev/null \

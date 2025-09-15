@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -e
+
 scp -P 2324 \
     -F /dev/null \
     -o UserKnownHostsFile=/dev/null \

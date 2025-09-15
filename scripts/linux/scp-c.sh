@@ -1,3 +1,4 @@
+#!/bin/bash
 scp -P 2324 \
     -F /dev/null \
     -o UserKnownHostsFile=/dev/null \
@@ -7,4 +8,4 @@ scp -P 2324 \
     -o ConnectTimeout=10 \
     -i $SSHKEY \
     -v \
-    $CREPRO root@localhost:/tmp/repro
+    $CREPRO root@localhost:/tmp/repro.c
