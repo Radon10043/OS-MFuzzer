@@ -7,6 +7,7 @@ set -e
 IMAGE=""
 KERNEL=""
 TARGET=""
+NUM_INSTANCES=1
 
 # Show help message
 print_help() {
@@ -17,6 +18,7 @@ print_help() {
     echo "    -k, --kernel <KERNEL>: Path to android kernel, e.g., bzImage."
     echo "    -t, --target <TARGET>: lunch target, e.g., aosp_cf_x86_64_phone-userdebug."
     echo "  Arguments [Optional]:"
+    echo "    -n, --num_instances: Number of virtual device instances."
     echo "    -h, --help: Show help message."
     echo "Example:"
     echo "  $0 --image ./android13-gsi --kernel ./common-android13-5.15/dist/bzImage --target aosp_cf_x86_64_phone-userdebug"
@@ -40,15 +42,19 @@ while [[ $# -gt 0 ]]; do
         exit 0
         ;;
     -i | --image)
-        IMAGE="$2"
+        IMAGE=$2
         shift 2
         ;;
     -k | --kernel)
-        KERNEL="$2"
+        KERNEL=$2
         shift 2
         ;;
     -t | --target)
-        TARGET="$2"
+        TARGET=$2
+        shift 2
+        ;;
+    -n | --num_instances)
+        NUM_INSTANCES=$2
         shift 2
         ;;
     *)
@@ -70,5 +76,6 @@ bash -c "
     lunch $TARGET
     yes | launch_cvd -daemon \
                      -kernel_path=$KERNEL \
-                     -initramfs_path=$KERNEL_DIR/initramfs.img
+                     -initramfs_path=$KERNEL_DIR/initramfs.img \
+                     -num_instances=$NUM_INSTANCES
 "
