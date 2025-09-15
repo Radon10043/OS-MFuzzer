@@ -14,7 +14,7 @@ endif
 restore:
 	@echo -n "Restoring syzkaller ... "
 	@git -C syzkaller restore . 2>&1 > /dev/null
-	@git -C syzkaller clean -fd 2>&1 > /dev/null
+	@git -C syzkaller clean -fdx 2>&1 > /dev/null
 	@echo "OK."
 
 extract_patch:
