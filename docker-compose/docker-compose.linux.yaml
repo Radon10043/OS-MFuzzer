@@ -1,0 +1,44 @@
+# Docker Compose file for fuzzing android kernel.
+# Please modify the corresponding paths before use.
+
+x-fuzz-base: &fuzz-base
+  image: syzmeta:latest
+  privileged: true
+  volumes:
+    # Setting your mounts
+    - xxx:/vol
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+
+services:
+  SyzMeta-000:
+    <<: *fuzz-base
+    cpuset: "0-1"
+    environment:
+      - KERNEL=/vol/linux/v6.12.40
+      - IMAGE=/vol/Debian
+      - VMCOUNT=1
+      - SYZKALLER=/vol/SyzMeta/syzkaller
+      - WORKDIR=/vol/workdir/SyzMeta/out-000
+    command: >
+      bash -c "
+        cat /vol/SyzMeta/configs/fuzz/template.cfg | envsubst > /home/test.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h /vol/SyzMeta/syzkaller/bin/syz-manager -config /home/test.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      "
+
+  syzkaller-000:
+    <<: *fuzz-base
+    cpuset: "8-9"
+    environment:
+      - KERNEL=/vol/linux/v6.12.40
+      - IMAGE=/vol/Debian
+      - VMCOUNT=1
+      - SYZKALLER=/vol/syzkaller
+      - WORKDIR=/vol/workdir/syzkaller/out-000
+    command: >
+      bash -c "
+        cat /vol/SyzMeta/configs/fuzz/template.cfg | envsubst > /home/test.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h /vol/syzkaller/bin/syz-manager -config /home/test.cfg > $$WORKDIR/syzkaller0.log 2>&1
+      "
