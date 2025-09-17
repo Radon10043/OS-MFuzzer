@@ -11,16 +11,24 @@ ENV TZ=Asia/Shanghai
 # Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
 # go1.23.6.linux-amd64.tar.gz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
 COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
+
+# Install basic packages
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
 RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
 RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
-RUN apt-get install -y config-package-dev debhelper-compat adb fastboot gcc-aarch64-linux-gnu
-RUN apt-get install -y g++-aarch64-linux-gnu qemu-system-aarch64 libncurses5 cloc openssh-server
+RUN apt-get install -y config-package-dev debhelper-compat adb fastboot libncurses5 cloc openssh-server
+
+# Install Vulkan-related packages to boost performance of cuttlefish virtual device
+RUN apt-get install -y vulkan-tools libegl1-mesa libegl1 libgles2-mesa libgles2 libvulkan1
+
+# Install python packages
 RUN pip install dotenv chromadb GitPython marko clang==19.1.7 google-genai isort unstructured markdown
 RUN pip install langchain-text-splitters langchain-community langgraph langchain-core langchain-openai
 RUN pip install langchain-google-genai langchain-chroma docutils anthropic
+
+# Create necessary groups
 RUN groupadd --system kvm || true
 RUN groupadd --system cvdnetwork || true
 RUN groupadd --system render || true
