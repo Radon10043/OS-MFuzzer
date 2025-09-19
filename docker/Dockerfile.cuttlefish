@@ -13,7 +13,8 @@ COPY cuttlefish.patch /home/cuttlefish.patch
 # Install basic packages
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-RUN apt-get install -y git devscripts equivs config-package-dev debhelper-compat golang curl
+RUN apt-get install -y sudo git devscripts equivs config-package-dev debhelper-compat golang curl \
+    libncurses5
 
 # Install Vulkan-related packages to boost performance of cuttlefish virtual device
 RUN apt-get install -y vulkan-tools libegl1-mesa libegl1 libgles2-mesa libgles2 libvulkan1
@@ -31,7 +32,7 @@ RUN curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo 
 RUN git clone https://github.com/google/android-cuttlefish
 WORKDIR /home/android-cuttlefish
 RUN git checkout ${VERSION} && \
-    git apply cuttlefish.patch
+    git apply /home/cuttlefish.patch
 RUN tools/buildutils/installbazel.sh
 RUN tools/buildutils/build_packages.sh
 RUN dpkg -i ./cuttlefish-base_*_*64.deb || apt-get install -f -y
