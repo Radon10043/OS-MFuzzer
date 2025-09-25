@@ -1,0 +1,135 @@
+#############################
+### General configuration ###
+#############################
+x-base: &base
+  image: syzmeta:latest
+  privileged: true
+  cpuset: "0-19"
+  cpus: "2"
+  environment: &env
+    KERNEL: /vol/linux/v5.10.240
+    IMAGE: /vol/Debian
+    VMOUNT: 1
+    SYZMETA: /vol/SyzMeta
+    SYZKALLER: /vol/syzkaller
+  volumes:
+    - /mnt/d/volumes/kernel-fuzzing:/vol
+    - ./volumes/kernel-fuzzing/linux-v5.10.240:/vol2
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+
+services:
+  SyzMeta-000:
+    <<: *base
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      WORKDIR: /vol2/SyzMeta/out-000
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-001:
+    <<: *base
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      WORKDIR: /vol2/SyzMeta/out-001
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-002:
+    <<: *base
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      WORKDIR: /vol2/SyzMeta/out-002
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-003:
+    <<: *base
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      WORKDIR: /vol2/SyzMeta/out-003
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-004:
+    <<: *base
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      WORKDIR: /vol2/SyzMeta/out-004
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  syzkaller-000:
+    <<: *base
+    environment:
+      <<: *env
+      WORKDIR: /vol2/syzkaller/out-000
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-001:
+    <<: *base
+    environment:
+      <<: *env
+      WORKDIR: /vol2/syzkaller/out-001
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-002:
+    <<: *base
+    environment:
+      <<: *env
+      WORKDIR: /vol2/syzkaller/out-002
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-003:
+    <<: *base
+    environment:
+      <<: *env
+      WORKDIR: /vol2/syzkaller/out-003
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-004:
+    <<: *base
+    environment:
+      <<: *env
+      WORKDIR: /vol2/syzkaller/out-004
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '

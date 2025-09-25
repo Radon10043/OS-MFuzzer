@@ -1,0 +1,280 @@
+#############################
+### General configuration ###
+#############################
+x-base: &base
+  privileged: true
+  network_mode: host
+  environment: &env
+    KERNEL_OBJ: /vol/android/common-android16-6.12/dist
+    KERNEL_SRC: /vol/android/common-android16-6.12/common
+    IMAGE: /vol/android/aosp
+    TARGET: aosp_cf_x86_64_phone-trunk_staging-userdebug
+    SYZMETA: /vol/SyzMeta
+    SYZKALLER: /vol/syzkaller
+  volumes:
+    - /mnt/d/volumes/kernel-fuzzing:/vol
+    - ./volumes/kernel-fuzzing/common-android16-6.12:/vol2
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+
+###################################
+### Preprocessing configuration ###
+###################################
+x-preprocessing-base: &preprocessing-base
+  <<: *base
+  image: syzmeta:latest
+  cpus: 1
+  environment:
+    <<: *env
+    EMAIL: "radon@xs.ustb.edu.cn"
+    SYZMETA: /vol/SyzMeta
+    MRDIR: /vol/SyzMeta/workdir/MRs/android/common-android16-6.12
+    CORPUS: /vol/SyzMeta/workdir/external-corpus
+    SYZKALLER: /vol/syzkaller-dirty
+
+################################
+### Cuttlefish configuration ###
+################################
+x-cvd-base: &cvd-base
+  <<: *base
+  image: cuttlefish:v1.15.0
+
+#############################
+### Fuzzing configuration ###
+#############################
+x-fuzz-base: &fuzz-base
+  <<: *base
+  image: syzmeta:latest
+  environment: &fuzz-env
+    <<: *env
+
+services:
+  # Identify kernel MRs
+  iden:
+    <<: *preprocessing-base
+    profiles:
+      - iden
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          iden --specdir \
+          $$MRDIR --corpus \
+          $$CORPUS > iden-common-android16-6.12.log 2>&1
+      '
+
+  # Implement identified MRs
+  impl:
+    <<: *preprocessing-base
+    cpus: 4
+    profiles:
+      - impl
+    command: >
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          impl \
+          --idendir $$MRDIR \
+          --syzkaller $$SYZKALLER > impl-common-android16-6.12.log 2>&1
+      '
+
+  # Evaluate quality encoded-MRs
+  eval:
+    <<: *preprocessing-base
+    cpus: 4
+    profiles:
+      - eval
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          eval \
+          --path $$MRDIR \
+          --syzkaller $$SYZKALLER \
+          --kernel_obj $$KERNEL_OBJ \
+          --kernel_typ android \
+          --image_obj $$IMAGE \
+          --timeout 300 > eval-common-android16-6.12.log 2>&1
+      '
+
+  # Boot Android virtual devices
+  run-cvd:
+    <<: *cvd-base
+    cpuset: "0-9"
+    image: cuttlefish:v1.15.0
+    profiles:
+      - cvd
+    command: |
+      bash -c '
+        cd $$IMAGE &&
+        source build/envsetup.sh &&
+        lunch $$TARGET &&
+        launch_cvd -daemon \
+          -kernel_path=$$KERNEL_OBJ/bzImage \
+          -initramfs_path=$$KERNEL_OBJ/initramfs.img \
+          -resume=false \
+          -num_instances=10 &&
+        LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
+        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+      '
+
+  # Fuzzing via SyzMeta
+  SyzMeta-000:
+    <<: *fuzz-base
+    cpuset: "0"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50000  # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/SyzMeta/out-000
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      DEVICE: 0.0.0.0:6520 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-001:
+    <<: *fuzz-base
+    cpuset: "1"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50001  # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/SyzMeta/out-001
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      DEVICE: 0.0.0.0:6521 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-002:
+    <<: *fuzz-base
+    cpuset: "2"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50002  # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/SyzMeta/out-002
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      DEVICE: 0.0.0.0:6522 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-004:
+    <<: *fuzz-base
+    cpuset: "3"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50003  # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/SyzMeta/out-003
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      DEVICE: 0.0.0.0:6523 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  # Fuzzing via syzkaller
+  syzkaller-000:
+    <<: *fuzz-base
+    cpuset: "5"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50005 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-000
+      DEVICE: 0.0.0.0:6525 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-001:
+    <<: *fuzz-base
+    cpuset: "6"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50006 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-001
+      DEVICE: 0.0.0.0:6526 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-002:
+    <<: *fuzz-base
+    cpuset: "7"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50007 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-002
+      DEVICE: 0.0.0.0:6527 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: >
+      bash -c "
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      "
+
+  syzkaller-003:
+    <<: *fuzz-base
+    cpuset: "8"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50008 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-003
+      DEVICE: 0.0.0.0:6528 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  syzkaller-004:
+    <<: *fuzz-base
+    cpuset: "9"
+    environment:
+      - SERVADDR=127.0.0.1:50009 # <- Please ensure this port is not used by other services since we use host networking
+      - WORKDIR=/vol2/syzkaller/out-004
+      - DEVICE=0.0.0.0:6529 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
