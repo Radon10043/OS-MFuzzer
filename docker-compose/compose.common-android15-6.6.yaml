@@ -13,7 +13,7 @@ x-base: &base
     SYZKALLER: /vol/syzkaller
   volumes:
     - /mnt/d/volumes/kernel-fuzzing:/vol
-    - ./volumes/kernel-fuzzing/common-android15-6.6:/vol2
+    - $PWD/volumes/kernel-fuzzing/common-android15-6.6:/vol2
     - /etc/timezone:/etc/timezone:ro
     - /etc/localtime:/etc/localtime:ro
 

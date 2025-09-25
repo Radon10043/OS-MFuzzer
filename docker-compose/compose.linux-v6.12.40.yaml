@@ -14,7 +14,7 @@ x-base: &base
     SYZKALLER: /vol/syzkaller
   volumes:
     - /mnt/d/volumes/kernel-fuzzing:/vol
-    - ./volumes/kernel-fuzzing/linux-v6.12.40:/vol2
+    - $PWD/volumes/kernel-fuzzing/linux-v6.12.40:/vol2
     - /etc/timezone:/etc/timezone:ro
     - /etc/localtime:/etc/localtime:ro
 
