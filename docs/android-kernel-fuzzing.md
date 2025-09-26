@@ -58,6 +58,54 @@ tools/bazel run \
 
 You should see `bzImage` and `initramfs.img` in `dist` directory under the kernel root.
 
+### My commands
+
+Here I list my commands for GKI building, for your reference:
+
+common-android13-5.10:
+```bash
+cd common-android13-5.10
+BUILD_CONFIG=common/build.config.gki_kasan.x86_64 build/build.sh
+BUILD_CONFIG=common-modules/virtual-device/build.config.virtual_device_kasan.x86_64 build/build.sh
+cp out/android13-5.10 dist
+```
+
+common-android13-5.15:
+```bash
+cd common-android13-5.15
+BUILD_CONFIG=common/build.config.gki_kasan.x86_64 build/build.sh
+BUILD_CONFIG=common-modules/virtual-device/build.config.virtual_device_kasan.x86_64 build/build.sh
+cp out/android13-5.15 dist
+```
+
+common-android14-6.1:
+```bash
+cd common-android14-6.1
+# I cant boot without CONFIG_CC_OPTIMIZE_FOR_SIZE enabled, dont know the reason
+echo "CONFIG_CC_OPTIMIZE_FOR_SIZE=y" >common-modules/virtual-device/optsize.fragment
+tools/bazel run \
+    --defconfig_fragment=common-modules/virtual-device:optsize.fragment \
+    --kasan \
+    //common-modules/virtual-device:virtual_device_x86_64_dist --destdir=dist
+```
+
+common-android15-6.6:
+```bash
+cd common-android15-6.6
+tools/bazel run \
+    --kasan \
+    //common-modules/virtual-device:virtual_device_x86_64_dist --destdir=dist
+```
+
+common-android16-6.12:
+```bash
+cd common-android16-6.12
+tools/bazel run \
+    --kasan \
+    --kcov \
+    //common-modules/virtual-device:virtual_device_x86_64_dist --destdir=dist
+```
+
 ## GPU boost (Optional)
 
 For gpu boost, install gpu drivers in the host first, see [official tutorial](https://documentation.ubuntu.com/server/how-to/graphics/install-nvidia-drivers/). I ran the following commands on my host:
@@ -129,3 +177,36 @@ You can see `launcher.log` of cuttlefish or console output to confirm whether GP
 ## Fuzzing
 
 Todo
+
+## QA
+
+Q: I want to boot android13 and android 14 at the same time, but adb ports may have conflicts, how to solve it?
+
+A: Try use `-base_instance_num`, `-instance_nums` flags of `launch_cvd`. `-base_instance_num` is the start number of cvd, `-instance_nums` means which number you want to assign to cvds. E.g. suppose you want to boot 2 android13 virtual
+devices and 2 android14 virtual devices, we can first run following commands to boot 2 android13 virtual devices:
+
+Command:
+```bash
+cd android13-gsi
+source build/envsetup.sh
+lunch aosp_cf_x86_64_phone-userdebug
+launch_cvd -instance_nums=1,2 num_instance=2 -daemon
+# Or the following command:
+# launch_cvd -base_instance_num=1 -num_instance=2 -daemon
+```
+
+You will see cvd-1 and cvd-2 in http://localhost:8443.
+
+Open a new terminal/container, run following commands to boot 2 android14 virtual devices:
+
+Command:
+```bash
+cd android14-gsi
+source build/envsetup.sh
+lunch aosp_cf_x86_64_phone-userdebug
+launch_cvd -instance_nums=3,4 num_instance=2 -daemon
+# Or:
+# launch_cvd -base_instance_num=3 -num_instance=2 -daemon
+```
+
+You will see cvd-3 and cvd-4 in http://localhost:8445.
