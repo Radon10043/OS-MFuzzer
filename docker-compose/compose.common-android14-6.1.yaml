@@ -48,6 +48,11 @@ x-fuzz-base: &fuzz-base
   environment: &fuzz-env
     <<: *env
 
+####################
+### Project name ###
+####################
+name: common-android14-6_1
+
 services:
   # Identify kernel MRs
   iden:
@@ -176,7 +181,7 @@ services:
         timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
-  SyzMeta-004:
+  SyzMeta-003:
     <<: *fuzz-base
     cpuset: "3"
     environment:
@@ -185,6 +190,24 @@ services:
       WORKDIR: /vol2/SyzMeta/out-003
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6523 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - fuzzers
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+      '
+
+  SyzMeta-004:
+    <<: *fuzz-base
+    cpuset: "4"
+    environment:
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50004  # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/SyzMeta/out-004
+      SYZKALLER: /vol/SyzMeta/syzkaller
+      DEVICE: 0.0.0.0:6524 # <- Please ensure this virtual device is not used by other services
     profiles:
       - fuzzers
     command: |

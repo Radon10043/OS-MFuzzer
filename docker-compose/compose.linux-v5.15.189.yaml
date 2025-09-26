@@ -18,6 +18,11 @@ x-base: &base
     - /etc/timezone:/etc/timezone:ro
     - /etc/localtime:/etc/localtime:ro
 
+####################
+### Project name ###
+####################
+name: linux-5_15_189
+
 services:
   SyzMeta-000:
     <<: *base
