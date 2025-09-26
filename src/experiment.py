@@ -1,12 +1,14 @@
 import argparse
 import os
 import random
+import shutil
 import smtplib
 import sys
 import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+import uuid
 
 from dotenv import load_dotenv
 from git import Repo
@@ -236,6 +238,21 @@ def iden(args: argparse.Namespace):
     OKF("We're done here!")
 
 
+def duplicate(src: str) -> str:
+    """Duplicate a directory to /tmp with a random suffix.
+
+    Returns
+    -------
+    str
+        Path to the duplicated directory
+    """
+    basename = Path(src).name
+    dst = Path("/tmp") / f"{basename}-{uuid.uuid4().hex[:8]}"
+    shutil.copytree(src, dst, ignore=None)
+    syzkaller = str(dst)
+    return syzkaller
+
+
 def perf_impl(cfg: dict):
     """Perform MR implementation
 
@@ -269,8 +286,14 @@ def impl(args: argparse.Namespace):
     """
     # Traverse each file under args.path, read mr_final.md and generate code
     idendir = os.path.abspath(args.idendir)
-    syzkaller = os.path.abspath(args.syzkaller)
     files = Path(idendir).rglob("mr_final.md")
+
+    # We previously let users specify the path to syzkaller, but this was too
+    # error-prone in concurrent scenarios. Therefore, we copied our syzkaller
+    # repository to /tmp and added a unique suffix, which will be used for
+    # implementation feedback.
+    syzkaller = duplicate(args.syzkaller)
+
     for file in files:
         root = file.parent
         filepath = str(file)
@@ -289,6 +312,7 @@ def impl(args: argparse.Namespace):
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
+    shutil.rmtree(syzkaller)    # Remove the temporary syzkaller directory
     OKF("We're done here!")
 
 
@@ -326,7 +350,7 @@ def eval(args: argparse.Namespace):
     root_path = os.path.abspath(args.path)
     kernel_obj = os.path.abspath(args.kernel_obj)
     kernel_typ = args.kernel_typ
-    syzkaller = os.path.abspath(args.syzkaller)
+    syzkaller = duplicate(args.syzkaller)
     image_obj = os.path.abspath(args.image_obj)
     timeout = args.timeout
     mrs = Path(root_path).rglob("mr.h")
@@ -361,6 +385,7 @@ def eval(args: argparse.Namespace):
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
+    shutil.rmtree(syzkaller)    # Remove the temporary syzkaller directory
     OKF("We're done here!")
 
 
@@ -433,14 +458,14 @@ if __name__ == "__main__":
     eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
     eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     eval_parser.add_argument("--kernel_typ", type=str, required=True, choices=["android", "linux"], help="Type of the kernel")
-    eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
+    eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
     eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
     eval_parser.add_argument("--timeout", type=int, default=120, help="Timeout for a single evaluation (seconds)")
     eval_parser.set_defaults(func=eval)
 
     # Subparser for MR integration
     integrate_parser = subparser.add_parser("integrate", help="Integrate MR implementation into syzkaller")
-    integrate_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory")
+    integrate_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
     integrate_parser.add_argument("--impl_root", type=str, required=True, help="Path to the root directory of MR implementation")
     integrate_parser.add_argument("--clean", action="store_true", help="Whether to clean syzkaller directory")
     integrate_parser.set_defaults(func=integrate)
