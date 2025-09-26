@@ -27,10 +27,8 @@ x-preprocessing-base: &preprocessing-base
   environment:
     <<: *env
     EMAIL: "radon@xs.ustb.edu.cn"
-    SYZMETA: /vol/SyzMeta
     MRDIR: /vol/SyzMeta/workdir/MRs/android/common-android16-6.12
     CORPUS: /vol/SyzMeta/workdir/external-corpus
-    SYZKALLER: /vol/syzkaller-dirty
 
 ################################
 ### Cuttlefish configuration ###
