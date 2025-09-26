@@ -7,4 +7,4 @@ ssh -p 2324 \
     -o StrictHostKeyChecking=no \
     -o ConnectTimeout=10 \
     -i $SSHKEY \
-    root@localhost "cd /tmp && ./syz-execprog -enable=all -repeat=0 -procs=6 ./repro.syz"
+    root@localhost "cd /tmp && ./syz-execprog -enable=all -repeat=0 -procs=8 ./repro.syz"

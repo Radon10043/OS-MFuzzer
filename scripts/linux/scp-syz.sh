@@ -11,7 +11,7 @@ scp -P 2324 \
     -o ConnectTimeout=10 \
     -i $SSHKEY \
     -v \
-    bin/linux_amd64/* root@localhost:/tmp/
+    $SYZKALLER/bin/linux_amd64/* root@localhost:/tmp/
 
 scp -P 2324 \
     -F /dev/null \

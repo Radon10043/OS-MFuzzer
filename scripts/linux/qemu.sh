@@ -12,7 +12,7 @@ qemu-system-x86_64 \
     -cpu host,migratable=off \
     -device e1000,netdev=net0 \
     -netdev user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:2324-:22 \
-    -hda $IMAGE \
+    -hda $IMAGE/bullseye.img \
     -snapshot \
     -kernel $KERNEL/arch/x86/boot/bzImage \
     -append "root=/dev/sda console=ttyS0" 2>&1 | tee vm.log
