@@ -5,10 +5,10 @@ import shutil
 import smtplib
 import sys
 import traceback
+import uuid
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-import uuid
 
 from dotenv import load_dotenv
 from git import Repo
@@ -312,7 +312,7 @@ def impl(args: argparse.Namespace):
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
-    shutil.rmtree(syzkaller)    # Remove the temporary syzkaller directory
+    shutil.rmtree(syzkaller)  # Remove the temporary syzkaller directory
     OKF("We're done here!")
 
 
@@ -333,7 +333,7 @@ def perf_eval(args: argparse.Namespace):
             retry -= 1
             if retry == 0:
                 FATAL(f"MR evaluation failed after {retry} attempts: {e}")
-            t = random.randint(1, 60)
+            t = random.randint(30, 60)
             WARNF(f"MR evaluation failed: {e}")
             WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
             time.sleep(t)
@@ -385,7 +385,77 @@ def eval(args: argparse.Namespace):
         body += "Best regards,\nSyzMeta Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
-    shutil.rmtree(syzkaller)    # Remove the temporary syzkaller directory
+    shutil.rmtree(syzkaller)  # Remove the temporary syzkaller directory
+    OKF("We're done here!")
+
+
+def perf_android_eval(args: argparse.Namespace):
+    """Perform MR evaluation on android kernel.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    retry = 3
+    while retry > 0:
+        try:
+            MREval.eval_on_android(args)
+            break
+        except BaseException as e:
+            retry -= 1
+            if retry == 0:
+                FATAL(f"MR evaluation failed after {retry} attempts: {e}")
+            t = random.randint(30, 60)
+            WARNF(f"MR evaluation failed: {e}")
+            WARNF(f"Have a break for {t} seconds ... ({retry} attempts left)")
+            time.sleep(t)
+
+
+def android_eval(args: argparse.Namespace):
+    """Run MR evaluation experiment on Android kernel.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    impldir = os.path.abspath(args.impldir)
+    kernel_obj = os.path.abspath(args.kernel_obj)
+    syzkaller = duplicate(args.syzkaller)
+    timeout = args.timeout
+    device = args.device
+    mrs = Path(impldir).rglob("mr.h")
+    for mr in mrs:
+        dp = mr.parent
+        if (dp / ".eval").exists():
+            WARNF(f"Evaluation mark file already exists in {dp}, skipping...")
+            continue
+        SAYF(f"========== [MR: {mr}] ==========\n")
+        csource = dp / "mr.h"
+        syzlang = dp / "syzlang.txt"
+        subargs = argparse.Namespace(
+            syzkaller=syzkaller,
+            csource=csource,
+            syzlang=syzlang,
+            kernel_obj=kernel_obj,
+            patch=str(Path(__file__).parent.parent / "patch" / "release.patch"),
+            timeout=timeout,
+            device=device,
+        )
+        perf_android_eval(subargs)
+        # Frequent launch & stop may cause unexpected issues on Android emulator,
+        # let's have a break before next evaluation
+        t = random.randint(30, 60)
+        time.sleep(t)
+    if len(args.email) > 0:  # Send email notification if email is provided
+        subject = "SyzMeta MR Evaluation Completed"
+        body = "Hi,\n\n"
+        body += "The MR Evaluation experiment is completed.\n\n"
+        body += "Best regards,\nSyzMeta Experiment Runner"
+        send_email(subject, body, args.email)
+        OKF("Successfully send email notification to " + args.email)
+    shutil.rmtree(syzkaller)  # Remove the temporary syzkaller directory
     OKF("We're done here!")
 
 
@@ -454,14 +524,22 @@ if __name__ == "__main__":
     impl_parser.set_defaults(func=impl)
 
     # Subparer for MR evaluation
-    eval_parser = subparser.add_parser("eval", help="Run MR evaluation")
-    eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
-    eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
-    eval_parser.add_argument("--kernel_typ", type=str, required=True, choices=["android", "linux"], help="Type of the kernel")
-    eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
-    eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
-    eval_parser.add_argument("--timeout", type=int, default=120, help="Timeout for a single evaluation (seconds)")
-    eval_parser.set_defaults(func=eval)
+    linux_eval_parser = subparser.add_parser("eval", help="Run MR evaluation")
+    linux_eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
+    linux_eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
+    linux_eval_parser.add_argument("--kernel_typ", type=str, required=True, choices=["android", "linux"], help="Type of the kernel")
+    linux_eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
+    linux_eval_parser.add_argument("--image_obj", type=str, required=True, help="Path to the image object directory")
+    linux_eval_parser.add_argument("--timeout", type=int, default=120, help="Timeout for a single evaluation (seconds)")
+    linux_eval_parser.set_defaults(func=eval)
+
+    android_eval_parser = subparser.add_parser("android_eval", help="Run MR evaluation on Android kernel")
+    android_eval_parser.add_argument("--impldir", type=str, required=True, help="Path to the root directory of pseudo-syscall")
+    android_eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
+    android_eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
+    android_eval_parser.add_argument("--timeout", type=int, default=300, help="Timeout for a single evaluation (seconds)")
+    android_eval_parser.add_argument("--device", type=str, default="0.0.0.0:6520", help="Target device name.")
+    android_eval_parser.set_defaults(func=android_eval)
 
     # Subparser for MR integration
     integrate_parser = subparser.add_parser("integrate", help="Integrate MR implementation into syzkaller")

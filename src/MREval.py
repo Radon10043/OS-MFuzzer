@@ -2,14 +2,17 @@
 Author       : Radon
 Date         : 2025-07-22 16:25:40
 LastEditors  : Radon
-LastEditTime : 2025-09-13 21:10:49
+LastEditTime : 2025-09-26 13:57:27
 Description  : Evaluate quality of encoded metamorphic relation
 """
 
 import argparse
+import copy
 import json
 import os
+import random
 import shutil
+from socket import socket
 import subprocess
 import uuid
 from pathlib import Path
@@ -21,6 +24,20 @@ from utils import *
 # Lunch targets for android generic system image (GSI), the former is for GSI < 15, and the latter is for GSI >= 15
 TARGETS = ["aosp_cf_x86_64_phone-userdebug", "aosp_cf_x86_64_phone-trunk_staging-userdebug"]
 CFHOME = "/tmp/syzmeta-eval"
+
+# Fuzzing config template for android kernel
+ANDROID_CFG_TMPL = {
+    "target": "linux/amd64",
+    "http": "DO NOT EDIT HERE",
+    "workdir": "DO NOT EDIT HERE",
+    "kernel_obj": "DO NOT EDIT HERE",
+    "syzkaller": "DO NOT EDIT HERE",
+    "cover": True,
+    "type": "adb",
+    "reproduce": False,
+    "enable_syscalls": ["DO NOT EDIT HERE"],
+    "vm": {"devices": ["DO NOT EDIT HERE"], "battery_check": True},
+}
 ########################
 
 
@@ -68,9 +85,6 @@ def gen_fuzzing_config(args: argparse.Namespace, psyscall: str) -> dict:
         Fuzzing config
     """
     image_obj = args.image_obj
-
-    # Generate a unique ID
-    id = uuid.uuid4().hex[:8]
 
     # Get paths to .img and .id_rsa files under image_obj
     imgpath = str()
@@ -325,6 +339,117 @@ def dryrun(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
     return coverage, exec_total, mrvio_execs
 
 
+def port_in_use(port: int) -> bool:
+    """Check whether a port is in use
+
+    Parameters
+    ----------
+    port : int
+        Port to check
+
+    Returns
+    -------
+    bool
+        True if port is in use, False otherwise
+    """
+    with socket() as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def dryrun_android(args: argparse.Namespace, psyscall: str) -> Tuple[int, int, int]:
+    """Dry run the syzkaller to check whether the pseudo-syscall can cover kernel code, and
+    whether encoded metamorphic relation is high-quality.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    psyscall : str
+        Name of the pseudo-syscall
+
+    Returns
+    -------
+    Tuple[int, int, int]
+        coverage, total execs, mrvio execs
+
+        Please note that, `mrvio execs` may more than `total execs` since we got the latter from
+        the log of syzkaller, while the former is got from counting files under `out_dir/mrvio`,
+        time difference may cause the inconsistency.
+
+        TODO: We can modify syzkaller to output `mrvio execs` in the same way as `total execs`
+    """
+    # Set evaluation config
+    id = uuid.uuid4().hex[:8]
+    cfg = copy.deepcopy(ANDROID_CFG_TMPL)
+    cfg["syzkaller"] = args.syzkaller
+    outdir = cfg["workdir"] = (Path(args.syzkaller) / "workdir" / f"out-{id}").as_posix()
+    cfg["kernel_obj"] = args.kernel_obj
+    cfg["enable_syscalls"] = [psyscall]  # Just enable the pseudo-syscall to evaluate its quality
+    cfg["vm"]["devices"] = [args.device]
+
+    # Set the random port to avoid conflict
+    port = random.randint(20000, 60000)
+    while port_in_use(port):
+        port = random.randint(20000, 60000)
+    cfg["http"] = f"127.0.0.1:{port}"
+
+    # Create a fresh output directory
+    shutil.rmtree(outdir, ignore_errors=True)
+    os.makedirs(outdir, exist_ok=True)
+    cfg_path = Path(outdir) / "config.json"
+    cfg_path.write_text(json.dumps(cfg, indent=4), encoding="utf-8")  # Write config to file
+
+    # Dry run
+    syzkaller = args.syzkaller
+    timeout = args.timeout
+    dryrun_log = Path(outdir) / "dryrun.log"
+    try:
+        subprocess.run(
+            [
+                f"{syzkaller}/bin/syz-manager",
+                f"-config={cfg_path}",
+            ],
+            cwd=syzkaller,
+            timeout=timeout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.TimeoutExpired as e:  # This is expected
+        dryrun_log.write_text(e.stderr.decode("utf-8"), encoding="utf-8")  # type: ignore
+    except Exception as e:
+        FATAL(f"Failed to run syzkaller: {e}")
+
+    coverage, exec_total, mrvio_execs = 0, 0, 0
+    # If dryrun log does not exist, we consider the coverage, total execs, and mrvio execs as the initial value, i.e., 0
+    if not os.path.exists(dryrun_log):
+        pass
+    else:
+        # Get latest coverage, total execs, and mrvio execs
+        lines = Path(dryrun_log).read_text(encoding="utf-8").splitlines()
+        lines.reverse()
+        last_line = str()
+        for line in lines:
+            if "coverage=" in line:
+                last_line = line
+                break
+        # Check coverage, total execs, and mrvio execs
+        try:
+            coverage = get_field_val(last_line, "coverage")
+            exec_total = get_field_val(last_line, "exec total")
+        except BaseException as e:
+            # No such field? Maybe syz_mr is running too slow, or other unexpected errors.
+            # For this situation, we also consider the coverage, total execs, and mrvio execs as the initial value (0)
+            pass
+        mrvio_execs = 0
+        for _, _, files in os.walk(os.path.join(outdir, "mrvio")):
+            mrvio_execs += len(files)
+
+    # Wipe my butt :)
+    clean_repo(syzkaller)
+
+    return coverage, exec_total, mrvio_execs
+
+
 def main(args: argparse.Namespace):
     """Evaluation quality of encoded metamorphic relation
 
@@ -379,7 +504,7 @@ def main(args: argparse.Namespace):
     # Patch syzkaller to support metamorphic testing
     ACTF("Patching syzkaller ...")
     clean_repo(syzkaller)
-    patch_syzkaller(syzkaller, patch)
+    patch_repo(syzkaller, patch)
 
     # Add csource & syzlang desc to syzkaller, then build it
     ACTF("Add pseudo-syscall & build syzkaller ...")
@@ -393,6 +518,121 @@ def main(args: argparse.Namespace):
     # is low-quality
     ACTF("Dry run syzkaller to evaluate the quality of pseudo-syscall ...")
     coverage, total_execs, mrvio_execs = dryrun(args, func)
+    mark_root = os.path.dirname(os.path.abspath(csource_path))
+    lqmk = os.path.join(mark_root, ".low_quality")  # Low-Quality MarK
+    reason = list()
+    if coverage == 0:
+        reason.append("0 kernel coverage.")
+    elif mrvio_execs / total_execs >= 0.9:
+        reason.append(f"High MRVIO execs: {mrvio_execs} / {total_execs} >= 0.9")
+    if len(reason) > 0:
+        Path(lqmk).write_text("\n".join(reason), encoding="utf-8")
+        WARNF(f"Pseudo-syscall is low-quality, please check {lqmk} for details.")
+    evmk = os.path.join(mark_root, ".eval")  # EValuation MarK, indicating that the evaluation is done
+    Path(evmk).write_text(f"coverage={coverage}, total_execs={total_execs}, mrvio_execs={mrvio_execs}", encoding="utf-8")
+    OKF("We are done here!")
+
+
+def check_device(device: str) -> bool:
+    """Check whether device can be connected via adb
+
+    Parameters
+    ----------
+    device : str
+        Device to check
+
+    Returns
+    -------
+    bool
+        True if device can be connected, False otherwise
+    """
+    retry = 60
+    conn_succ = False
+    while not conn_succ and retry > 0:
+        res = subprocess.run(
+            ["adb", "connect", device],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout = res.stdout.decode("utf-8").lower()
+        if res.returncode == 0 and not stdout.startswith("failed"):
+            conn_succ = True
+            break
+        time.sleep(10)
+        retry -= 1
+    return conn_succ
+
+
+def eval_on_android(args: argparse.Namespace):
+    """Evaluation quality of encoded metamorphic relation on android kernel
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    """
+    # Check whether syzkaller directory exists, as well as csource, syzlang description, and patch file
+    # TODO: There are many repeat code, need to be refactored in OOP
+    ACTF("Checking args ...")
+    syzkaller = args.syzkaller
+    csource_path = args.csource
+    syzlang_path = args.syzlang
+    patch = args.patch
+    if not os.path.exists(syzkaller):
+        FATAL(f"{syzkaller} does not exist.")
+    if not os.path.exists(csource_path):
+        FATAL(f"{csource_path} does not exist.")
+    if not os.path.exists(syzlang_path):
+        FATAL(f"{syzlang_path} does not exist.")
+    if not os.path.exists(patch):
+        FATAL(f"{patch} does not exist.")
+    csource = Path(csource_path).read_text(encoding="utf-8")
+    syzlang = Path(syzlang_path).read_text(encoding="utf-8")
+    syz_lines = syzlang.split("\n")
+    for line in syz_lines:
+        if not line.startswith("#") and not line.startswith("include"):
+            func = line.split("(")[0]
+            break
+
+    # Check whether vmlinux exist under kernel_obj
+    kernel_obj = args.kernel_obj
+    vmlinux = os.path.join(kernel_obj, "vmlinux")
+    if not os.path.exists(vmlinux):
+        FATAL(f"{vmlinux} does not exist, please build first.")
+
+    # Check whether commit of syzkaller is 4b25d554
+    commit = get_commit(syzkaller)[:8]
+    if commit != "4b25d554":
+        FATAL(f"Current commit of syzkaller is {commit}, but expected 4b25d554. Please checkout first.")
+
+    # Prompt user that timeout for android kernel should be longer.
+    timeout = args.timeout
+    if timeout < 300:
+        WARNF("For android kernel, timeout should be longer (e.g., 300s), otherwise syz-manager may exit before any test cases are executed")
+    OKF("Configs are valid!")
+
+    # Check whether device can be connected, default timeout is 10 mins
+    device = args.device
+    if not check_device(device):
+        FATAL(f"Cannot connect to device {device}, please check whether the device is online and adb can connect to it.")
+
+    # Patch syzkaller to support metamorphic testing
+    ACTF("Patching syzkaller ...")
+    clean_repo(syzkaller)
+    patch_repo(syzkaller, patch)
+
+    # Add csource & syzlang desc to syzkaller, then build it
+    ACTF("Add pseudo-syscall & build syzkaller ...")
+    add_pseudo_syscall(syzkaller, csource, syzlang, func)
+    retval, stderr, stdout = build_syzkaller(syzkaller)
+    if retval != 0:
+        FATAL(f"Failed to build syzkaller: {stderr}\n\n{stdout}")
+
+    # Dryrun for fuzzing, check whether pseudo-syscall can cover kernel code,
+    # and if many violations are reported, we should consider that the pseudo-syscall
+    # is low-quality
+    ACTF("Dry run syzkaller to evaluate the quality of pseudo-syscall ...")
+    coverage, total_execs, mrvio_execs = dryrun_android(args, func)
     mark_root = os.path.dirname(os.path.abspath(csource_path))
     lqmk = os.path.join(mark_root, ".low_quality")  # Low-Quality MarK
     reason = list()

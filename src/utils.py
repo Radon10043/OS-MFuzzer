@@ -195,7 +195,7 @@ def clean_repo(path: str):
         Path to the repository to clean.
     """
     res = subprocess.run(
-        "git checkout . && git clean -fd",
+        "git checkout . && git clean -fdx",
         cwd=path,
         shell=True,
         stdout=subprocess.PIPE,
@@ -205,26 +205,26 @@ def clean_repo(path: str):
         FATAL(f"Failed to clean repository: {res.stderr.decode('utf-8')}")
 
 
-def patch_syzkaller(syzkaller: str, patch: str):
-    """Patch syzkaller to support metamorphic testing.
+def patch_repo(repo: str, patch: str):
+    """Patch git repository.
 
     Parameters
     ----------
-    syzkaller : str
-        Path to the syzkaller directory, must be commit 4b25d554.
+    repo : str
+        Path to the repository.
     patch : str
-        Path to the patch file to apply to syzkaller.
+        Path to the patch file to apply to repo.
     """
     try:
         subprocess.run(
             ["git", "apply", patch],
-            cwd=syzkaller,
+            cwd=repo,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=True,
         )
     except BaseException as e:
-        FATAL(f"Failed to apply patch {patch} to syzkaller: {e}")
+        FATAL(f"Failed to apply patch {patch} to repo: {e}")
 
 
 def get_commit(dir: str) -> str:
