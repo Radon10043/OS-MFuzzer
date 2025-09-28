@@ -82,8 +82,6 @@ services:
           --idendir $$MRDIR \
           --syzkaller $$SYZKALLER > impl-common-android13-5.15.log 2>&1
       '
-
-  # Evaluate quality encoded-MRs
   eval:
     <<: *preprocessing-base
     cpus: 4
@@ -94,16 +92,34 @@ services:
         cd $$SYZMETA &&
         python3 -u src/experiment.py \
           --email $$EMAIL \
-          eval \
-          --path $$MRDIR \
+          android_eval \
+          --impldir $$MRDIR \
           --syzkaller $$SYZKALLER \
           --kernel_obj $$KERNEL_OBJ \
-          --kernel_typ android \
-          --image_obj $$IMAGE \
-          --timeout 300 > eval-common-android13-5.15.log 2>&1
+          --device 0.0.0.0:6620 > eval-common-android13-5.10.log 2>&1
       '
 
   # Boot Android virtual devices
+  run-cvd-for-eval:
+    <<: *cvd-base
+    cpus: 4
+    image: cuttlefish:v1.15.0
+    profiles:
+      - cvd-for-eval
+    command: |
+      bash -c '
+        cd $$IMAGE &&
+        source build/envsetup.sh &&
+        lunch $$TARGET &&
+        yes | launch_cvd -daemon \
+          -kernel_path=$$KERNEL_OBJ/bzImage \
+          -initramfs_path=$$KERNEL_OBJ/initramfs.img \
+          -resume=false \
+          -base_instance_num=101 &&
+        LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
+        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+      '
+
   run-cvd:
     <<: *cvd-base
     cpuset: "0-9"
