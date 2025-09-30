@@ -199,11 +199,10 @@ pyrightconfig.json
 
 ### Custom ###
 data/*
-!data/README.md
 !data/prompts/
-!data/spec/
 .vscode/*
 !.vscode/settings.json
 bin/*
-docker/*.tar.*
+docker/*
+!docker/Dockerfile*
 workdir/*
