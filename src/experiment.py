@@ -499,7 +499,7 @@ def integrate(args: argparse.Namespace):
     subargs = argparse.Namespace(
         syzkaller=syzkaller,
         impls=impls,
-        patch=Path(__file__).parent.parent / "patch" / "release.patch",
+        patch=(Path(__file__).parent.parent / "patch" / "release.patch").as_posix(),
     )
     MRIntg.main(subargs)
     OKF("We're done here!")

@@ -2,7 +2,7 @@
 Author       : Radon
 Date         : 2025-04-16 05:32:03
 LastEditors  : Radon
-LastEditTime : 2025-08-07 10:21:22
+LastEditTime : 2025-09-28 16:38:40
 Description  : Integrate MRs to syzkaller
 """
 
@@ -237,7 +237,7 @@ def main(args: argparse.Namespace):
         func = "syz_mr_" + uuid4
         integrate(syzkaller_dir, csource, syzlang_desc, func)
         OKF("%s is integrated into syzkaller!" % impl)
-    patch_syzkaller(syzkaller_dir, patch)
+    patch_repo(syzkaller_dir, patch)
 
     WARNF("Integration is complete! Now you can run `make generate -j && make clean all -j` to build syzkaller.")
     SAYF("    Note that errors may occur during the building, please correct them manually.\n")
