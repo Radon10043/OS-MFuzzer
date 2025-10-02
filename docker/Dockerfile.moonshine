@@ -1,0 +1,63 @@
+FROM ubuntu:22.04
+
+WORKDIR /home
+SHELL [ "/bin/bash", "-c" ]
+
+ENV GOPATH=/usr/local/go/bin
+ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
+ENV PATH=$GOPATH:${LLVM_HOME}/bin:$GOPATH/bin:$PATH
+ENV TZ=Asia/Shanghai
+
+# Download following files to the tools/syz-meta/docker and build the image by COPY command will save time:
+# go1.23.6.linux-amd64.tar.gz, LLVM-19.1.7-Linux-X64.tar.xz, v2.0.8.tar.gz (flatbuffers-v2.0.8)
+COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
+
+# Download sampletraces.tar.gz and put it under docker/
+# Link: https://drive.google.com/file/d/1eKLK9Kvj5tsJVYbjB2PlFXUsMQGASjmW/view
+COPY sampletraces.tar.gz /home/
+
+# Install basic packages
+# TODO: Some packages can be removed to reduce image size
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
+RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
+RUN apt-get install -y language-pack-en-base rsync file openssh-server ragel dwarves unzip
+
+# Install golang-1.23.6
+RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.23.6.linux-amd64.tar.gz && \
+    rm go1.23.6.linux-amd64.tar.gz
+
+# Install LLVM-19.1.7 (binary)
+RUN wget -nc https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz && \
+    tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
+    rm LLVM-19.1.7-Linux-X64.tar.xz
+
+# Download moonshine & build moonshine
+RUN git clone https://github.com/shankarapailoor/moonshine && \
+    cd moonshine && \
+    git checkout 95e5f6dfd2760a9d763fc2bc90623c9e1e74e804
+RUN cd moonshine && \
+    go mod init github.com/shankarapailoor/moonshine && \
+    go get github.com/google/syzkaller@f48c20b8f9b2a6c26629f11cc15e1c9c316572c8 && \
+    go install golang.org/x/tools/cmd/goyacc@v0.27.0 && \
+    go mod vendor && \
+    git checkout vendor/github.com/google/syzkaller/prog/ && \
+    make
+
+# Generate corpus.db for syzkaller
+RUN cd moonshine && \
+    tar -xzvf ../sampletraces.tar.gz && \
+    ./bin/moonshine -dir sampletraces/ -distill getting-started/distill.json
+
+# Download and build syzkaller (version f48c20b8f9b2a6c26629f11cc15e1c9c316572c8, used by MoonShine)
+RUN git clone https://github.com/google/syzkaller syzkaller-f48c20 && \
+    cd syzkaller-f48c20 && \
+    git checkout f48c20b8f9b2a6c26629f11cc15e1c9c316572c8
+WORKDIR /home/syzkaller-f48c20
+RUN go mod init && \
+    go mod tidy && \
+    go mod vendor && \
+    make -j`nproc`
+WORKDIR /home

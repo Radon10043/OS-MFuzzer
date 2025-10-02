@@ -13,12 +13,14 @@ ENV TZ=Asia/Shanghai
 COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
 
 # Install basic packages
+# TODO: Some packages can be removed to reduce image size
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
 RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
 RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
 RUN apt-get install -y config-package-dev debhelper-compat adb fastboot libncurses5 cloc openssh-server
+RUN apt-get install -y dwarves unzip
 
 # Install Vulkan-related packages to boost performance of cuttlefish virtual device
 RUN apt-get install -y vulkan-tools libegl1-mesa libegl1 libgles2-mesa libgles2 libvulkan1
@@ -58,16 +60,12 @@ RUN curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo 
     chmod a+x /usr/bin/repo
 
 # Download syzkaller & SyzMeta
-RUN git clone https://github.com/google/syzkaller
+RUN git clone https://github.com/google/syzkaller && \
+    cd syzkaller && \
+    git checkout 4b25d554e5643186ba6a09429089ac0275f7573b
 RUN --mount=type=secret,id=github_token \
     SECRET_CONTENT=$(cat /run/secrets/github_token) && \
     git clone -b dev --recurse-submodules https://Radon10043:${SECRET_CONTENT}@github.com/Radon10043/SyzMeta.git
-
-# Patch fuzzers (for offline environment)
-# RUN go install github.com/vektra/mockery/v2@v2.45.1
-# RUN git -C syzkaller checkout 4b25d554 && \
-#     git -C syzkaller apply /home/SyzMeta/patch/offline.patch && \
-#     git -C SyzMeta/syzkaller apply /home/SyzMeta/patch/offline.patch /home/SyzMeta/patch/create-image.patch
 
 # Build fuzzers
 RUN make -C syzkaller generate -j`nproc` && \

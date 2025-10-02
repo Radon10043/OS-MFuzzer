@@ -13,8 +13,8 @@ COPY cuttlefish.patch /home/cuttlefish.patch
 # Install basic packages
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-RUN apt-get install -y sudo git devscripts equivs config-package-dev debhelper-compat golang curl \
-    libncurses5
+RUN apt-get install -y sudo git devscripts equivs config-package-dev debhelper-compat golang curl
+RUN apt-get install -y libncurses5 adb
 
 # Install Vulkan-related packages to boost performance of cuttlefish virtual device
 RUN apt-get install -y vulkan-tools libegl1-mesa libegl1 libgles2-mesa libgles2 libvulkan1
