@@ -22,7 +22,7 @@ RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
 RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex bison bc debootstrap
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
-RUN apt-get install -y language-pack-en-base rsync file openssh-server ragel dwarves unzip
+RUN apt-get install -y language-pack-en-base rsync file openssh-server ragel dwarves unzip gettext
 
 # Install golang-1.23.6
 RUN wget -nc https://go.dev/dl/go1.23.6.linux-amd64.tar.gz && \

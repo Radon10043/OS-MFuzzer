@@ -20,7 +20,7 @@ RUN apt-get install -y sudo wget curl git vim build-essential make gcc g++ flex 
 RUN apt-get install -y qemu-system-x86 xz-utils cmake gdb libdw-dev libssl-dev sqlite3 libsqlite3-dev
 RUN apt-get install -y python3 python3-pip python3-dev language-pack-en-base rsync file devscripts equivs
 RUN apt-get install -y config-package-dev debhelper-compat adb fastboot libncurses5 cloc openssh-server
-RUN apt-get install -y dwarves unzip
+RUN apt-get install -y dwarves unzip gettext
 
 # Install Vulkan-related packages to boost performance of cuttlefish virtual device
 RUN apt-get install -y vulkan-tools libegl1-mesa libegl1 libgles2-mesa libgles2 libvulkan1
