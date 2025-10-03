@@ -1,17 +1,22 @@
+# Usage: docker compose -f $THIS_FILE up --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
+
 #############################
 ### General configuration ###
 #############################
 x-base: &base
-  image: syzmeta:latest
   privileged: true
   cpuset: "0-19"
   cpus: "2"
   environment: &env
     KERNEL: /vol/linux/v5.4.296
-    IMAGE: /vol/Debian
-    VMOUNT: 1
+    IMAGE: /vol/images/Debian
+    VMCOUNT: 1
     SYZMETA: /vol/SyzMeta
     SYZKALLER: /vol/syzkaller
+    MOONSHINE: /vol/moonshine
+    HEALER: /vol/healer
+    MOCK: /vol/mock
+    ACTOR: /vol/actor
   volumes:
     - /mnt/d/volumes/kernel-fuzzing:/vol
     - $PWD/volumes/kernel-fuzzing/linux-v5.4.296:/vol2
@@ -24,117 +29,109 @@ x-base: &base
 name: linux-5_4_296
 
 services:
-  SyzMeta-000:
+  SyzMeta:
     <<: *base
+    image: syzmeta:latest
     environment:
       <<: *env
       SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-000
+      OUT_ROOT: /vol2/SyzMeta
     command: |
       bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
-  SyzMeta-001:
+  syzkaller:
     <<: *base
+    image: syzkaller:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-001
+      OUT_ROOT: /vol2/syzkaller/
     command: |
       bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
-  SyzMeta-002:
+  moonshine:
     <<: *base
+    image: moonshine:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-002
+      OUT_ROOT: /vol2/moonshine
     command: |
       bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
-  SyzMeta-003:
+  healer:
     <<: *base
+    image: healer:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-003
+      OUT_ROOT: /vol2/healer
     command: |
       bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cd $$HEALER/target/release &&
+        ./healer \
+          -k $$KERNEL/arch/x86/boot/bzImage \
+          -d $$IMAGE/bullseye.img \
+          --ssh-key $$IMAGE/bullseye.id_rsa \
+          -j 1 \
+          --disable-repro \
+          -o $$WORKDIR > $$WORKDIR/healer.log 2>&1
       '
 
-  SyzMeta-004:
+  mock:
     <<: *base
+    image: mock:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-004
+      OUT_ROOT: /vol2/mock
     command: |
       bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR
+        cd $$MOCK/tools/model_manager
+        python3 manage.py runserver &
+        cd $$MOCK/target/release &&
+        ./healer \
+          -k $$KERNEL/arch/x86/boot/bzImage \
+          -d $$IMAGE/bullseye.img \
+          --ssh-key $$IMAGE/bullseye.id_rsa \
+          -j 1 \
+          --disable-repro \
+          -o $$WORKDIR > $$WORKDIR/mock.log 2>&1
       '
 
-  syzkaller-000:
+  actor:
     <<: *base
+    image: actor:latest
     environment:
       <<: *env
-      WORKDIR: /vol2/syzkaller/out-000
+      OUT_ROOT: /vol2/actor
+      KERNEL: /vol/linux/v5.4.296.actor
+      IMAGE: /vol/images/Debian-for-actor-v5.4.296
     command: |
       bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
-      '
-
-  syzkaller-001:
-    <<: *base
-    environment:
-      <<: *env
-      WORKDIR: /vol2/syzkaller/out-001
-    command: |
-      bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
-      '
-
-  syzkaller-002:
-    <<: *base
-    environment:
-      <<: *env
-      WORKDIR: /vol2/syzkaller/out-002
-    command: |
-      bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
-      '
-
-  syzkaller-003:
-    <<: *base
-    environment:
-      <<: *env
-      WORKDIR: /vol2/syzkaller/out-003
-    command: |
-      bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
-      '
-
-  syzkaller-004:
-    <<: *base
-    environment:
-      <<: *env
-      WORKDIR: /vol2/syzkaller/out-004
-    command: |
-      bash -c '
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cp $$SYZMETA/data/actor/ptrs.v5.4.296.txt $$WORKDIR/ptrs.txt &&
+        cat $$SYZMETA/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
+        $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
       '
