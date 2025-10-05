@@ -11,6 +11,7 @@ x-base: &base
     TARGET: aosp_cf_x86_64_phone-userdebug
     SYZMETA: /vol/SyzMeta
     SYZKALLER: /vol/syzkaller
+    MOONSHINE: /vol/moonshine
   volumes:
     - /mnt/d/volumes/kernel-fuzzing:/vol
     - $PWD/volumes/kernel-fuzzing/common-android13-5.10:/vol2
@@ -40,10 +41,25 @@ x-cvd-base: &cvd-base
 #############################
 ### Fuzzing configuration ###
 #############################
-x-fuzz-base: &fuzz-base
+x-syzmeta-base: &syzmeta-base
   <<: *base
+  cpus: 2
   image: syzmeta:latest
-  environment: &fuzz-env
+  environment: &syzmeta-env
+    <<: *env
+
+x-syzkaller-base: &syzkaller-base
+  <<: *base
+  cpus: 2
+  image: syzkaller:latest
+  environment: &syzkaller-env
+    <<: *env
+
+x-moonshine-base: &moonshine-base
+  <<: *base
+  cpus: 2
+  image: moonshine:latest
+  environment: &moonshine-env
     <<: *env
 
 ####################
@@ -120,12 +136,12 @@ services:
         timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
-  run-cvd:
+  run-cvd-for-fuzz:
     <<: *cvd-base
-    cpuset: "0-9"
+    cpus: 20
     image: cuttlefish:v1.15.0
     profiles:
-      - cvd
+      - cvd-for-fuzz
     command: |
       bash -c '
         cd $$IMAGE &&
@@ -142,16 +158,15 @@ services:
 
   # Fuzzing via SyzMeta
   SyzMeta-000:
-    <<: *fuzz-base
-    cpuset: "0"
+    <<: *syzmeta-base
     environment:
-      <<: *fuzz-env
+      <<: *syzmeta-env
       SERVADDR: 127.0.0.1:50000 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/SyzMeta/out-000
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6520 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzmeta
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -160,16 +175,15 @@ services:
       '
 
   SyzMeta-001:
-    <<: *fuzz-base
-    cpuset: "1"
+    <<: *syzmeta-base
     environment:
-      <<: *fuzz-env
+      <<: *syzmeta-env
       SERVADDR: 127.0.0.1:50001 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/SyzMeta/out-001
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6521 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzmeta
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -178,16 +192,15 @@ services:
       '
 
   SyzMeta-002:
-    <<: *fuzz-base
-    cpuset: "2"
+    <<: *syzmeta-base
     environment:
-      <<: *fuzz-env
+      <<: *syzmeta-env
       SERVADDR: 127.0.0.1:50002 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/SyzMeta/out-002
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6522 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzmeta
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -196,16 +209,15 @@ services:
       '
 
   SyzMeta-003:
-    <<: *fuzz-base
-    cpuset: "3"
+    <<: *syzmeta-base
     environment:
-      <<: *fuzz-env
+      <<: *syzmeta-env
       SERVADDR: 127.0.0.1:50003 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/SyzMeta/out-003
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6523 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzmeta
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -214,16 +226,15 @@ services:
       '
 
   SyzMeta-004:
-    <<: *fuzz-base
-    cpuset: "4"
+    <<: *syzmeta-base
     environment:
-      <<: *fuzz-env
+      <<: *syzmeta-env
       SERVADDR: 127.0.0.1:50004 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/SyzMeta/out-004
       SYZKALLER: /vol/SyzMeta/syzkaller
       DEVICE: 0.0.0.0:6524 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzmeta
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -233,15 +244,14 @@ services:
 
   # Fuzzing via syzkaller
   syzkaller-000:
-    <<: *fuzz-base
-    cpuset: "5"
+    <<: *syzkaller-base
     environment:
-      <<: *fuzz-env
+      <<: *syzkaller-env
       SERVADDR: 127.0.0.1:50005 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/syzkaller/out-000
       DEVICE: 0.0.0.0:6525 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzkaller
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -250,15 +260,14 @@ services:
       '
 
   syzkaller-001:
-    <<: *fuzz-base
-    cpuset: "6"
+    <<: *syzkaller-base
     environment:
-      <<: *fuzz-env
+      <<: *syzkaller-env
       SERVADDR: 127.0.0.1:50006 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/syzkaller/out-001
       DEVICE: 0.0.0.0:6526 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzkaller
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -267,15 +276,14 @@ services:
       '
 
   syzkaller-002:
-    <<: *fuzz-base
-    cpuset: "7"
+    <<: *syzkaller-base
     environment:
-      <<: *fuzz-env
+      <<: *syzkaller-env
       SERVADDR: 127.0.0.1:50007 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/syzkaller/out-002
       DEVICE: 0.0.0.0:6527 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzkaller
     command: >
       bash -c "
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -284,15 +292,14 @@ services:
       "
 
   syzkaller-003:
-    <<: *fuzz-base
-    cpuset: "8"
+    <<: *syzkaller-base
     environment:
-      <<: *fuzz-env
+      <<: *syzkaller-env
       SERVADDR: 127.0.0.1:50008 # <- Please ensure this port is not used by other services since we use host networking
       WORKDIR: /vol2/syzkaller/out-003
       DEVICE: 0.0.0.0:6528 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzkaller
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
@@ -301,17 +308,102 @@ services:
       '
 
   syzkaller-004:
-    <<: *fuzz-base
-    cpuset: "9"
+    <<: *syzkaller-base
     environment:
-      - SERVADDR=127.0.0.1:50009 # <- Please ensure this port is not used by other services since we use host networking
-      - WORKDIR=/vol2/syzkaller/out-004
-      - DEVICE=0.0.0.0:6529 # <- Please ensure this virtual device is not used by other services
+      <<: *syzkaller-env
+      SERVADDR: 127.0.0.1:50009 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-004
+      DEVICE: 0.0.0.0:6529 # <- Please ensure this virtual device is not used by other services
     profiles:
-      - fuzzers
+      - syzkaller
     command: |
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+      '
+
+  moonshine-000:
+    <<: *moonshine-base
+    environment:
+      <<: *moonshine-env
+      SERVADDR: 127.0.0.1:50010 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/moonshine/out-000
+      DEVICE: 0.0.0.0:6520 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - moonshine
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+      '
+
+  moonshine-001:
+    <<: *moonshine-base
+    environment:
+      <<: *moonshine-env
+      SERVADDR: 127.0.0.1:50011 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/moonshine/out-001
+      DEVICE: 0.0.0.0:6521 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - moonshine
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+      '
+
+  moonshine-002:
+    <<: *moonshine-base
+    environment:
+      <<: *moonshine-env
+      SERVADDR: 127.0.0.1:50012 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/moonshine/out-002
+      DEVICE: 0.0.0.0:6522 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - moonshine
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+      '
+
+  moonshine-003:
+    <<: *moonshine-base
+    environment:
+      <<: *moonshine-env
+      SERVADDR: 127.0.0.1:50013 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/moonshine/out-003
+      DEVICE: 0.0.0.0:6523 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - moonshine
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+      '
+
+  moonshine-004:
+    <<: *moonshine-base
+    environment:
+      <<: *moonshine-env
+      SERVADDR: 127.0.0.1:50014 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/moonshine/out-004
+      DEVICE: 0.0.0.0:6524 # <- Please ensure this virtual device is not used by other services
+    profiles:
+      - moonshine
+    command: |
+      bash -c '
+        cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
+        mkdir -p $$WORKDIR &&
+        cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
+        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '

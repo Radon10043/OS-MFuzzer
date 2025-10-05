@@ -43,6 +43,7 @@ x-cvd-base: &cvd-base
 x-fuzz-base: &fuzz-base
   <<: *base
   image: syzmeta:latest
+  cpus: 2
   environment: &fuzz-env
     <<: *env
 
@@ -98,7 +99,7 @@ services:
           --impldir $$MRDIR \
           --syzkaller $$SYZKALLER \
           --kernel_obj $$KERNEL_OBJ \
-          --device 0.0.0.0:6660 > eval-common-android16-6.12.log 2>&1
+          --device 0.0.0.0:6520 > eval-common-android16-6.12.log 2>&1
       '
 
   # Boot Android virtual devices
@@ -116,19 +117,18 @@ services:
         yes | launch_cvd -daemon \
           -kernel_path=$$KERNEL_OBJ/bzImage \
           -initramfs_path=$$KERNEL_OBJ/initramfs.img \
-          -resume=false \
-          -base_instance_num=141 &&
+          -resume=false &&
         LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
         timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
   # Boot Android virtual devices
-  run-cvd:
+  run-cvd-for-fuzz:
     <<: *cvd-base
-    cpuset: "0-9"
+    cpus: 20
     image: cuttlefish:v1.15.0
     profiles:
-      - cvd
+      - cvd-for-fuzz
     command: |
       bash -c '
         cd $$IMAGE &&
@@ -146,7 +146,6 @@ services:
   # Fuzzing via SyzMeta
   SyzMeta-000:
     <<: *fuzz-base
-    cpuset: "0"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50000  # <- Please ensure this port is not used by other services since we use host networking
@@ -164,7 +163,6 @@ services:
 
   SyzMeta-001:
     <<: *fuzz-base
-    cpuset: "1"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50001  # <- Please ensure this port is not used by other services since we use host networking
@@ -182,7 +180,6 @@ services:
 
   SyzMeta-002:
     <<: *fuzz-base
-    cpuset: "2"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50002  # <- Please ensure this port is not used by other services since we use host networking
@@ -200,7 +197,6 @@ services:
 
   SyzMeta-003:
     <<: *fuzz-base
-    cpuset: "3"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50003  # <- Please ensure this port is not used by other services since we use host networking
@@ -218,7 +214,6 @@ services:
 
   SyzMeta-004:
     <<: *fuzz-base
-    cpuset: "4"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50004  # <- Please ensure this port is not used by other services since we use host networking
@@ -237,7 +232,6 @@ services:
   # Fuzzing via syzkaller
   syzkaller-000:
     <<: *fuzz-base
-    cpuset: "5"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50005 # <- Please ensure this port is not used by other services since we use host networking
@@ -254,7 +248,6 @@ services:
 
   syzkaller-001:
     <<: *fuzz-base
-    cpuset: "6"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50006 # <- Please ensure this port is not used by other services since we use host networking
@@ -271,7 +264,6 @@ services:
 
   syzkaller-002:
     <<: *fuzz-base
-    cpuset: "7"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50007 # <- Please ensure this port is not used by other services since we use host networking
@@ -288,7 +280,6 @@ services:
 
   syzkaller-003:
     <<: *fuzz-base
-    cpuset: "8"
     environment:
       <<: *fuzz-env
       SERVADDR: 127.0.0.1:50008 # <- Please ensure this port is not used by other services since we use host networking
@@ -305,11 +296,11 @@ services:
 
   syzkaller-004:
     <<: *fuzz-base
-    cpuset: "9"
     environment:
-      - SERVADDR=127.0.0.1:50009 # <- Please ensure this port is not used by other services since we use host networking
-      - WORKDIR=/vol2/syzkaller/out-004
-      - DEVICE=0.0.0.0:6529 # <- Please ensure this virtual device is not used by other services
+      <<: *fuzz-env
+      SERVADDR: 127.0.0.1:50009 # <- Please ensure this port is not used by other services since we use host networking
+      WORKDIR: /vol2/syzkaller/out-004
+      DEVICE: 0.0.0.0:6529 # <- Please ensure this virtual device is not used by other services
     profiles:
       - fuzzers
     command: |
