@@ -1,4 +1,4 @@
-# Usage: docker compose -f $THIS_FILE up --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
+# Usage: docker compose -f $THIS_FILE $SERVICE up --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
 
 #############################
 ### General configuration ###
@@ -9,7 +9,7 @@ x-base: &base
   cpus: "2"
   environment: &env
     KERNEL: /vol/linux/v5.10.240
-    IMAGE: /vol/Debian
+    IMAGE: /vol/images/Debian
     VMCOUNT: 1
     SYZMETA: /vol/SyzMeta
     SYZKALLER: /vol/syzkaller
@@ -31,20 +31,22 @@ name: linux-5_10_240
 services:
   SyzMeta:
     <<: *base
+    image: syzmeta:latest
     environment:
       <<: *env
       SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta/out-004
+      WORKDIR: /vol2/SyzMeta
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        $SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   syzkaller:
     <<: *base
+    image: syzkaller:latest
     environment:
       <<: *env
       OUT_ROOT: /vol2/syzkaller/
@@ -53,7 +55,7 @@ services:
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        $SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+        $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   moonshine:

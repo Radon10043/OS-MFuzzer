@@ -1,4 +1,4 @@
-# Usage: docker compose -f $THIS_FILE up --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
+# Usage: docker compose -f $THIS_FILE up $SERVICE --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
 
 #############################
 ### General configuration ###

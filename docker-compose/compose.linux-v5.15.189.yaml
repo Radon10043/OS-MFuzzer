@@ -1,16 +1,15 @@
-# Usage: docker compose -f $THIS_FILE up --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
+# Usage: docker compose -f $THIS_FILE up $SERVICE --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
 
 #############################
 ### General configuration ###
 #############################
 x-base: &base
-  image: syzmeta:latest
   privileged: true
   cpuset: "0-19"
   cpus: "2"
   environment: &env
     KERNEL: /vol/linux/v5.15.189
-    IMAGE: /vol/Debian
+    IMAGE: /vol/images/Debian
     VMCOUNT: 1
     SYZMETA: /vol/SyzMeta
     SYZKALLER: /vol/syzkaller
