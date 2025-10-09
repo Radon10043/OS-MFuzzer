@@ -30,7 +30,7 @@ while [ $EXEC_TIME -lt 86400 ]; do
     sleep 180s
     EXEC_TIME=$((EXEC_TIME + 180))
     echo ========== EXEC_TIME: $EXEC_TIME ==========
-    if [[ $((EXEC_TIME % 10800)) -eq 0 || $(docker ps | grep cvd-for-fuzz | wc -l) -lt 1 ]]; then
+    if [[ $((EXEC_TIME % 3600)) -eq 0 || $(docker ps | grep cvd-for-fuzz | wc -l) -lt 1 ]]; then
         docker compose -f $COMPOSE --profile cvd-for-fuzz down
         docker compose -f $COMPOSE --profile cvd-for-fuzz up -d
     fi
