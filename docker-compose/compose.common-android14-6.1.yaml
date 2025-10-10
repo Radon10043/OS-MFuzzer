@@ -170,7 +170,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   SyzMeta-001:
@@ -187,7 +187,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   SyzMeta-002:
@@ -204,7 +204,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   SyzMeta-003:
@@ -221,7 +221,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   SyzMeta-004:
@@ -238,7 +238,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   # Fuzzing via syzkaller
@@ -255,7 +255,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   syzkaller-001:
@@ -271,7 +271,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   syzkaller-002:
@@ -287,7 +287,7 @@ services:
       bash -c "
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
       "
 
   syzkaller-003:
@@ -303,7 +303,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   syzkaller-004:
@@ -319,7 +319,7 @@ services:
       bash -c '
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   moonshine-000:
@@ -336,7 +336,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-001:
@@ -353,7 +353,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-002:
@@ -370,7 +370,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-003:
@@ -387,7 +387,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-004:
@@ -404,5 +404,5 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '

@@ -133,7 +133,7 @@ services:
           -resume=false \
           -base_instance_num=101 &&
         LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
-        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+        tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
   run-cvd-for-fuzz:
@@ -153,7 +153,7 @@ services:
           -resume=false \
           -num_instances=10 &&
         LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
-        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+        tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
   # Fuzzing via SyzMeta
@@ -337,7 +337,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-001:
@@ -354,7 +354,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-002:
@@ -371,7 +371,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-003:
@@ -388,7 +388,7 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   moonshine-004:
@@ -405,5 +405,5 @@ services:
         cat $$SYZMETA/configs/fuzz/android.cfg | envsubst > /home/android.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/android.cfg > $$WORKDIR/moonshine.log 2>&1
       '

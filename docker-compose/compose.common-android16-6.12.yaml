@@ -134,7 +134,7 @@ services:
           -initramfs_path=$$KERNEL_OBJ/initramfs.img \
           -resume=false &&
         LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
-        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+        tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
   # Boot Android virtual devices
@@ -155,7 +155,7 @@ services:
           -resume=false \
           -num_instances=10 &&
         LAUNCH_CVD_PID=$(pgrep -f launch_cvd) &&
-        timeout -s KILL 24h tail --pid=$$LAUNCH_CVD_PID -f /dev/null
+        tail --pid=$$LAUNCH_CVD_PID -f /dev/null
       '
 
   # Fuzzing via SyzMeta

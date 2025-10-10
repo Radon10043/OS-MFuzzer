@@ -1,4 +1,4 @@
-# Usage: docker compose -f $THIS_FILE up $SERVICE --scale $SERVICE=$NUM_INSTANCE --timeout 86400 -d
+# Usage: docker compose -f $THIS_FILE up $SERVICE --scale $SERVICE=$NUM_INSTANCE -d
 
 #############################
 ### General configuration ###
@@ -13,6 +13,10 @@ x-base: &base
     VMCOUNT: 1
     SYZMETA: /vol/SyzMeta
     SYZKALLER: /vol/syzkaller
+    MOONSHINE: /vol/moonshine
+    HEALER: /vol/healer
+    MOCK: /vol/mock
+    ACTOR: /vol/actor
   volumes:
     - /mnt/d/volumes/kernel-fuzzing:/vol
     - $PWD/volumes/kernel-fuzzing/linux-v6.12.40:/vol2
@@ -37,7 +41,7 @@ services:
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
 
   syzkaller:
@@ -51,7 +55,7 @@ services:
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
   moonshine:
@@ -67,7 +71,7 @@ services:
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
-        $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/moonshine.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/moonshine.log 2>&1
       '
 
   healer:
@@ -82,7 +86,7 @@ services:
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
         cd $$HEALER/target/release &&
-        ./healer \
+        timeout -s KILL 24h ./healer \
           -k $$KERNEL/arch/x86/boot/bzImage \
           -d $$IMAGE/bullseye.img \
           --ssh-key $$IMAGE/bullseye.id_rsa \
@@ -105,7 +109,7 @@ services:
         cd $$MOCK/tools/model_manager
         python3 manage.py runserver &
         cd $$MOCK/target/release &&
-        ./healer \
+        timeout -s KILL 24h ./healer \
           -k $$KERNEL/arch/x86/boot/bzImage \
           -d $$IMAGE/bullseye.img \
           --ssh-key $$IMAGE/bullseye.id_rsa \
@@ -129,5 +133,5 @@ services:
         mkdir -p $$WORKDIR &&
         cp $$SYZMETA/data/actor/ptrs.v6.12.40.txt $$WORKDIR/ptrs.txt &&
         cat $$SYZMETA/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
-        $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
+        timeout -s KILL 24h $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
       '
