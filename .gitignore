@@ -202,7 +202,7 @@ data/*
 !data/prompts/
 .vscode/*
 !.vscode/settings.json
-bin/*
 docker/*
 !docker/Dockerfile*
+src/viz/output
 workdir/*
