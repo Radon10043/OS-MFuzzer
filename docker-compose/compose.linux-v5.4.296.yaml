@@ -40,6 +40,7 @@ services:
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
       '
@@ -54,6 +55,7 @@ services:
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
