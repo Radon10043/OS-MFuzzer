@@ -1,15 +1,14 @@
 diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index c29976eca4a8..783dec161c68 100644
+index c29976eca4a8..b78e446cb1f0 100644
 --- a/arch/x86/entry/syscalls/syscall_64.tbl
 +++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -400,3 +400,7 @@
+@@ -400,3 +400,6 @@
  545	x32	execveat		__x32_compat_sys_execveat/ptregs
  546	x32	preadv2			__x32_compat_sys_preadv64v2
  547	x32	pwritev2		__x32_compat_sys_pwritev64v2
-+
-+548>---64>-----mycall>->------->-------sys_mycall
-+549>---64>-----mycall2>>------->-------sys_mycall2
-+550>---64>-----mycall3>>------->-------sys_mycall3
++548 64  mycall          sys_mycall
++549 64  mycall2         sys_mycall2
++550 64  mycall3         sys_mycall3
 diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
 index 3578ad248bc9..d76595696ad0 100644
 --- a/arch/x86/kernel/Makefile
