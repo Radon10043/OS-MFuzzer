@@ -59,7 +59,7 @@ def send_email(subject: str, body: str, receiver: str):
         FATAL(f"Failed to send email: {e}")
 
 
-def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
+def gen_iden_config(driver: str, spec: str, corpus: str | None) -> dict:
     """Generate configuration for MR identification.
 
     Parameters
@@ -67,9 +67,9 @@ def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
     driver : str
         Driver name, e.g., "autofs"
     spec : str
-        Abstract path to specification file
-    corpus : str
-        Abstract path to corpus directory
+        Absolute path to specification file
+    corpus : str | None
+        Absolute path to corpus directory
 
     Returns
     -------
@@ -107,12 +107,13 @@ def gen_iden_config(driver: str, spec: str, corpus: str) -> dict:
                 "user": [os.path.join(pmptdir, "calibrator", "vanilla.md")],
             },
         },
-        "corpus": corpus,
         "max_iter": 10,
         "output": outdir,
         "specification": spec,
         "driver_name": driver,
     }
+    if corpus is not None:
+        config["corpus"] = corpus
     return config
 
 
@@ -212,7 +213,7 @@ def iden(args: argparse.Namespace):
     # Identification result will be save in `iden` in the same directory of content.txt
     # Here is an exmaple: v5.15.189/autofs/autofs/Catatonic-mode/content.txt
     specdir = os.path.abspath(args.specdir)
-    corpus = os.path.abspath(args.corpus)
+    corpus = os.path.abspath(args.corpus) if args.corpus is not None else None
     drivers = os.listdir(specdir)
     OKF("Drivers: " + ", ".join(drivers))
     ACTF("Running MR identification ...")
@@ -514,7 +515,7 @@ if __name__ == "__main__":
     # Subparser for MR identification
     iden_parser = subparser.add_parser("iden", help="Run MR identification")
     iden_parser.add_argument("--specdir", type=str, required=True, help="Specification directory")
-    iden_parser.add_argument("--corpus", type=str, required=True, help="Corpus directory")
+    iden_parser.add_argument("--corpus", type=str, default=None, help="Corpus directory")
     iden_parser.set_defaults(func=iden)
 
     # Subparser for MR implementation
