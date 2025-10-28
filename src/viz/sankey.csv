@@ -5,8 +5,3 @@ Linux,v5.15.189,252,240,227,84,142,1
 Linux,v6.1.147,267,255,189,54,135,0
 Linux,v6.6.100,269,260,248,66,181,1
 Linux,v6.12.40,277,166,119,45,74,0
-Android,common-android13-5.10,235,226,216,84,121,10
-Android,common-android13-5.15,252,243,235,86,142,7
-Android,common-android14-6.1,267,257,249,130,101,18
-Android,common-android15-6.6,269,248,239,132,95,12
-Android,common-android16-6.12,277,262,255,144,95,16
