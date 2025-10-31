@@ -1,0 +1,47 @@
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+
+VERS = ["v5.4.296", "v5.10.240", "v5.15.189", "v6.1.147", "v6.6.100", "v6.12.40"]
+FUZZERS = ["SyzMeta", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK"]
+COLORS = [
+    "rgba(78,121,167,0.8)",
+    "rgba(242,142,43,0.8)",
+    "rgba(225,87,89,0.8)",
+    "rgba(118,183,178,0.8)",
+    "rgba(89,161,79,0.8)",
+    "rgba(237,201,72,0.8)",
+]
+
+csvpath = Path(__file__).parent / "bar.csv"
+df = pd.read_csv(csvpath)
+
+fig = go.Figure()
+for i, fuzzer in enumerate(FUZZERS):
+    subdf = df[df["fuzzer"] == fuzzer]
+    fig.add_trace(
+        go.Bar(
+            x=VERS,
+            y=[subdf[subdf["version"] == ver]["crashes"].mean() for ver in VERS],
+            name=fuzzer,
+            marker_color=COLORS[i % len(COLORS)],
+        )
+    )
+fig.update_layout(barmode="group")
+
+fig.update_layout(
+    width=1000,
+    height=400,
+    font=dict(size=16, color="black"),
+    margin=dict(l=10, r=10, t=10, b=10),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+)
+
+outdir = Path(__file__).parent.parent / "viz" / "output"
+outdir.mkdir(exist_ok=True)
+fig.write_html(outdir / "bar.html")
+fig.write_image(outdir / "bar.png", scale=2)
+fig.write_image(outdir / "bar.pdf", scale=2)
+
+print(f"Bar graph saved to {outdir}")
