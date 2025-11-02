@@ -348,7 +348,7 @@ def eval(args: argparse.Namespace):
     args : argparse.Namespace
         Command line arguments
     """
-    root_path = os.path.abspath(args.path)
+    root_path = os.path.abspath(args.impldir)
     kernel_obj = os.path.abspath(args.kernel_obj)
     kernel_typ = args.kernel_typ
     syzkaller = duplicate(args.syzkaller)
@@ -485,15 +485,15 @@ def integrate(args: argparse.Namespace):
             ACTF("Cleaning syzkaller directory ...")
             clean_repo(syzkaller)
         else:
-            FATAL("Syzkaller directory is dirty, please clean it first or use --clean-syzkaller option.")
+            FATAL("Syzkaller directory is dirty, please clean it first or use --clean option.")
 
     # Filter low-quality implementations
     impls = list()
     for path in paths:
         evmk = os.path.join(path, ".eval")
         lqmk = os.path.join(path, ".low_quality")
-        if not os.path.exists(evmk) or os.path.exists(lqmk):
-            continue
+        if not args.allin and (not os.path.exists(evmk) or os.path.exists(lqmk)):
+                continue
         impls.append(path)
 
     # Integrate to syzkaller
@@ -526,7 +526,7 @@ if __name__ == "__main__":
 
     # Subparer for MR evaluation
     linux_eval_parser = subparser.add_parser("eval", help="Run MR evaluation")
-    linux_eval_parser.add_argument("--path", type=str, required=True, help="Path to the root directory of pseudo-syscall")
+    linux_eval_parser.add_argument("--impldir", type=str, required=True, help="Path to the root directory of pseudo-syscall")
     linux_eval_parser.add_argument("--kernel_obj", type=str, required=True, help="Path to the kernel object directory")
     linux_eval_parser.add_argument("--kernel_typ", type=str, required=True, choices=["android", "linux"], help="Type of the kernel")
     linux_eval_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
@@ -547,6 +547,7 @@ if __name__ == "__main__":
     integrate_parser.add_argument("--syzkaller", type=str, required=True, help="Path to the syzkaller directory, program will duplicate it so dont worry about concurrent issues.")
     integrate_parser.add_argument("--impl_root", type=str, required=True, help="Path to the root directory of MR implementation")
     integrate_parser.add_argument("--clean", action="store_true", help="Whether to clean syzkaller directory")
+    integrate_parser.add_argument("--allin", action="store_true", help="Whether to integrate all implementations, including low-quality ones")
     integrate_parser.set_defaults(func=integrate)
 
     load_dotenv()
