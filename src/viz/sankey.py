@@ -169,4 +169,4 @@ fig.write_html(outdir / "sankey.html")
 fig.write_image(outdir / "sankey.png", scale=2)
 fig.write_image(outdir / "sankey.pdf", scale=2)
 
-print(f"Sankey figure saved to {outdir}")
+print(f"Sankey graph saved to {outdir}")
