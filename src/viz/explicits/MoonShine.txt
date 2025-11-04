@@ -1,0 +1,162 @@
+BUG: Bad rss-counter state
+BUG: corrupted list in add_to_unbuddied
+BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!
+BUG: MAX_LOCKDEP_ENTRIES too low!
+BUG: MAX_LOCKDEP_KEYS too low!
+BUG: unable to handle kernel paging request in put_pwq_unlocked
+can't ssh into the instance
+general protection fault in bio_associate_blkg_from_css
+general protection fault in detach_timer
+general protection fault in do_xmote
+general protection fault in dst_dev_put
+general protection fault in __fib6_drop_pcpu_from
+general protection fault in hfs_find_init
+general protection fault in ip6_pol_route
+general protection fault in jfs_flush_journal
+general protection fault in lbmStartIO
+general protection fault in lmLogSync
+general protection fault in loop_queue_rq
+general protection fault in __netif_napi_del
+general protection fault in open_xa_dir
+general protection fault in put_pwq_unlocked
+general protection fault in u2fzero_rng_read
+INFO: task hung in addrconf_verify_work
+INFO: task hung in deactivate_super
+INFO: task hung in gfs2_gl_hash_clear
+INFO: task hung in gfs2_jhead_process_page
+INFO: task hung in __gfs2_lookup
+INFO: task hung in iterate_supers
+INFO: task hung in kernfs_find_and_get_ns
+INFO: task hung in migrate_pages
+INFO: task hung in rcu_pending_exit
+INFO: task hung in start_this_handle
+INFO: task hung in synchronize_rcu
+INFO: task hung in uevent_show
+INFO: task hung in write_mmp_block_thawed
+KASAN: global-out-of-bounds Read in nls_uniname_cmp
+KASAN: global-out-of-bounds Read in rcu_pending_exit
+KASAN: null-ptr-deref Write in btrfs_root_node
+KASAN: null-ptr-deref Write in xlog_cil_commit
+KASAN: out-of-bounds Read in leaf_paste_entries
+KASAN: out-of-bounds Read in ntfs_attr_make_non_resident
+KASAN: slab-out-of-bounds Read in build_sit_entries
+KASAN: slab-out-of-bounds Read in hfsplus_bnode_read
+KASAN: slab-out-of-bounds Read in memcg_rstat_updated
+KASAN: slab-out-of-bounds Write in udf_write_aext
+KASAN: slab-use-after-free Read in jfs_lazycommit
+KASAN: slab-use-after-free Read in release_metapage
+KASAN: stack-out-of-bounds Read in do_encrypt
+KASAN: stack-out-of-bounds Read in gfs2_file_buffered_write
+KASAN: use-after-free Read in __ext4_iget
+KASAN: use-after-free Read in hdm_disconnect
+KASAN: use-after-free Read in jfs_lazycommit
+KASAN: use-after-free Read in nilfs_test_metadata_dirty
+KASAN: use-after-free Read in z3fold_zpool_map
+kernel BUG in close_ctree
+kernel BUG in dbBackSplit
+kernel BUG in do_journal_end
+kernel BUG in gfs2_glock_nq
+kernel BUG in gfs2_lm_withdraw
+kernel BUG in gfs2_withdraw
+kernel BUG in hfs_write_inode
+kernel BUG in jfs_evict_inode
+kernel BUG in new_curseg
+kernel BUG in ntfs_perform_write
+kernel BUG in ntfs_readpage
+kernel BUG in reiserfs_in_journal
+kernel BUG in reiserfs_update_sd_size
+kernel BUG in z3fold_page_migrate
+kernel panic: System is deadlocked on memory
+lost connection to test machine
+no output from test machine
+possible deadlock in assign_fw
+possible deadlock in blkdev_put
+possible deadlock in blk_trace_ioctl
+possible deadlock in btrfs_dirty_inode
+possible deadlock in btrfs_find_free_objectid
+possible deadlock in __btrfs_release_delayed_node
+possible deadlock in btrfs_return_ino
+possible deadlock in btrfs_run_dev_stats
+possible deadlock in btrfs_tree_lock_nested
+possible deadlock in console_lock_spinning_enable
+possible deadlock in console_trylock_spinning
+possible deadlock in ext4_map_blocks
+possible deadlock in ext4_mb_initialize_context
+possible deadlock in hci_conn_hash_flush
+possible deadlock in hci_dev_do_close
+possible deadlock in hfsplus_block_free
+possible deadlock in hfsplus_get_block
+possible deadlock in jfs_set_acl
+possible deadlock in lo_ioctl
+possible deadlock in lookup_slow
+possible deadlock in loop_control_ioctl
+possible deadlock in loop_set_status
+possible deadlock in map_mft_record
+possible deadlock in mnt_want_write_file
+possible deadlock in __ntfs_clear_inode
+possible deadlock in ntfs_read_folio
+possible deadlock in ntfs_readpage
+possible deadlock in ocfs2_reserve_suballoc_bits
+possible deadlock in ocfs2_try_remove_refcount_tree
+possible deadlock in open_xa_dir
+possible deadlock in rfkill_fop_write
+possible deadlock in sco_conn_del
+possible deadlock in start_creating
+possible deadlock in start_transaction
+possible deadlock in __submit_bio
+possible deadlock in xfs_bmapi_convert_delalloc
+possible deadlock in xfs_can_free_eofblocks
+possible deadlock in xfs_dquot_disk_alloc
+possible deadlock in xfs_icwalk_ag
+possible deadlock in xfs_ilock_attr_map_shared
+possible deadlock in xfs_inactive_truncate
+possible deadlock in xfs_qm_dqget
+possible deadlock in xfs_qm_dqget_cache_lookup
+possible deadlock in xfs_setattr_size
+possible deadlock in xfs_trans_alloc_inode
+stack segment fault in memcg_rstat_updated
+suppressed report
+SYZFAIL: open(/dev/rfkill) failed
+SYZFAIL: posix_spawn failed
+UBSAN: shift-out-of-bounds in parse_options
+WARNING in account_page_dirtied
+WARNING in batadv_softif_create_vlan
+WARNING in bdev_read
+WARNING in __brelse
+WARNING in btrfs_free_fs_root
+WARNING in btrfs_orphan_add
+WARNING in btrfs_run_delayed_refs
+WARNING in call_timer_fn
+WARNING in chown_common
+WARNING in dev_mc_add
+WARNING in do_mkdirat
+WARNING in firmware_fallback_sysfs
+WARNING in __folio_mark_dirty
+WARNING in gfs2_put_super
+WARNING in hci_conn_timeout
+WARNING in hfs_bnode_create
+WARNING in ib_register_device
+WARNING in ieee80211_bss_info_change_notify
+WARNING in ieee80211_check_rate_mask
+WARNING in ieee80211_vif_release_channel
+WARNING in init_timer_key
+WARNING in iomap_dio_rw
+WARNING in kvm_put_kvm
+WARNING in load_alloc_bitmap
+WARNING in notify_change
+WARNING in process_one_work
+WARNING in reiserfs_put_super
+WARNING in remove_vm_area
+WARNING in sched_mm_cid_remote_clear
+WARNING in __set_page_dirty
+WARNING in srcu_check_nmi_safety
+WARNING in try_check_zero
+WARNING in udf_truncate_extents
+WARNING in untrack_pfn
+WARNING in vkms_get_vblank_timestamp
+WARNING in __writeback_inodes_sb_nr
+WARNING in xfs_destroy_mount_workqueues
+WARNING: locking bug in f2fs_getxattr
+WARNING: locking bug in rcu_pending_exit
+WARNING: locking bug in rcu_pending_pcpu_dequeue
+WARNING: suspicious RCU usage in sta_remove_link

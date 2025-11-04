@@ -1,0 +1,193 @@
+BUG: Bad rss-counter state
+BUG: corrupted list in add_to_unbuddied
+BUG: corrupted list in migrate_pages
+BUG: corrupted list in xlog_cil_commit
+BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!
+BUG: MAX_LOCKDEP_ENTRIES too low!
+BUG: MAX_LOCKDEP_KEYS too low!
+BUG: soft lockup in corrupted
+BUG: unable to handle kernel NULL pointer dereference in deactivate_slab
+BUG: unable to handle kernel NULL pointer dereference in __put_partials
+can't ssh into the instance
+general protection fault in bch2_dev_do_discards
+general protection fault in bio_associate_blkg_from_css
+general protection fault in __blkcg_rstat_flush
+general protection fault in do_xmote
+general protection fault in dst_dev_put
+general protection fault in __fib6_drop_pcpu_from
+general protection fault in hfs_find_init
+general protection fault in ip6_pol_route
+general protection fault in lbmStartIO
+general protection fault in lmLogSync
+general protection fault in open_xa_dir
+general protection fault in put_pwq_unlocked
+general protection fault in test_alloc_bitmap
+INFO: rcu detected stall in __blk_mq_run_hw_queue
+INFO: rcu detected stall in corrupted
+INFO: rcu detected stall in disk_check_events
+INFO: rcu detected stall in do_idle
+INFO: rcu detected stall in e1000_watchdog
+INFO: rcu detected stall in generic_file_write_iter
+INFO: rcu detected stall in handle_softirqs
+INFO: rcu detected stall in hci_cmd_timeout
+INFO: rcu detected stall in hub_event
+INFO: rcu detected stall in sock_write_iter
+INFO: rcu detected stall in tx
+INFO: task hung in btrfs_commit_transaction
+INFO: task hung in deactivate_super
+INFO: task hung in do_coredump
+INFO: task hung in do_unlinkat
+INFO: task hung in ext4_map_blocks
+INFO: task hung in f2fs_balance_fs
+INFO: task hung in find_inode
+INFO: task hung in gfs2_gl_hash_clear
+INFO: task hung in gfs2_jhead_process_page
+INFO: task hung in __gfs2_lookup
+INFO: task hung in gfs2_recover_journal
+INFO: task hung in hub_port_init
+INFO: task hung in iterate_supers
+INFO: task hung in migrate_pages
+INFO: task hung in migrate_pages_batch
+INFO: task hung in misc_open
+INFO: task hung in nfc_rfkill_set_block
+INFO: task hung in rcu_pending_exit
+INFO: task hung in rfkill_fop_open
+INFO: task hung in rfkill_fop_write
+INFO: task hung in rfkill_global_led_trigger_worker
+INFO: task hung in rfkill_register
+INFO: task hung in rfkill_sync_work
+INFO: task hung in rfkill_unregister
+INFO: task hung in start_this_handle
+INFO: task hung in synchronize_rcu
+INFO: task hung in uevent_show
+INFO: task hung in xlog_grant_head_check
+INFO: trying to register non-static key in gsmld_write
+KASAN: global-out-of-bounds Read in nls_uniname_cmp
+KASAN: global-out-of-bounds Read in rcu_pending_exit
+KASAN: global-out-of-bounds Read in rcu_pending_pcpu_dequeue
+KASAN: null-ptr-deref Write in xlog_cil_commit
+KASAN: out-of-bounds Read in leaf_paste_entries
+KASAN: slab-out-of-bounds Read in __ext4_iget
+KASAN: slab-out-of-bounds Read in open_xa_dir
+KASAN: slab-out-of-bounds Read in test_alloc_bitmap
+KASAN: slab-out-of-bounds Write in udf_write_aext
+KASAN: slab-use-after-free Read in hdm_disconnect
+KASAN: slab-use-after-free Read in jfs_lazycommit
+KASAN: slab-use-after-free Read in release_metapage
+KASAN: stack-out-of-bounds Read in do_encrypt
+KASAN: stack-out-of-bounds Read in gfs2_file_buffered_write
+KASAN: use-after-free Read in hdm_disconnect
+KASAN: use-after-free Read in jfs_lazycommit
+KASAN: use-after-free Read in siw_query_port
+KASAN: use-after-free Read in test_alloc_bitmap
+KASAN: wild-memory-access Read in __timer_delete_sync
+kernel BUG in close_ctree
+kernel BUG in do_journal_end
+kernel BUG in gfs2_assert_warn_i
+kernel BUG in gfs2_glock_nq
+kernel BUG in gfs2_withdraw
+kernel BUG in hfs_write_inode
+kernel BUG in ntfs_perform_write
+kernel BUG in z3fold_page_migrate
+no output from test machine
+possible deadlock in blk_trace_ioctl
+possible deadlock in blk_trace_setup
+possible deadlock in __btrfs_release_delayed_node
+possible deadlock in btrfs_tree_lock_nested
+possible deadlock in console_flush_all
+possible deadlock in console_lock_spinning_enable
+possible deadlock in console_trylock_spinning
+possible deadlock in deactivate_super
+possible deadlock in dqget
+possible deadlock in ext4_inline_data_truncate
+possible deadlock in ext4_map_blocks
+possible deadlock in ext4_truncate
+possible deadlock in f2fs_invalidate_blocks
+possible deadlock in filemap_fault
+possible deadlock in freeze_super
+possible deadlock in gfs2_trans_begin
+possible deadlock in hci_dev_do_close
+possible deadlock in hfsplus_get_block
+possible deadlock in kernfs_remove
+possible deadlock in lo_ioctl
+possible deadlock in loop_control_ioctl
+possible deadlock in loop_set_status
+possible deadlock in map_mft_record
+possible deadlock in mnt_want_write_file
+possible deadlock in nilfs_bmap_clear
+possible deadlock in nilfs_bmap_lookup_at_level
+possible deadlock in __ntfs_clear_inode
+possible deadlock in ntfs_file_mmap
+possible deadlock in ntfs_read_folio
+possible deadlock in ntfs_readpage
+possible deadlock in ocfs2_get_system_file_inode
+possible deadlock in ocfs2_init_acl
+possible deadlock in ocfs2_reserve_suballoc_bits
+possible deadlock in open_xa_dir
+possible deadlock in page_cache_ra_unbounded
+possible deadlock in process_scheduled_works
+possible deadlock in rfkill_fop_write
+possible deadlock in sco_conn_del
+possible deadlock in shmem_acquire_dquot
+possible deadlock in start_creating
+possible deadlock in start_transaction
+possible deadlock in __submit_bio
+possible deadlock in v2_read_dquot
+possible deadlock in v2_write_dquot
+possible deadlock in xfs_bmapi_convert_delalloc
+possible deadlock in xfs_can_free_eofblocks
+possible deadlock in xfs_dquot_disk_alloc
+possible deadlock in xfs_fs_dirty_inode
+possible deadlock in xfs_icwalk_ag
+possible deadlock in xfs_ilock_attr_map_shared
+possible deadlock in xfs_inactive_truncate
+possible deadlock in xfs_qm_dqget
+possible deadlock in xfs_qm_dqget_cache_lookup
+possible deadlock in xfs_setattr_size
+possible deadlock in xfs_trans_dqresv
+stack segment fault in memcg_rstat_updated
+suppressed report
+SYZFAIL: can't reallocate
+UBSAN: array-index-out-of-bounds in rcu_pending_rcu_cb
+UBSAN: shift-out-of-bounds in ocfs2_fill_super
+UBSAN: shift-out-of-bounds in parse_options
+unregister_netdevice: waiting for DEV to become free
+WARNING in account_page_dirtied
+WARNING in __alloc_frozen_pages_noprof
+WARNING in bdev_read
+WARNING in btrfs_free_fs_root
+WARNING in call_timer_fn
+WARNING in chown_common
+WARNING in cleanup_mnt
+WARNING in dbAdjTree
+WARNING in dev_mc_add
+WARNING in do_mkdirat
+WARNING in do_mknodat
+WARNING in firmware_fallback_sysfs
+WARNING in __folio_mark_dirty
+WARNING in hci_conn_timeout
+WARNING in ib_register_device
+WARNING in ieee80211_check_rate_mask
+WARNING in ieee80211_vif_release_channel
+WARNING in iomap_dio_rw
+WARNING in kvm_put_kvm
+WARNING in load_alloc_bitmap
+WARNING in mark_buffer_dirty
+WARNING in nilfs_dat_commit_end
+WARNING in process_one_work
+WARNING in __rate_control_send_low
+WARNING in reiserfs_lookup
+WARNING in remove_vm_area
+WARNING in __set_page_dirty
+WARNING in srcu_check_nmi_safety
+WARNING in try_check_zero
+WARNING in udf_truncate_extents
+WARNING in untrack_pfn
+WARNING in __ww_mutex_wound
+WARNING in z_erofs_lz4_decompress
+WARNING: locking bug in ext4_mb_add_groupinfo
+WARNING: locking bug in f2fs_getxattr
+WARNING: locking bug in rcu_pending_exit
+WARNING: locking bug in rcu_pending_pcpu_dequeue
+WARNING: ODEBUG bug in usb_unbind_interface
+WARNING: suspicious RCU usage in sta_remove_link
