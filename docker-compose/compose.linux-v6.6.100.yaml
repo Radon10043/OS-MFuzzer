@@ -29,6 +29,51 @@ x-base: &base
 name: linux-6_6_100
 
 services:
+  impl:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v6.6.100
+      http_proxy: ""
+      https_proxy: ""
+    command: >
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          impl \
+          --idendir $$MRDIR \
+          --syzkaller $$SYZKALLER > impl-woRAG-linux.v6.6.100.log 2>&1
+      '
+
+  eval:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v6.6.100
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          eval \
+          --impldir $$MRDIR \
+          --syzkaller $$SYZKALLER \
+          --kernel_obj $$KERNEL \
+          --kernel_typ linux \
+          --image_obj $$IMAGE > eval-woRAG-linux.v6.6.100.log 2>&1
+      '
+
   SyzMeta:
     <<: *base
     image: syzmeta:latest
@@ -136,4 +181,52 @@ services:
         cp $$SYZMETA/data/actor/ptrs.v6.6.100.txt $$WORKDIR/ptrs.txt &&
         cat $$SYZMETA/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
+      '
+
+  SyzMeta-E-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v6.6.100.E-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-E-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+      '
+
+  SyzMeta-R-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v6.6.100.R-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-R-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+      '
+
+  SyzMeta-RE-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v6.6.100.RE-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-RE-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
       '

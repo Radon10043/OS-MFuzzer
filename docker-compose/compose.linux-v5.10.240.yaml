@@ -1,4 +1,4 @@
-# Usage: docker compose -f $THIS_FILE $SERVICE up --scale $SERVICE=$NUM_INSTANCE -d
+# Usage: docker compose -f $THIS_FILE up $SERVICE --scale $SERVICE=$NUM_INSTANCE -d
 
 #############################
 ### General configuration ###
@@ -29,6 +29,51 @@ x-base: &base
 name: linux-5_10_240
 
 services:
+  impl:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v5.10.240
+      http_proxy: ""
+      https_proxy: ""
+    command: >
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          impl \
+          --idendir $$MRDIR \
+          --syzkaller $$SYZKALLER > impl-woRAG-linux.v5.10.240.log 2>&1
+      '
+
+  eval:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v5.10.240
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          eval \
+          --impldir $$MRDIR \
+          --syzkaller $$SYZKALLER \
+          --kernel_obj $$KERNEL \
+          --kernel_typ linux \
+          --image_obj $$IMAGE > eval-woRAG-linux.v5.10.240.log 2>&1
+      '
+
   SyzMeta:
     <<: *base
     image: syzmeta:latest
@@ -137,4 +182,53 @@ services:
         cp $$SYZMETA/data/actor/ptrs.v5.10.240.txt $$WORKDIR/ptrs.txt &&
         cat $$SYZMETA/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
+      '
+
+  # Variants
+  SyzMeta-E-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v5.10.240.E-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-E-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+      '
+
+  SyzMeta-R-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v5.10.240.R-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-R-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+      '
+
+  SyzMeta-RE-:
+    <<: *base
+    image: syzmeta:latest
+    environment:
+      <<: *env
+      SYZKALLER: /vol/SyzMeta-variants/v5.10.240.RE-/syzkaller
+      OUT_ROOT: /vol2/SyzMeta-RE-
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        mkdir -p $$WORKDIR &&
+        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
       '
