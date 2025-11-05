@@ -45,8 +45,8 @@ fig.update_layout(
 
 outdir = Path(__file__).parent / "output"
 outdir.mkdir(exist_ok=True)
-# fig.write_html(outdir / "upset.html")
+fig.write_html(outdir / "upset.html")
 fig.write_image(outdir / "upset.png", scale=2)
-# fig.write_image(outdir / "upset.pdf", scale=2)
+fig.write_image(outdir / "upset.pdf", scale=2)
 
 print(f"Upset graph saved to {outdir}")
