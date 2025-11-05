@@ -20,12 +20,23 @@ df = pd.read_csv(csvpath)
 fig = go.Figure()
 for i, fuzzer in enumerate(FUZZERS):
     subdf = df[df["fuzzer"] == fuzzer]
+    labels = list()
+    for ver in VERS:
+        crashes = subdf[subdf["version"] == ver]["crashes"].mean()
+        if crashes % 1 == 0:
+            labels.append(f"{int(crashes)}")
+        else:
+            labels.append(f"{crashes:.1f}")
     fig.add_trace(
         go.Bar(
             x=VERS,
             y=[subdf[subdf["version"] == ver]["crashes"].mean() for ver in VERS],
             name=fuzzer,
             marker_color=COLORS[i % len(COLORS)],
+            text=labels,
+            textposition="outside",
+            textangle=-90,
+            textfont=dict(size=12, color="black"),
         )
     )
 fig.update_layout(barmode="group")
@@ -35,7 +46,19 @@ fig.update_layout(
     height=400,
     font=dict(size=16, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
+    plot_bgcolor="white",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+)
+
+fig.update_xaxes(
+    showline=True,
+    linecolor="black",
+)
+
+fig.update_yaxes(
+    showline=True,
+    linecolor="black",
+    gridcolor="lightgray",
 )
 
 outdir = Path(__file__).parent.parent / "viz" / "output"

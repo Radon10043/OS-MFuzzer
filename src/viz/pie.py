@@ -13,6 +13,13 @@ fig.update_layout(
     height=300,
     font=dict(size=16, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="center",
+        x=0.5,
+    ),
 )
 
 outdir = Path(__file__).parent / "output"
