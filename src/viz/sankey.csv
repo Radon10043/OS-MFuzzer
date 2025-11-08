@@ -1,7 +1,0 @@
-kernel,version,doc chunks,KMR,EKMR,EKMR-high-quality,EKMR-low-quality-nocov,EKMR-low-quality-highvio
-Linux,v5.4.296,203,191,186,95,79,12
-Linux,v5.10.240,278,267,261,65,192,4
-Linux,v5.15.189,252,240,227,84,142,1
-Linux,v6.1.147,267,255,189,54,135,0
-Linux,v6.6.100,269,260,248,66,181,1
-Linux,v6.12.40,277,166,119,45,74,0
