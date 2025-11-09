@@ -41,6 +41,12 @@ fig.add_trace(
     )
 )
 
+fig.add_vline(x=0.5, line_width=1, line_dash="solid", line_color="lightgray")
+fig.add_vline(x=1.5, line_width=1, line_dash="solid", line_color="lightgray")
+fig.add_vline(x=2.5, line_width=1, line_dash="solid", line_color="lightgray")
+fig.add_vline(x=3.5, line_width=1, line_dash="solid", line_color="lightgray")
+fig.add_vline(x=4.5, line_width=1, line_dash="solid", line_color="lightgray")
+
 fig.update_layout(
     width=1000,
     height=600,

@@ -122,10 +122,19 @@ for i in range(len(VERSIONS)):
     lower, upper, avg = get_lua(lst2d)
     set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "44,160,44", "SyzMeta-R-")
 
+    p = root / f"linux-{VERSIONS[i]}" / "SyzMeta-RE-"
+    fs = p.rglob("*.log")
+    lst2d = list()
+    for f in fs:
+        lst2d.append(get_cov_list(f))
+    lower, upper, avg = get_lua(lst2d)
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "214,39,40", "SyzMeta-RE-")
+
 # Set legend
 fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(31,119,180)"), showlegend=True, name="SyzMeta"), row=1, col=1)
 fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(255,127,14)"), showlegend=True, name="SyzMeta-E-"), row=1, col=1)
 fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(44,160,44)"), showlegend=True, name="SyzMeta-R-"), row=1, col=1)
+fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(214,39,40)"), showlegend=True, name="SyzMeta-RE-"), row=1, col=1)
 
 fig.update_traces(mode="lines")
 fig.update_layout(
