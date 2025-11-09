@@ -171,5 +171,8 @@ fig.update_yaxes(
     range=[0, 140000],
 )
 
-outdir = Path(__file__).parent / "output" / "line.png"
-fig.write_image(outdir, scale=2)
+outdir = Path(__file__).parent / "output"
+fig.write_html(outdir / "line.html")
+fig.write_image(outdir / "line.png", scale=2)
+fig.write_image(outdir / "line.pdf", scale=2)
+print(f"Line graph saved to {outdir}")

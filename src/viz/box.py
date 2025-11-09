@@ -68,5 +68,8 @@ fig.update_yaxes(
     range=[0, 50],
 )
 
-outdir = Path(__file__).parent / "output" / "box.png"
-fig.write_image(outdir, scale=2)
+outdir = Path(__file__).parent / "output"
+fig.write_html(outdir / "box.html")
+fig.write_image(outdir / "box.png", scale=2)
+fig.write_image(outdir / "box.pdf", scale=2)
+print(f"Box graph saved to {outdir}")
