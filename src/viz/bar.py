@@ -14,7 +14,7 @@ COLORS = [
     "rgba(237,201,72,0.8)",
 ]
 
-csvpath = Path(__file__).parent / "bar.csv"
+csvpath = Path(__file__).parent.parent.parent / "data" / "experiments" / "bar.csv"
 df = pd.read_csv(csvpath)
 
 fig = go.Figure()

@@ -5,7 +5,7 @@ from pathlib import Path
 fuzzers = ["HEALER", "MOCK", "ACTOR", "MoonShine", "syzkaller", "SyzMeta"]
 
 # Get all issues
-d = Path(__file__).parent / "explicits"
+d = Path(__file__).parent.parent.parent / "data" / "experiments" / "explicits"
 issues = set()
 for fuzzer in fuzzers:
     f = d / f"{fuzzer}.txt"
