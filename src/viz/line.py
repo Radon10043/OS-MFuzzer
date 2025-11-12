@@ -4,8 +4,6 @@ from plotly.subplots import make_subplots
 
 
 VERSIONS = ["v5.4.296", "v5.10.240", "v5.15.189", "v6.1.147", "v6.6.100", "v6.12.40"]
-FUZZERS = ["SyzMeta", "SyzMeta-E-", "SyzMeta-R-"]
-COLORS = ["31,119,180", "255,127,14", "44,160,44", "214,39,40"]
 
 
 def get_cov_list(f: Path) -> list[int]:
@@ -98,43 +96,44 @@ fig = make_subplots(rows=2, cols=3, subplot_titles=VERSIONS)
 root = Path(__file__).parent.parent.parent / "data" / "experiments" / "coverage"
 x = list(range(0, 86400, 10))
 for i in range(len(VERSIONS)):
-    p = root / f"linux-{VERSIONS[i]}" / "SyzMeta"
+    p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer"
     fs = p.rglob("*.log")
     lst2d = list()
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "31,119,180", "SyzMeta")
+    # Actually I prefer SyzMeta or SyzMorphic :)
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "31,119,180", "OS-MFuzzer")
 
-    p = root / f"linux-{VERSIONS[i]}" / "SyzMeta-E-"
+    p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-E-"
     fs = p.rglob("*.log")
     lst2d = list()
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "255,127,14", "SyzMeta-E-")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "255,127,14", "OS-MFuzzer<sub>E-</sub>")
 
-    p = root / f"linux-{VERSIONS[i]}" / "SyzMeta-R-"
+    p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-R-"
     fs = p.rglob("*.log")
     lst2d = list()
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "44,160,44", "SyzMeta-R-")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "44,160,44", "OS-MFuzzer<sub>R-</sub>")
 
-    p = root / f"linux-{VERSIONS[i]}" / "SyzMeta-RE-"
+    p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-RE-"
     fs = p.rglob("*.log")
     lst2d = list()
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "214,39,40", "SyzMeta-RE-")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "214,39,40", "OS-MFuzzer<sub>RE-</sub>")
 
 # Set legend
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(31,119,180)"), showlegend=True, name="SyzMeta"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(255,127,14)"), showlegend=True, name="SyzMeta-E-"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(44,160,44)"), showlegend=True, name="SyzMeta-R-"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(214,39,40)"), showlegend=True, name="SyzMeta-RE-"), row=1, col=1)
+fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(31,119,180)"), showlegend=True, name="OS-MFuzzer"), row=1, col=1)
+fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(255,127,14)"), showlegend=True, name="OS-MFuzzer<sub>E-</sub>"), row=1, col=1)
+fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(44,160,44)"), showlegend=True, name="OS-MFuzzer<sub>R-</sub>"), row=1, col=1)
+fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(214,39,40)"), showlegend=True, name="OS-MFuzzer<sub>RE-</sub>"), row=1, col=1)
 
 fig.update_traces(mode="lines")
 fig.update_layout(

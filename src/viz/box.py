@@ -9,34 +9,34 @@ versions = df["version"].unique().tolist()
 fig = go.Figure()
 fig.add_trace(
     go.Box(
-        y=df[df["fuzzer"] == "SyzMeta"]["crashes"].to_list(),
-        x=df[df["fuzzer"] == "SyzMeta"]["version"].to_list(),
-        name="SyzMeta",
+        y=df[df["fuzzer"] == "OS-MFuzzer"]["crashes"].to_list(),
+        x=df[df["fuzzer"] == "OS-MFuzzer"]["version"].to_list(),
+        name="OS-MFuzzer",     # Actually I prefer SyzMeta or SyzMorphic :)
         marker_color="#1f77b4",
     )
 )
 fig.add_trace(
     go.Box(
-        y=df[df["fuzzer"] == "SyzMeta-E-"]["crashes"].to_list(),
-        x=df[df["fuzzer"] == "SyzMeta-E-"]["version"].to_list(),
-        name="SyzMeta-E-",
+        y=df[df["fuzzer"] == "OS-MFuzzer-E-"]["crashes"].to_list(),
+        x=df[df["fuzzer"] == "OS-MFuzzer-E-"]["version"].to_list(),
+        name="OS-MFuzzer<sub>E-</sub>",
         marker_color="#ff7f0e",
     )
 )
 fig.add_trace(
     go.Box(
-        y=df[df["fuzzer"] == "SyzMeta-R-"]["crashes"].to_list(),
-        x=df[df["fuzzer"] == "SyzMeta-R-"]["version"].to_list(),
-        name="SyzMeta-R-",
+        y=df[df["fuzzer"] == "OS-MFuzzer-R-"]["crashes"].to_list(),
+        x=df[df["fuzzer"] == "OS-MFuzzer-R-"]["version"].to_list(),
+        name="OS-MFuzzer<sub>R-</sub>",
         marker_color="#2ca02c",
     )
 )
-subdf = df[df["fuzzer"] == "SyzMeta-RE-"]
+subdf = df[df["fuzzer"] == "OS-MFuzzer-RE-"]
 fig.add_trace(
     go.Box(
-        y=subdf[subdf["fuzzer"] == "SyzMeta-RE-"]["crashes"].to_list(),
-        x=subdf[subdf["fuzzer"] == "SyzMeta-RE-"]["version"].to_list(),
-        name="SyzMeta-RE-",
+        y=subdf[subdf["fuzzer"] == "OS-MFuzzer-RE-"]["crashes"].to_list(),
+        x=subdf[subdf["fuzzer"] == "OS-MFuzzer-RE-"]["version"].to_list(),
+        name="OS-MFuzzer<sub>RE-</sub>",
         marker_color="#d62728",
     )
 )

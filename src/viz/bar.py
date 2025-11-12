@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 VERS = ["v5.4.296", "v5.10.240", "v5.15.189", "v6.1.147", "v6.6.100", "v6.12.40"]
-FUZZERS = ["SyzMeta", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK"]
+FUZZERS = ["OS-MFuzzer", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK"] # Actually I prefer SyzMeta or SyzMorphic :)
 COLORS = [
     "rgba(78,121,167,0.8)",
     "rgba(242,142,43,0.8)",
@@ -59,6 +59,7 @@ fig.update_yaxes(
     showline=True,
     linecolor="black",
     gridcolor="lightgray",
+    range=[0, 40],
 )
 
 outdir = Path(__file__).parent.parent / "viz" / "output"

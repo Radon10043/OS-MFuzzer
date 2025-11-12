@@ -2,7 +2,8 @@ import pandas as pd
 from plotly_upset.plotting import plot_upset
 from pathlib import Path
 
-fuzzers = ["HEALER", "MOCK", "ACTOR", "MoonShine", "syzkaller", "SyzMeta"]
+# Actually I prefer SyzMeta or SyzMorphic :)
+fuzzers = ["HEALER", "MOCK", "ACTOR", "MoonShine", "syzkaller", "OS-MFuzzer"]
 
 # Get all issues
 d = Path(__file__).parent.parent.parent / "data" / "experiments" / "explicits"
