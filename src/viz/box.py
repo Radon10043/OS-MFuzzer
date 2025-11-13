@@ -50,7 +50,7 @@ fig.add_vline(x=4.5, line_width=1, line_dash="solid", line_color="lightgray")
 fig.update_layout(
     width=1000,
     height=600,
-    font=dict(size=16, color="black"),
+    font=dict(size=24, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     plot_bgcolor="white",
     boxmode="group",

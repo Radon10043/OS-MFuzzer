@@ -36,15 +36,15 @@ for i, fuzzer in enumerate(FUZZERS):
             text=labels,
             textposition="outside",
             textangle=-90,
-            textfont=dict(size=12, color="black"),
+            textfont=dict(size=16, color="black"),
         )
     )
 fig.update_layout(barmode="group")
 
 fig.update_layout(
-    width=1000,
+    width=1200,
     height=400,
-    font=dict(size=16, color="black"),
+    font=dict(size=20, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     plot_bgcolor="white",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),

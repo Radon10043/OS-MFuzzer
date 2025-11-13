@@ -92,7 +92,13 @@ def set_subfig(
 
 
 # Set lines
-fig = make_subplots(rows=2, cols=3, subplot_titles=VERSIONS)
+fig = make_subplots(
+    rows=2,
+    cols=3,
+    horizontal_spacing=0.1,
+    vertical_spacing=0.12,
+    subplot_titles=VERSIONS,
+)
 root = Path(__file__).parent.parent.parent / "data" / "experiments" / "coverage"
 x = list(range(0, 86400, 10))
 for i in range(len(VERSIONS)):
@@ -138,14 +144,14 @@ fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(214,39,40)"), showle
 fig.update_traces(mode="lines")
 fig.update_layout(
     width=1000,
-    height=600,
-    font=dict(size=16, color="black"),
+    height=800,
+    font=dict(size=18, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     plot_bgcolor="white",
     legend=dict(
         orientation="h",
         yanchor="bottom",
-        y=1.12,
+        y=1.05,
         xanchor="center",
         x=0.5,
     ),
@@ -156,8 +162,8 @@ fig.update_xaxes(
     gridcolor="lightgray",
     title_standoff=0,
     title_text="Time",
-    tickvals=[14400, 28800, 43200, 57600, 72000, 86400],
-    ticktext=["4h", "8h", "12h", "16h", "20h", "24h"],
+    tickvals=[21600, 43200, 64800, 86400],
+    ticktext=["6h", "12h", "18h", "24h"],
     range=[0, 86400],
 )
 fig.update_yaxes(
@@ -169,6 +175,8 @@ fig.update_yaxes(
     tickvals=[0, 20000, 40000, 60000, 80000, 100000, 120000, 140000],
     range=[0, 140000],
 )
+
+fig.update_annotations(font_size=20)
 
 outdir = Path(__file__).parent / "output"
 fig.write_html(outdir / "line.html")
