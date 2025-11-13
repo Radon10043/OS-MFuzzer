@@ -33,7 +33,7 @@ fig = plot_upset(
     marker_size=12,
     exclude_zeros=True,
     sorted_x="d",
-    marker_colors=["black"],
+    marker_colors=["gray"],
     column_widths=[0.25, 0.75],
 )
 

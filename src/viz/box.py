@@ -11,24 +11,24 @@ fig.add_trace(
     go.Box(
         y=df[df["fuzzer"] == "OS-MFuzzer"]["crashes"].to_list(),
         x=df[df["fuzzer"] == "OS-MFuzzer"]["version"].to_list(),
-        name="OS-MFuzzer",     # Actually I prefer SyzMeta or SyzMorphic :)
-        marker_color="#1f77b4",
+        name="OS-MFuzzer",  # Actually I prefer SyzMeta or SyzMorphic :)
+        marker_color="#000000",
     )
 )
 fig.add_trace(
     go.Box(
         y=df[df["fuzzer"] == "OS-MFuzzer-E-"]["crashes"].to_list(),
         x=df[df["fuzzer"] == "OS-MFuzzer-E-"]["version"].to_list(),
-        name="OS-MFuzzer<sub>E-</sub>",
-        marker_color="#ff7f0e",
+        name="OS-MFuzzer<sub>/E</sub>",
+        marker_color="#555555",
     )
 )
 fig.add_trace(
     go.Box(
         y=df[df["fuzzer"] == "OS-MFuzzer-R-"]["crashes"].to_list(),
         x=df[df["fuzzer"] == "OS-MFuzzer-R-"]["version"].to_list(),
-        name="OS-MFuzzer<sub>R-</sub>",
-        marker_color="#2ca02c",
+        name="OS-MFuzzer<sub>/R</sub>",
+        marker_color="#8D8D8D",
     )
 )
 subdf = df[df["fuzzer"] == "OS-MFuzzer-RE-"]
@@ -36,8 +36,8 @@ fig.add_trace(
     go.Box(
         y=subdf[subdf["fuzzer"] == "OS-MFuzzer-RE-"]["crashes"].to_list(),
         x=subdf[subdf["fuzzer"] == "OS-MFuzzer-RE-"]["version"].to_list(),
-        name="OS-MFuzzer<sub>RE-</sub>",
-        marker_color="#d62728",
+        name="OS-MFuzzer<sub>/RE</sub>",
+        marker_color="#BDBDBD",
     )
 )
 
@@ -50,7 +50,7 @@ fig.add_vline(x=4.5, line_width=1, line_dash="solid", line_color="lightgray")
 fig.update_layout(
     width=1000,
     height=600,
-    font=dict(size=24, color="black"),
+    font=dict(size=28, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     plot_bgcolor="white",
     boxmode="group",
@@ -64,7 +64,7 @@ fig.update_yaxes(
     showline=True,
     linecolor="black",
     gridcolor="lightgray",
-    tickvals=list(range(0, 51, 5)),
+    tickvals=list(range(0, 51, 10)),
     range=[0, 50],
 )
 

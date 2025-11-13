@@ -10,8 +10,15 @@ fig = go.Figure(
         go.Pie(
             labels=df["version"],
             values=df["implicit_issues"],
+            textposition="outside",
             marker=dict(
                 line=dict(color="black", width=1),
+                pattern=dict(
+                    shape=["", "/", "|", ".", "x", "-"],
+                    fgcolor="black",
+                    size=5,
+                    solidity=0.2,
+                )
             ),
         )
     ],
@@ -21,7 +28,7 @@ fig.update_traces(hoverinfo="label+percent", textinfo="value", textfont_size=20)
 fig.update_layout(
     width=600,
     height=300,
-    font=dict(size=16, color="black"),
+    font=dict(size=20, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     legend=dict(
         orientation="v",
