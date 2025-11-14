@@ -63,15 +63,16 @@ def set_subfig(
     col: int,
     color: str,
     name: str,
+    symbol: str,
 ):
-    global TEMP
     fig.add_trace(
         go.Scatter(
-            x=x + x[::-1],
-            y=lower + upper[::-1],
-            fill="toself",
-            fillcolor=f"rgba({color},0.2)",
-            line_color="rgba(255,255,255,0)",
+            x=x,
+            y=avg,
+            mode="lines",
+            line=dict(
+                color=f"rgb({color})",
+            ),
             showlegend=False,
             name=name,
         ),
@@ -80,9 +81,10 @@ def set_subfig(
     )
     fig.add_trace(
         go.Scatter(
-            x=x,
-            y=avg,
-            line=dict(color=f"rgb({color})"),
+            x=x[::1000],
+            y=avg[::1000],
+            mode="markers",
+            marker=dict(size=8, symbol=symbol, color=f"rgb({color})"),
             showlegend=False,
             name=name,
         ),
@@ -109,7 +111,7 @@ for i in range(len(VERSIONS)):
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
     # Actually I prefer SyzMeta or SyzMorphic :)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "31,119,180", "OS-MFuzzer")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "31,119,180", "OS-MFuzzer", "circle")
 
     p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-E-"
     fs = p.rglob("*.log")
@@ -117,7 +119,7 @@ for i in range(len(VERSIONS)):
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "255,127,14", "OS-MFuzzer<sub>E-</sub>")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "255,127,14", "OS-MFuzzer<sub>/E</sub>", "diamond")
 
     p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-R-"
     fs = p.rglob("*.log")
@@ -125,7 +127,7 @@ for i in range(len(VERSIONS)):
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "44,160,44", "OS-MFuzzer<sub>R-</sub>")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "44,160,44", "OS-MFuzzer<sub>/R</sub>", "square")
 
     p = root / f"linux-{VERSIONS[i]}" / "OS-MFuzzer-RE-"
     fs = p.rglob("*.log")
@@ -133,19 +135,66 @@ for i in range(len(VERSIONS)):
     for f in fs:
         lst2d.append(get_cov_list(f))
     lower, upper, avg = get_lua(lst2d)
-    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "214,39,40", "OS-MFuzzer<sub>RE-</sub>")
+    set_subfig(fig, x, lower, upper, avg, (i // 3) + 1, (i % 3) + 1, "214,39,40", "OS-MFuzzer<sub>/RE</sub>", "star")
 
 # Set legend
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(31,119,180)"), showlegend=True, name="OS-MFuzzer"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(255,127,14)"), showlegend=True, name="OS-MFuzzer<sub>E-</sub>"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(44,160,44)"), showlegend=True, name="OS-MFuzzer<sub>R-</sub>"), row=1, col=1)
-fig.add_trace(go.Scatter(x=[0], y=[0], line=dict(color="rgb(214,39,40)"), showlegend=True, name="OS-MFuzzer<sub>RE-</sub>"), row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=[None],
+        y=[None],
+        mode="lines+markers",
+        line=dict(color="rgb(31,119,180)"),
+        marker=dict(color="rgb(31,119,180)", symbol="circle", size=8),
+        showlegend=True,
+        name="OS-MFuzzer",
+    ),
+)
+fig.add_trace(
+    go.Scatter(
+        x=[None],
+        y=[None],
+        mode="lines+markers",
+        line=dict(color="rgb(255,127,14)"),
+        marker=dict(color="rgb(255,127,14)", symbol="diamond", size=8),
+        showlegend=True,
+        name="OS-MFuzzer<sub>/E</sub>",
+    ),
+)
+fig.add_trace(
+    go.Scatter(
+        x=[None],
+        y=[None],
+        mode="lines+markers",
+        line=dict(color="rgb(44,160,44)"),
+        marker=dict(color="rgb(44,160,44)", symbol="square", size=8),
+        showlegend=True,
+        name="OS-MFuzzer<sub>/R</sub>",
+    ),
+)
+fig.add_trace(
+    go.Scatter(
+        x=[None],
+        y=[None],
+        mode="lines+markers",
+        line=dict(color="rgb(214,39,40)"),
+        marker=dict(color="rgb(214,39,40)", symbol="star", size=8),
+        showlegend=True,
+        name="OS-MFuzzer<sub>/RE</sub>",
+    ),
+)
 
-fig.update_traces(mode="lines")
+# Fine-tune
+fig.update_yaxes(range=[20000, 100000], row=1, col=1)
+fig.update_yaxes(range=[30000, 105000], row=1, col=2)
+fig.update_yaxes(range=[30000, 125000], row=1, col=3)
+fig.update_yaxes(range=[30000, 120000], row=2, col=1)
+fig.update_yaxes(range=[30000, 120000], row=2, col=2)
+fig.update_yaxes(range=[40000, 125000], row=2, col=3)
+
 fig.update_layout(
     width=1000,
-    height=800,
-    font=dict(size=18, color="black"),
+    height=1000,
+    font=dict(size=24, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
     plot_bgcolor="white",
     legend=dict(
@@ -170,13 +219,12 @@ fig.update_yaxes(
     showline=True,
     linecolor="black",
     gridcolor="lightgray",
-    title_text="Coverage",
+    title_text="Edge Coverage",
     title_standoff=0,
     tickvals=[0, 20000, 40000, 60000, 80000, 100000, 120000, 140000],
-    range=[0, 140000],
 )
 
-fig.update_annotations(font_size=20)
+fig.update_annotations(font_size=24)
 
 outdir = Path(__file__).parent / "output"
 fig.write_html(outdir / "line.html")

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 
 VERS = ["v5.4.296", "v5.10.240", "v5.15.189", "v6.1.147", "v6.6.100", "v6.12.40"]
 FUZZERS = ["OS-MFuzzer", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK"] # Actually I prefer SyzMeta or SyzMorphic :)
-PATTERNS = ["", "x", "-", "|", ".", "/"]
+PATTERNS = ["", "\\", "-", "|", ".", "/"]
 COLORS = [
     "rgba(78,121,167,0.8)",
     "rgba(242,142,43,0.8)",
@@ -58,6 +58,7 @@ fig.update_layout(
 fig.update_xaxes(
     showline=True,
     linecolor="black",
+    title_text="Kernel Version",
 )
 
 fig.update_yaxes(
@@ -65,6 +66,7 @@ fig.update_yaxes(
     linecolor="black",
     gridcolor="lightgray",
     range=[0, 40],
+    title_text="Number of Explicit Issues",
 )
 
 outdir = Path(__file__).parent.parent / "viz" / "output"

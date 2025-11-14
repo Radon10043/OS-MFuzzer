@@ -14,16 +14,21 @@ fig = go.Figure(
             marker=dict(
                 line=dict(color="black", width=1),
                 pattern=dict(
-                    shape=["", "/", "|", ".", "x", "-"],
+                    shape=["", "/", "|", ".", "\\", "-"],
                     fgcolor="black",
                     size=5,
                     solidity=0.2,
-                )
+                ),
             ),
         )
     ],
 )
-fig.update_traces(hoverinfo="label+percent", textinfo="value", textfont_size=20)
+fig.update_traces(
+    hoverinfo="label+percent",
+    textinfo="value",
+    textfont_size=20,
+    domain=dict(x=[0, 0.9]),
+)
 
 fig.update_layout(
     width=600,
