@@ -78,16 +78,18 @@ class OpenAI(Wrapper):
         # 调用对话模型, 获取回复信息
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=self.messages,
+            messages=self.messages, # type: ignore
             temperature=self.temperature,
             stream=self.stream,
-        )
+        ) # type: ignore
 
         # 处理回复信息
         content = str()
         if self.stream:
             SAYF(f"Response of {self.model}\n--------------------\n")
             for chunk in response:
+                if len(chunk.choices) == 0:
+                    continue
                 token = chunk.choices[0].delta.content
                 if token is None:
                     break
@@ -113,7 +115,8 @@ class OpenAI(Wrapper):
         """
         models = list()
         for val in self.client.models.list():
-            models.append(val.id)
+            models.append(val.id.split("/")[-1])
+        models.sort()
         return models
 
     def save_messages(self, path: str):
@@ -136,9 +139,14 @@ class OpenAI(Wrapper):
         elif ext_name == ".md" or ext_name == ".markdown":
             with open(os.path.join(path), "w") as f:
                 for msg in self.messages:
-                    f.write(f"### {msg["role"]}\n\n{msg["content"]}\n")
+                    f.write(f"### {msg['role']}\n\n{msg['content']}\n")
                     f.write("\n")
 
         # 不支持的文件后缀名
         else:
             FATAL(f"Unsupported file extension: {ext_name}")
+
+
+    def clear_messages(self):
+        """清除聊天记录, 不清除系统提示"""
+        self.messages = self.messages[:1]

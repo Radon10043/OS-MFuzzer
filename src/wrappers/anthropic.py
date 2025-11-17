@@ -104,6 +104,7 @@ class Anthropic(Wrapper):
         models = list()
         for val in self.client.models.list():
             models.append(val.id)
+        models.sort()
         return models
 
     def save_messages(self, path: str):
@@ -126,9 +127,13 @@ class Anthropic(Wrapper):
         elif ext_name == ".md" or ext_name == ".markdown":
             with open(os.path.join(path), "w") as f:
                 for msg in self.messages:
-                    f.write(f"### {msg["role"]}\n\n{msg["content"]}\n")
+                    f.write(f"### {msg['role']}\n\n{msg['content']}\n")
                     f.write("\n")
 
         # 不支持的文件后缀名
         else:
             FATAL(f"Unsupported file extension: {ext_name}")
+
+    def clear_messages(self):
+        """清除聊天记录, 但不清除系统提示"""
+        self.messages = list()

@@ -1,0 +1,1394 @@
+diff --git a/Documentation/virt/kvm/api.txt b/Documentation/virt/kvm/api.txt
+index 180475bcd671..82a85b73cdc2 100644
+--- a/Documentation/virt/kvm/api.txt
++++ b/Documentation/virt/kvm/api.txt
+@@ -1,8 +1,9 @@
++===================================================================
+ The Definitive KVM (Kernel-based Virtual Machine) API Documentation
+ ===================================================================
+ 
+ 1. General description
+-----------------------
++======================
+ 
+ The kvm API is a set of ioctls that are issued to control various aspects
+ of a virtual machine.  The ioctls belong to three classes:
+@@ -33,7 +34,7 @@ of a virtual machine.  The ioctls belong to three classes:
+    was used to create the VM.
+ 
+ 2. File descriptors
+--------------------
++===================
+ 
+ The kvm API is centered around file descriptors.  An initial
+ open("/dev/kvm") obtains a handle to the kvm subsystem; this handle
+@@ -70,7 +71,7 @@ the VM is shut down.
+ 
+ 
+ 3. Extensions
+--------------
++=============
+ 
+ As of Linux 2.6.22, the KVM ABI has been stabilized: no backward
+ incompatible change are allowed.  However, there is an extension
+@@ -84,7 +85,7 @@ set of ioctls is available for application use.
+ 
+ 
+ 4. API description
+-------------------
++==================
+ 
+ This section describes ioctls that can be used to control kvm guests.
+ For each ioctl, the following information is provided along with a
+@@ -111,6 +112,7 @@ description:
+ 
+ 
+ 4.1 KVM_GET_API_VERSION
++-----------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -127,6 +129,7 @@ described as 'basic' will be available.
+ 
+ 
+ 4.2 KVM_CREATE_VM
++-----------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -182,6 +185,7 @@ host physical address translations).
+ 
+ 
+ 4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
++----------------------------------------------------------
+ 
+ Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
+ Architectures: x86
+@@ -217,6 +221,7 @@ otherwise.
+ 
+ 
+ 4.4 KVM_CHECK_EXTENSION
++-----------------------
+ 
+ Capability: basic, KVM_CAP_CHECK_EXTENSION_VM for vm ioctl
+ Architectures: all
+@@ -235,6 +240,7 @@ It is thus encouraged to use the vm ioctl to query for capabilities (available
+ with KVM_CAP_CHECK_EXTENSION_VM on the vm fd)
+ 
+ 4.5 KVM_GET_VCPU_MMAP_SIZE
++--------------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -248,6 +254,7 @@ KVM_RUN documentation for details.
+ 
+ 
+ 4.6 KVM_SET_MEMORY_REGION
++-------------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -259,6 +266,7 @@ This ioctl is obsolete and has been removed.
+ 
+ 
+ 4.7 KVM_CREATE_VCPU
++-------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -305,6 +313,7 @@ cpu's hardware control block.
+ 
+ 
+ 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
++--------------------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -337,6 +346,7 @@ KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is enabled.  For more information,
+ see the description of the capability.
+ 
+ 4.9 KVM_SET_MEMORY_ALIAS
++------------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -348,6 +358,7 @@ This ioctl is obsolete and has been removed.
+ 
+ 
+ 4.10 KVM_RUN
++------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -365,6 +376,7 @@ kvm_run' (see below).
+ 
+ 
+ 4.11 KVM_GET_REGS
++-----------------
+ 
+ Capability: basic
+ Architectures: all except ARM, arm64
+@@ -395,6 +407,7 @@ struct kvm_regs {
+ 
+ 
+ 4.12 KVM_SET_REGS
++-----------------
+ 
+ Capability: basic
+ Architectures: all except ARM, arm64
+@@ -408,6 +421,7 @@ See KVM_GET_REGS for the data structure.
+ 
+ 
+ 4.13 KVM_GET_SREGS
++------------------
+ 
+ Capability: basic
+ Architectures: x86, ppc
+@@ -436,6 +450,7 @@ but not yet injected into the cpu core.
+ 
+ 
+ 4.14 KVM_SET_SREGS
++------------------
+ 
+ Capability: basic
+ Architectures: x86, ppc
+@@ -448,6 +463,7 @@ data structures.
+ 
+ 
+ 4.15 KVM_TRANSLATE
++------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -472,6 +488,7 @@ struct kvm_translation {
+ 
+ 
+ 4.16 KVM_INTERRUPT
++------------------
+ 
+ Capability: basic
+ Architectures: x86, ppc, mips
+@@ -536,6 +553,7 @@ This is an asynchronous vcpu ioctl and can be invoked from any thread.
+ 
+ 
+ 4.17 KVM_DEBUG_GUEST
++--------------------
+ 
+ Capability: basic
+ Architectures: none
+@@ -547,6 +565,7 @@ Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
+ 
+ 
+ 4.18 KVM_GET_MSRS
++-----------------
+ 
+ Capability: basic (vcpu), KVM_CAP_GET_MSR_FEATURES (system)
+ Architectures: x86
+@@ -584,6 +603,7 @@ kvm will fill in the 'data' member.
+ 
+ 
+ 4.19 KVM_SET_MSRS
++-----------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -605,6 +625,7 @@ MSRs that have been set successfully.
+ 
+ 
+ 4.20 KVM_SET_CPUID
++------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -634,6 +655,7 @@ struct kvm_cpuid {
+ 
+ 
+ 4.21 KVM_SET_SIGNAL_MASK
++------------------------
+ 
+ Capability: basic
+ Architectures: all
+@@ -657,6 +679,7 @@ struct kvm_signal_mask {
+ 
+ 
+ 4.22 KVM_GET_FPU
++----------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -683,6 +706,7 @@ struct kvm_fpu {
+ 
+ 
+ 4.23 KVM_SET_FPU
++----------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -709,6 +733,7 @@ struct kvm_fpu {
+ 
+ 
+ 4.24 KVM_CREATE_IRQCHIP
++-----------------------
+ 
+ Capability: KVM_CAP_IRQCHIP, KVM_CAP_S390_IRQCHIP (s390)
+ Architectures: x86, ARM, arm64, s390
+@@ -730,6 +755,7 @@ before KVM_CREATE_IRQCHIP can be used.
+ 
+ 
+ 4.25 KVM_IRQ_LINE
++-----------------
+ 
+ Capability: KVM_CAP_IRQCHIP
+ Architectures: x86, arm, arm64
+@@ -792,6 +818,7 @@ struct kvm_irq_level {
+ 
+ 
+ 4.26 KVM_GET_IRQCHIP
++--------------------
+ 
+ Capability: KVM_CAP_IRQCHIP
+ Architectures: x86
+@@ -814,6 +841,7 @@ struct kvm_irqchip {
+ 
+ 
+ 4.27 KVM_SET_IRQCHIP
++--------------------
+ 
+ Capability: KVM_CAP_IRQCHIP
+ Architectures: x86
+@@ -836,6 +864,7 @@ struct kvm_irqchip {
+ 
+ 
+ 4.28 KVM_XEN_HVM_CONFIG
++-----------------------
+ 
+ Capability: KVM_CAP_XEN_HVM
+ Architectures: x86
+@@ -861,6 +890,7 @@ struct kvm_xen_hvm_config {
+ 
+ 
+ 4.29 KVM_GET_CLOCK
++------------------
+ 
+ Capability: KVM_CAP_ADJUST_CLOCK
+ Architectures: x86
+@@ -891,6 +921,7 @@ struct kvm_clock_data {
+ 
+ 
+ 4.30 KVM_SET_CLOCK
++------------------
+ 
+ Capability: KVM_CAP_ADJUST_CLOCK
+ Architectures: x86
+@@ -910,6 +941,7 @@ struct kvm_clock_data {
+ 
+ 
+ 4.31 KVM_GET_VCPU_EVENTS
++------------------------
+ 
+ Capability: KVM_CAP_VCPU_EVENTS
+ Extended by: KVM_CAP_INTR_SHADOW
+@@ -1017,6 +1049,7 @@ struct kvm_vcpu_events {
+ };
+ 
+ 4.32 KVM_SET_VCPU_EVENTS
++------------------------
+ 
+ Capability: KVM_CAP_VCPU_EVENTS
+ Extended by: KVM_CAP_INTR_SHADOW
+@@ -1061,6 +1094,7 @@ See KVM_GET_VCPU_EVENTS for the data structure.
+ 
+ 
+ 4.33 KVM_GET_DEBUGREGS
++----------------------
+ 
+ Capability: KVM_CAP_DEBUGREGS
+ Architectures: x86
+@@ -1080,6 +1114,7 @@ struct kvm_debugregs {
+ 
+ 
+ 4.34 KVM_SET_DEBUGREGS
++----------------------
+ 
+ Capability: KVM_CAP_DEBUGREGS
+ Architectures: x86
+@@ -1094,6 +1129,7 @@ yet and must be cleared on entry.
+ 
+ 
+ 4.35 KVM_SET_USER_MEMORY_REGION
++-------------------------------
+ 
+ Capability: KVM_CAP_USER_MEMORY
+ Architectures: all
+@@ -1160,6 +1196,7 @@ allocation and is deprecated.
+ 
+ 
+ 4.36 KVM_SET_TSS_ADDR
++---------------------
+ 
+ Capability: KVM_CAP_SET_TSS_ADDR
+ Architectures: x86
+@@ -1179,6 +1216,7 @@ documentation when it pops into existence).
+ 
+ 
+ 4.37 KVM_ENABLE_CAP
++-------------------
+ 
+ Capability: KVM_CAP_ENABLE_CAP
+ Architectures: mips, ppc, s390
+@@ -1223,6 +1261,7 @@ The vcpu ioctl should be used for vcpu-specific capabilities, the vm ioctl
+ for vm-wide capabilities.
+ 
+ 4.38 KVM_GET_MP_STATE
++---------------------
+ 
+ Capability: KVM_CAP_MP_STATE
+ Architectures: x86, s390, arm, arm64
+@@ -1265,6 +1304,7 @@ The only states that are valid are KVM_MP_STATE_STOPPED and
+ KVM_MP_STATE_RUNNABLE which reflect if the vcpu is paused or not.
+ 
+ 4.39 KVM_SET_MP_STATE
++---------------------
+ 
+ Capability: KVM_CAP_MP_STATE
+ Architectures: x86, s390, arm, arm64
+@@ -1285,6 +1325,7 @@ The only states that are valid are KVM_MP_STATE_STOPPED and
+ KVM_MP_STATE_RUNNABLE which reflect if the vcpu should be paused or not.
+ 
+ 4.40 KVM_SET_IDENTITY_MAP_ADDR
++------------------------------
+ 
+ Capability: KVM_CAP_SET_IDENTITY_MAP_ADDR
+ Architectures: x86
+@@ -1308,6 +1349,7 @@ documentation when it pops into existence).
+ Fails if any VCPU has already been created.
+ 
+ 4.41 KVM_SET_BOOT_CPU_ID
++------------------------
+ 
+ Capability: KVM_CAP_SET_BOOT_CPU_ID
+ Architectures: x86
+@@ -1321,6 +1363,7 @@ is vcpu 0.
+ 
+ 
+ 4.42 KVM_GET_XSAVE
++------------------
+ 
+ Capability: KVM_CAP_XSAVE
+ Architectures: x86
+@@ -1336,6 +1379,7 @@ This ioctl would copy current vcpu's xsave struct to the userspace.
+ 
+ 
+ 4.43 KVM_SET_XSAVE
++------------------
+ 
+ Capability: KVM_CAP_XSAVE
+ Architectures: x86
+@@ -1351,6 +1395,7 @@ This ioctl would copy userspace's xsave struct to the kernel.
+ 
+ 
+ 4.44 KVM_GET_XCRS
++-----------------
+ 
+ Capability: KVM_CAP_XCRS
+ Architectures: x86
+@@ -1375,6 +1420,7 @@ This ioctl would copy current vcpu's xcrs to the userspace.
+ 
+ 
+ 4.45 KVM_SET_XCRS
++-----------------
+ 
+ Capability: KVM_CAP_XCRS
+ Architectures: x86
+@@ -1399,6 +1445,7 @@ This ioctl would set vcpu's xcr to the value userspace specified.
+ 
+ 
+ 4.46 KVM_GET_SUPPORTED_CPUID
++----------------------------
+ 
+ Capability: KVM_CAP_EXT_CPUID
+ Architectures: x86
+@@ -1480,6 +1527,7 @@ feature in userspace, then you can enable the feature for KVM_SET_CPUID2.
+ 
+ 
+ 4.47 KVM_PPC_GET_PVINFO
++-----------------------
+ 
+ Capability: KVM_CAP_PPC_GET_PVINFO
+ Architectures: ppc
+@@ -1507,6 +1555,7 @@ The flags bitmap is defined as:
+    #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
+ 
+ 4.52 KVM_SET_GSI_ROUTING
++------------------------
+ 
+ Capability: KVM_CAP_IRQ_ROUTING
+ Architectures: x86 s390 arm arm64
+@@ -1594,6 +1643,7 @@ struct kvm_irq_routing_hv_sint {
+ 
+ 
+ 4.55 KVM_SET_TSC_KHZ
++--------------------
+ 
+ Capability: KVM_CAP_TSC_CONTROL
+ Architectures: x86
+@@ -1606,6 +1656,7 @@ frequency is KHz.
+ 
+ 
+ 4.56 KVM_GET_TSC_KHZ
++--------------------
+ 
+ Capability: KVM_CAP_GET_TSC_KHZ
+ Architectures: x86
+@@ -1619,6 +1670,7 @@ error.
+ 
+ 
+ 4.57 KVM_GET_LAPIC
++------------------
+ 
+ Capability: KVM_CAP_IRQCHIP
+ Architectures: x86
+@@ -1647,6 +1699,7 @@ always uses xAPIC format.
+ 
+ 
+ 4.58 KVM_SET_LAPIC
++------------------
+ 
+ Capability: KVM_CAP_IRQCHIP
+ Architectures: x86
+@@ -1668,6 +1721,7 @@ See the note in KVM_GET_LAPIC.
+ 
+ 
+ 4.59 KVM_IOEVENTFD
++------------------
+ 
+ Capability: KVM_CAP_IOEVENTFD
+ Architectures: all
+@@ -1711,6 +1765,7 @@ The speedup may only apply to specific architectures, but the ioeventfd will
+ work anyway.
+ 
+ 4.60 KVM_DIRTY_TLB
++------------------
+ 
+ Capability: KVM_CAP_SW_TLB
+ Architectures: ppc
+@@ -1744,6 +1799,7 @@ be set to the number of set bits in the bitmap.
+ 
+ 
+ 4.62 KVM_CREATE_SPAPR_TCE
++-------------------------
+ 
+ Capability: KVM_CAP_SPAPR_TCE
+ Architectures: powerpc
+@@ -1780,6 +1836,7 @@ circumstances.
+ 
+ 
+ 4.63 KVM_ALLOCATE_RMA
++---------------------
+ 
+ Capability: KVM_CAP_PPC_RMA
+ Architectures: powerpc
+@@ -1813,6 +1870,7 @@ because it supports the Virtual RMA (VRMA) facility.
+ 
+ 
+ 4.64 KVM_NMI
++------------
+ 
+ Capability: KVM_CAP_USER_NMI
+ Architectures: x86
+@@ -1839,6 +1897,7 @@ debugging.
+ 
+ 
+ 4.65 KVM_S390_UCAS_MAP
++----------------------
+ 
+ Capability: KVM_CAP_S390_UCONTROL
+ Architectures: s390
+@@ -1859,6 +1918,7 @@ be aligned by 1 megabyte.
+ 
+ 
+ 4.66 KVM_S390_UCAS_UNMAP
++------------------------
+ 
+ Capability: KVM_CAP_S390_UCONTROL
+ Architectures: s390
+@@ -1879,6 +1939,7 @@ All parameters need to be aligned by 1 megabyte.
+ 
+ 
+ 4.67 KVM_S390_VCPU_FAULT
++------------------------
+ 
+ Capability: KVM_CAP_S390_UCONTROL
+ Architectures: s390
+@@ -1896,6 +1957,7 @@ prior to calling the KVM_RUN ioctl.
+ 
+ 
+ 4.68 KVM_SET_ONE_REG
++--------------------
+ 
+ Capability: KVM_CAP_ONE_REG
+ Architectures: all
+@@ -2146,8 +2208,9 @@ value in the kvm_regs structure seen as a 32bit array.
+   0x60x0 0000 0010 <index into the kvm_regs struct:16>
+ 
+ Specifically:
++======================= ========= ===== ====================================
+     Encoding            Register  Bits  kvm_regs member
+-----------------------------------------------------------------
++======================= ========= ===== ====================================
+   0x6030 0000 0010 0000 X0          64  regs.regs[0]
+   0x6030 0000 0010 0002 X1          64  regs.regs[1]
+     ...
+@@ -2168,6 +2231,7 @@ Specifically:
+   0x6040 0000 0010 00d0 V31        128  fp_regs.vregs[31]   (*)
+   0x6020 0000 0010 00d4 FPSR        32  fp_regs.fpsr
+   0x6020 0000 0010 00d5 FPCR        32  fp_regs.fpcr
++======================= ========= ===== ====================================
+ 
+ (*) These encodings are not accepted for SVE-enabled vcpus.  See
+     KVM_ARM_VCPU_INIT.
+@@ -2289,6 +2353,7 @@ following id bit patterns:
+ 
+ 
+ 4.69 KVM_GET_ONE_REG
++--------------------
+ 
+ Capability: KVM_CAP_ONE_REG
+ Architectures: all
+@@ -2312,6 +2377,7 @@ list in 4.68.
+ 
+ 
+ 4.70 KVM_KVMCLOCK_CTRL
++---------------------
+ 
+ Capability: KVM_CAP_KVMCLOCK_CTRL
+ Architectures: Any that implement pvclocks (currently x86 only)
+@@ -2333,6 +2399,7 @@ after pausing the vcpu, but before it is resumed.
+ 
+ 
+ 4.71 KVM_SIGNAL_MSI
++-------------------
+ 
+ Capability: KVM_CAP_SIGNAL_MSI
+ Architectures: x86 arm arm64
+@@ -2368,6 +2435,7 @@ address_hi must be zero.
+ 
+ 
+ 4.71 KVM_CREATE_PIT2
++--------------------
+ 
+ Capability: KVM_CAP_PIT2
+ Architectures: x86
+@@ -2400,6 +2468,7 @@ This IOCTL replaces the obsolete KVM_CREATE_PIT.
+ 
+ 
+ 4.72 KVM_GET_PIT2
++-----------------
+ 
+ Capability: KVM_CAP_PIT_STATE2
+ Architectures: x86
+@@ -2425,6 +2494,7 @@ This IOCTL replaces the obsolete KVM_GET_PIT.
+ 
+ 
+ 4.73 KVM_SET_PIT2
++-----------------
+ 
+ Capability: KVM_CAP_PIT_STATE2
+ Architectures: x86
+@@ -2513,6 +2583,7 @@ PTE's RPN field (ie, it needs to be shifted left by 12 to OR it
+ into the hash PTE second double word).
+ 
+ 4.75 KVM_IRQFD
++--------------
+ 
+ Capability: KVM_CAP_IRQFD
+ Architectures: x86 s390 arm arm64
+@@ -2550,6 +2621,7 @@ On arm/arm64, gsi routing being supported, the following can happen:
+   to GICv3 ITS in-kernel emulation).
+ 
+ 4.76 KVM_PPC_ALLOCATE_HTAB
++--------------------------
+ 
+ Capability: KVM_CAP_PPC_ALLOC_HTAB
+ Architectures: powerpc
+@@ -2586,6 +2658,7 @@ real-mode area (VRMA) facility, the kernel will re-create the VMRA
+ HPTEs on the next KVM_RUN of any vcpu.
+ 
+ 4.77 KVM_S390_INTERRUPT
++-----------------------
+ 
+ Capability: basic
+ Architectures: s390
+@@ -2629,6 +2702,7 @@ KVM_S390_MCHK (vm, vcpu) - machine check interrupt; cr 14 bits in parm,
+ This is an asynchronous vcpu ioctl and can be invoked from any thread.
+ 
+ 4.78 KVM_PPC_GET_HTAB_FD
++------------------------
+ 
+ Capability: KVM_CAP_PPC_HTAB_FD
+ Architectures: powerpc
+@@ -2683,6 +2757,7 @@ written, then `n_invalid' invalid entries, invalidating any previously
+ valid entries found.
+ 
+ 4.79 KVM_CREATE_DEVICE
++----------------------
+ 
+ Capability: KVM_CAP_DEVICE_CTRL
+ Type: vm ioctl
+@@ -2714,6 +2789,7 @@ struct kvm_create_device {
+ };
+ 
+ 4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
++--------------------------------------------
+ 
+ Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+   KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+@@ -2742,6 +2818,7 @@ struct kvm_device_attr {
+ };
+ 
+ 4.81 KVM_HAS_DEVICE_ATTR
++------------------------
+ 
+ Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device,
+   KVM_CAP_VCPU_ATTRIBUTES for vcpu device
+@@ -2758,6 +2835,7 @@ indicate that the attribute can be read or written in the device's
+ current state.  "addr" is ignored.
+ 
+ 4.82 KVM_ARM_VCPU_INIT
++----------------------
+ 
+ Capability: basic
+ Architectures: arm, arm64
+@@ -2838,6 +2916,7 @@ Possible features:
+ 	        no longer be written using KVM_SET_ONE_REG.
+ 
+ 4.83 KVM_ARM_PREFERRED_TARGET
++-----------------------------
+ 
+ Capability: basic
+ Architectures: arm, arm64
+@@ -2862,6 +2941,7 @@ in VCPU matching underlying host.
+ 
+ 
+ 4.84 KVM_GET_REG_LIST
++---------------------
+ 
+ Capability: basic
+ Architectures: arm, arm64, mips
+@@ -2882,6 +2962,7 @@ KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
+ 
+ 
+ 4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
++-----------------------------------------
+ 
+ Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
+ Architectures: arm, arm64
+@@ -2924,6 +3005,7 @@ should be used instead.
+ 
+ 
+ 4.86 KVM_PPC_RTAS_DEFINE_TOKEN
++------------------------------
+ 
+ Capability: KVM_CAP_PPC_RTAS
+ Architectures: ppc
+@@ -2943,6 +3025,7 @@ calls by the guest for that service will be passed to userspace to be
+ handled.
+ 
+ 4.87 KVM_SET_GUEST_DEBUG
++------------------------
+ 
+ Capability: KVM_CAP_SET_GUEST_DEBUG
+ Architectures: x86, s390, ppc, arm64
+@@ -2993,6 +3076,7 @@ KVM_EXIT_DEBUG with the kvm_debug_exit_arch part of the kvm_run
+ structure containing architecture specific debug information.
+ 
+ 4.88 KVM_GET_EMULATED_CPUID
++---------------------------
+ 
+ Capability: KVM_CAP_EXT_EMUL_CPUID
+ Architectures: x86
+@@ -3063,6 +3147,7 @@ The fields in each entry are defined as follows:
+          this function/index combination
+ 
+ 4.89 KVM_S390_MEM_OP
++--------------------
+ 
+ Capability: KVM_CAP_S390_MEM_OP
+ Architectures: s390
+@@ -3111,6 +3196,7 @@ The "reserved" field is meant for future extensions. It is not used by
+ KVM with the currently defined set of flags.
+ 
+ 4.90 KVM_S390_GET_SKEYS
++-----------------------
+ 
+ Capability: KVM_CAP_S390_SKEYS
+ Architectures: s390
+@@ -3142,6 +3228,7 @@ The skeydata_addr field is the address to a buffer large enough to hold count
+ bytes. This buffer will be filled with storage key data by the ioctl.
+ 
+ 4.91 KVM_S390_SET_SKEYS
++-----------------------
+ 
+ Capability: KVM_CAP_S390_SKEYS
+ Architectures: s390
+@@ -3169,6 +3256,7 @@ Note: If any architecturally invalid key value is found in the given data then
+ the ioctl will return -EINVAL.
+ 
+ 4.92 KVM_S390_IRQ
++-----------------
+ 
+ Capability: KVM_CAP_S390_INJECT_IRQ
+ Architectures: s390
+@@ -3223,6 +3311,7 @@ KVM_S390_MCHK - machine check interrupt; parameters in .mchk
+ This is an asynchronous vcpu ioctl and can be invoked from any thread.
+ 
+ 4.94 KVM_S390_GET_IRQ_STATE
++---------------------------
+ 
+ Capability: KVM_CAP_S390_IRQ_STATE
+ Architectures: s390
+@@ -3257,6 +3346,7 @@ If -ENOBUFS is returned the buffer provided was too small and userspace
+ may retry with a bigger buffer.
+ 
+ 4.95 KVM_S390_SET_IRQ_STATE
++---------------------------
+ 
+ Capability: KVM_CAP_S390_IRQ_STATE
+ Architectures: s390
+@@ -3294,6 +3384,7 @@ and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
+ which is the maximum number of possibly pending cpu-local interrupts.
+ 
+ 4.96 KVM_SMI
++------------
+ 
+ Capability: KVM_CAP_X86_SMM
+ Architectures: x86
+@@ -3304,6 +3395,7 @@ Returns: 0 on success, -1 on error
+ Queues an SMI on the thread's vcpu.
+ 
+ 4.97 KVM_CAP_PPC_MULTITCE
++-------------------------
+ 
+ Capability: KVM_CAP_PPC_MULTITCE
+ Architectures: ppc
+@@ -3329,6 +3421,7 @@ an implementation for these despite the in kernel acceleration.
+ This capability is always enabled.
+ 
+ 4.98 KVM_CREATE_SPAPR_TCE_64
++----------------------------
+ 
+ Capability: KVM_CAP_SPAPR_TCE_64
+ Architectures: powerpc
+@@ -3361,6 +3454,7 @@ of IOMMU pages.
+ The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+ 
+ 4.99 KVM_REINJECT_CONTROL
++-------------------------
+ 
+ Capability: KVM_CAP_REINJECT_CONTROL
+ Architectures: x86
+@@ -3385,6 +3479,7 @@ pit_reinject = 0 (!reinject mode) is recommended, unless running an old
+ operating system that uses the PIT for timing (e.g. Linux 2.4.x).
+ 
+ 4.100 KVM_PPC_CONFIGURE_V3_MMU
++------------------------------
+ 
+ Capability: KVM_CAP_PPC_RADIX_MMU or KVM_CAP_PPC_HASH_MMU_V3
+ Architectures: ppc
+@@ -3416,6 +3511,7 @@ as the second doubleword of the partition table entry, as defined in
+ the Power ISA V3.00, Book III section 5.7.6.1.
+ 
+ 4.101 KVM_PPC_GET_RMMU_INFO
++---------------------------
+ 
+ Capability: KVM_CAP_PPC_RADIX_MMU
+ Architectures: ppc
+@@ -3450,6 +3546,7 @@ encodings, encoded with the AP value in the top 3 bits and the log
+ base 2 of the page size in the bottom 6 bits.
+ 
+ 4.102 KVM_PPC_RESIZE_HPT_PREPARE
++--------------------------------
+ 
+ Capability: KVM_CAP_SPAPR_RESIZE_HPT
+ Architectures: powerpc
+@@ -3503,6 +3600,7 @@ struct kvm_ppc_resize_hpt {
+ };
+ 
+ 4.103 KVM_PPC_RESIZE_HPT_COMMIT
++-------------------------------
+ 
+ Capability: KVM_CAP_SPAPR_RESIZE_HPT
+ Architectures: powerpc
+@@ -3545,6 +3643,7 @@ struct kvm_ppc_resize_hpt {
+ };
+ 
+ 4.104 KVM_X86_GET_MCE_CAP_SUPPORTED
++-----------------------------------
+ 
+ Capability: KVM_CAP_MCE
+ Architectures: x86
+@@ -3557,6 +3656,7 @@ has the same format as the MSR_IA32_MCG_CAP register. Supported
+ capabilities will have the corresponding bits set.
+ 
+ 4.105 KVM_X86_SETUP_MCE
++-----------------------
+ 
+ Capability: KVM_CAP_MCE
+ Architectures: x86
+@@ -3575,6 +3675,7 @@ checking for KVM_CAP_MCE. The supported capabilities can be
+ retrieved with KVM_X86_GET_MCE_CAP_SUPPORTED.
+ 
+ 4.106 KVM_X86_SET_MCE
++---------------------
+ 
+ Capability: KVM_CAP_MCE
+ Architectures: x86
+@@ -3608,6 +3709,7 @@ store it in the corresponding bank (provided this bank is
+ not holding a previously reported uncorrected error).
+ 
+ 4.107 KVM_S390_GET_CMMA_BITS
++----------------------------
+ 
+ Capability: KVM_CAP_S390_CMMA_MIGRATION
+ Architectures: s390
+@@ -3704,6 +3806,7 @@ mask is unused.
+ values points to the userspace buffer where the result will be stored.
+ 
+ 4.108 KVM_S390_SET_CMMA_BITS
++----------------------------
+ 
+ Capability: KVM_CAP_S390_CMMA_MIGRATION
+ Architectures: s390
+@@ -3749,6 +3852,7 @@ or if no page table is present for the addresses (e.g. when using
+ hugepages).
+ 
+ 4.109 KVM_PPC_GET_CPU_CHAR
++--------------------------
+ 
+ Capability: KVM_CAP_PPC_GET_CPU_CHAR
+ Architectures: powerpc
+@@ -3795,6 +3899,7 @@ These fields use the same bit definitions as the new
+ H_GET_CPU_CHARACTERISTICS hypercall.
+ 
+ 4.110 KVM_MEMORY_ENCRYPT_OP
++---------------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -3811,6 +3916,7 @@ Currently, this ioctl is used for issuing Secure Encrypted Virtualization
+ Documentation/virt/kvm/amd-memory-encryption.rst.
+ 
+ 4.111 KVM_MEMORY_ENCRYPT_REG_REGION
++-----------------------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -3834,6 +3940,7 @@ swap or migrate (move) ciphertext pages. Hence, for now we pin the guest
+ memory region registered with the ioctl.
+ 
+ 4.112 KVM_MEMORY_ENCRYPT_UNREG_REGION
++-------------------------------------
+ 
+ Capability: basic
+ Architectures: x86
+@@ -3845,6 +3952,7 @@ This ioctl can be used to unregister the guest memory region registered
+ with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+ 
+ 4.113 KVM_HYPERV_EVENTFD
++------------------------
+ 
+ Capability: KVM_CAP_HYPERV_EVENTFD
+ Architectures: x86
+@@ -3877,6 +3985,7 @@ Returns: 0 on success,
+ 	-EEXIST on assign if the conn_id is already registered
+ 
+ 4.114 KVM_GET_NESTED_STATE
++--------------------------
+ 
+ Capability: KVM_CAP_NESTED_STATE
+ Architectures: x86
+@@ -3939,6 +4048,7 @@ The maximum size of the state can be retrieved by passing KVM_CAP_NESTED_STATE
+ to the KVM_CHECK_EXTENSION ioctl().
+ 
+ 4.115 KVM_SET_NESTED_STATE
++--------------------------
+ 
+ Capability: KVM_CAP_NESTED_STATE
+ Architectures: x86
+@@ -3950,6 +4060,7 @@ This copies the vcpu's kvm_nested_state struct from userspace to the kernel.
+ For the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
+ 
+ 4.116 KVM_(UN)REGISTER_COALESCED_MMIO
++-------------------------------------
+ 
+ Capability: KVM_CAP_COALESCED_MMIO (for coalesced mmio)
+ 	    KVM_CAP_COALESCED_PIO (for coalesced pio)
+@@ -3978,6 +4089,7 @@ between coalesced mmio and pio except that coalesced pio records accesses
+ to I/O ports.
+ 
+ 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
++------------------------------------
+ 
+ Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
+ Architectures: x86, arm, arm64, mips
+@@ -4018,6 +4130,7 @@ However, it can always be used as long as KVM_CHECK_EXTENSION confirms
+ that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is present.
+ 
+ 4.118 KVM_GET_SUPPORTED_HV_CPUID
++--------------------------------
+ 
+ Capability: KVM_CAP_HYPERV_CPUID
+ Architectures: x86
+@@ -4075,6 +4188,7 @@ number of valid entries in the 'entries' array, which is then filled.
+ userspace should not expect to get any particular value there.
+ 
+ 4.119 KVM_ARM_VCPU_FINALIZE
++---------------------------
+ 
+ Architectures: arm, arm64
+ Type: vcpu ioctl
+@@ -4109,6 +4223,7 @@ See KVM_ARM_VCPU_INIT for details of vcpu features that require finalization
+ using this ioctl.
+ 
+ 4.120 KVM_SET_PMU_EVENT_FILTER
++------------------------------
+ 
+ Capability: KVM_CAP_PMU_EVENT_FILTER
+ Architectures: x86
+@@ -4140,7 +4255,7 @@ Valid values for 'action':
+ 
+ 
+ 5. The kvm_run structure
+-------------------------
++========================
+ 
+ Application code obtains a pointer to the kvm_run structure by
+ mmap()ing a vcpu fd.  From that point, application code can control
+@@ -4517,7 +4632,7 @@ values in kvm_run even if the corresponding bit in kvm_dirty_regs is not set.
+ 
+ 
+ 6. Capabilities that can be enabled on vCPUs
+---------------------------------------------
++============================================
+ 
+ There are certain capabilities that change the behavior of the virtual CPU or
+ the virtual machine when enabled. To enable them, please see section 4.37.
+@@ -4538,6 +4653,7 @@ The following information is provided along with the description:
+ 
+ 
+ 6.1 KVM_CAP_PPC_OSI
++-------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4553,6 +4669,7 @@ When this capability is enabled, KVM_EXIT_OSI can occur.
+ 
+ 
+ 6.2 KVM_CAP_PPC_PAPR
++--------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4573,6 +4690,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
+ 
+ 
+ 6.3 KVM_CAP_SW_TLB
++------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4616,6 +4734,7 @@ For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+    hardware ignores this value for TLB0.
+ 
+ 6.4 KVM_CAP_S390_CSS_SUPPORT
++----------------------------
+ 
+ Architectures: s390
+ Target: vcpu
+@@ -4634,6 +4753,7 @@ Note that even though this capability is enabled per-vcpu, the complete
+ virtual machine is affected.
+ 
+ 6.5 KVM_CAP_PPC_EPR
++-------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4652,6 +4772,7 @@ When disabled (args[0] == 0), behavior is as if this facility is unsupported.
+ When this capability is enabled, KVM_EXIT_EPR can occur.
+ 
+ 6.6 KVM_CAP_IRQ_MPIC
++--------------------
+ 
+ Architectures: ppc
+ Parameters: args[0] is the MPIC device fd
+@@ -4660,6 +4781,7 @@ Parameters: args[0] is the MPIC device fd
+ This capability connects the vcpu to an in-kernel MPIC device.
+ 
+ 6.7 KVM_CAP_IRQ_XICS
++--------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4669,6 +4791,7 @@ Parameters: args[0] is the XICS device fd
+ This capability connects the vcpu to an in-kernel XICS device.
+ 
+ 6.8 KVM_CAP_S390_IRQCHIP
++------------------------
+ 
+ Architectures: s390
+ Target: vm
+@@ -4678,6 +4801,7 @@ This capability enables the in-kernel irqchip for s390. Please refer to
+ "4.24 KVM_CREATE_IRQCHIP" for details.
+ 
+ 6.9 KVM_CAP_MIPS_FPU
++--------------------
+ 
+ Architectures: mips
+ Target: vcpu
+@@ -4691,6 +4815,7 @@ Config5.FRE bits are accessible via the KVM API and also from the guest,
+ depending on them being supported by the FPU.
+ 
+ 6.10 KVM_CAP_MIPS_MSA
++---------------------
+ 
+ Architectures: mips
+ Target: vcpu
+@@ -4703,6 +4828,8 @@ accessed, and the Config5.MSAEn bit is accessible via the KVM API and also from
+ the guest.
+ 
+ 6.74 KVM_CAP_SYNC_REGS
++----------------------
++
+ Architectures: s390, x86
+ Target: s390: always enabled, x86: vcpu
+ Parameters: none
+@@ -4743,6 +4870,7 @@ struct kvm_sync_regs {
+ };
+ 
+ 6.75 KVM_CAP_PPC_IRQ_XIVE
++-------------------------
+ 
+ Architectures: ppc
+ Target: vcpu
+@@ -4752,7 +4880,7 @@ Parameters: args[0] is the XIVE device fd
+ This capability connects the vcpu to an in-kernel XIVE device.
+ 
+ 7. Capabilities that can be enabled on VMs
+-------------------------------------------
++==========================================
+ 
+ There are certain capabilities that change the behavior of the virtual
+ machine when enabled. To enable them, please see section 4.37. Below
+@@ -4771,6 +4899,7 @@ The following information is provided along with the description:
+ 
+ 
+ 7.1 KVM_CAP_PPC_ENABLE_HCALL
++----------------------------
+ 
+ Architectures: ppc
+ Parameters: args[0] is the sPAPR hcall number
+@@ -4792,6 +4921,7 @@ implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
+ error.
+ 
+ 7.2 KVM_CAP_S390_USER_SIGP
++--------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4812,6 +4942,7 @@ in the hardware prior to interception). If this capability is not enabled, the
+ old way of handling SIGP orders is used (partially in kernel and user space).
+ 
+ 7.3 KVM_CAP_S390_VECTOR_REGISTERS
++---------------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4822,6 +4953,7 @@ provides for the synchronization between host and user space.  Will
+ return -EINVAL if the machine does not support vectors.
+ 
+ 7.4 KVM_CAP_S390_USER_STSI
++--------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4850,6 +4982,7 @@ struct {
+ KVM handlers should exit to userspace with rc = -EREMOTE.
+ 
+ 7.5 KVM_CAP_SPLIT_IRQCHIP
++-------------------------
+ 
+ Architectures: x86
+ Parameters: args[0] - number of routes reserved for userspace IOAPICs
+@@ -4870,6 +5003,7 @@ Fails if VCPU has already been created, or if the irqchip is already in the
+ kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
+ 
+ 7.6 KVM_CAP_S390_RI
++-------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4879,6 +5013,7 @@ Will return -EINVAL if the machine does not support runtime-instrumentation.
+ Will return -EBUSY if a VCPU has already been created.
+ 
+ 7.7 KVM_CAP_X2APIC_API
++----------------------
+ 
+ Architectures: x86
+ Parameters: args[0] - features that should be enabled
+@@ -4901,6 +5036,7 @@ without interrupt remapping.  This is undesirable in logical mode,
+ where 0xff represents CPUs 0-7 in cluster 0.
+ 
+ 7.8 KVM_CAP_S390_USER_INSTR0
++----------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4915,6 +5051,7 @@ This capability can be enabled dynamically even if VCPUs were already
+ created and are running.
+ 
+ 7.9 KVM_CAP_S390_GS
++-------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4924,6 +5061,7 @@ Returns: 0 on success; -EINVAL if the machine does not support
+ Allows use of guarded storage for the KVM guest.
+ 
+ 7.10 KVM_CAP_S390_AIS
++---------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4932,6 +5070,7 @@ Allow use of adapter-interruption suppression.
+ Returns: 0 on success; -EBUSY if a VCPU has already been created.
+ 
+ 7.11 KVM_CAP_PPC_SMT
++--------------------
+ 
+ Architectures: ppc
+ Parameters: vsmt_mode, flags
+@@ -4949,6 +5088,7 @@ The KVM_CAP_PPC_SMT_POSSIBLE capability indicates which virtual SMT
+ modes are available.
+ 
+ 7.12 KVM_CAP_PPC_FWNMI
++----------------------
+ 
+ Architectures: ppc
+ Parameters: none
+@@ -4960,6 +5100,7 @@ machine check handling routine. Without this capability KVM will
+ branch to guests' 0x200 interrupt vector.
+ 
+ 7.13 KVM_CAP_X86_DISABLE_EXITS
++------------------------------
+ 
+ Architectures: x86
+ Parameters: args[0] defines which exits are disabled
+@@ -4982,6 +5123,7 @@ all such vmexits.
+ Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
+ 
+ 7.14 KVM_CAP_S390_HPAGE_1M
++--------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -4999,6 +5141,7 @@ While it is generally possible to create a huge page backed VM without
+ this capability, the VM will not be able to run.
+ 
+ 7.15 KVM_CAP_MSR_PLATFORM_INFO
++------------------------------
+ 
+ Architectures: x86
+ Parameters: args[0] whether feature should be enabled or not
+@@ -5008,6 +5151,7 @@ a #GP would be raised when the guest tries to access. Currently, this
+ capability does not enable write permissions of this MSR for the guest.
+ 
+ 7.16 KVM_CAP_PPC_NESTED_HV
++--------------------------
+ 
+ Architectures: ppc
+ Parameters: none
+@@ -5022,6 +5166,7 @@ the necessary functionality and on the facility being enabled with a
+ kvm-hv module parameter.
+ 
+ 7.17 KVM_CAP_EXCEPTION_PAYLOAD
++------------------------------
+ 
+ Architectures: x86
+ Parameters: args[0] whether feature should be enabled or not
+@@ -5047,6 +5192,7 @@ and injected exceptions.
+   will clear DR6.RTM.
+ 
+ 7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
++--------------------------------------
+ 
+ Architectures: x86, arm, arm64, mips
+ Parameters: args[0] whether feature should be enabled or not
+@@ -5076,12 +5222,13 @@ KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 signals that those bugs are fixed.
+ Userspace should not try to use KVM_CAP_MANUAL_DIRTY_LOG_PROTECT.
+ 
+ 8. Other capabilities.
+-----------------------
++======================
+ 
+ This section lists capabilities that give information about other
+ features of the KVM implementation.
+ 
+ 8.1 KVM_CAP_PPC_HWRNG
++---------------------
+ 
+ Architectures: ppc
+ 
+@@ -5092,6 +5239,7 @@ If present, the kernel H_RANDOM handler can be enabled for guest use
+ with the KVM_CAP_PPC_ENABLE_HCALL capability.
+ 
+ 8.2 KVM_CAP_HYPERV_SYNIC
++------------------------
+ 
+ Architectures: x86
+ This capability, if KVM_CHECK_EXTENSION indicates that it is
+@@ -5105,6 +5253,7 @@ will disable the use of APIC hardware virtualization even if supported
+ by the CPU, as it's incompatible with SynIC auto-EOI behavior.
+ 
+ 8.3 KVM_CAP_PPC_RADIX_MMU
++-------------------------
+ 
+ Architectures: ppc
+ 
+@@ -5114,6 +5263,7 @@ radix MMU defined in Power ISA V3.00 (as implemented in the POWER9
+ processor).
+ 
+ 8.4 KVM_CAP_PPC_HASH_MMU_V3
++---------------------------
+ 
+ Architectures: ppc
+ 
+@@ -5123,6 +5273,7 @@ hashed page table MMU defined in Power ISA V3.00 (as implemented in
+ the POWER9 processor), including in-memory segment tables.
+ 
+ 8.5 KVM_CAP_MIPS_VZ
++-------------------
+ 
+ Architectures: mips
+ 
+@@ -5150,6 +5301,7 @@ may be incompatible with the MIPS VZ ASE.
+     virtualization, including standard guest virtual memory segments.
+ 
+ 8.6 KVM_CAP_MIPS_TE
++-------------------
+ 
+ Architectures: mips
+ 
+@@ -5163,6 +5315,7 @@ If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+ available, it means that the VM is using trap & emulate.
+ 
+ 8.7 KVM_CAP_MIPS_64BIT
++----------------------
+ 
+ Architectures: mips
+ 
+@@ -5188,6 +5341,7 @@ reserved.
+     It will be possible to run 64-bit or 32-bit guest code.
+ 
+ 8.9 KVM_CAP_ARM_USER_IRQ
++------------------------
+ 
+ Architectures: arm, arm64
+ This capability, if KVM_CHECK_EXTENSION indicates that it is available, means
+@@ -5229,6 +5383,7 @@ indicated by returning a higher number from KVM_CHECK_EXTENSION and will be
+ listed above.
+ 
+ 8.10 KVM_CAP_PPC_SMT_POSSIBLE
++-----------------------------
+ 
+ Architectures: ppc
+ 
+@@ -5238,6 +5393,7 @@ virtual SMT modes that can be set using KVM_CAP_PPC_SMT.  If bit N
+ available.
+ 
+ 8.11 KVM_CAP_HYPERV_SYNIC2
++--------------------------
+ 
+ Architectures: x86
+ 
+@@ -5247,6 +5403,7 @@ doesn't clear SynIC message and event flags pages when they are enabled by
+ writing to the respective MSRs.
+ 
+ 8.12 KVM_CAP_HYPERV_VP_INDEX
++----------------------------
+ 
+ Architectures: x86
+ 
+@@ -5256,6 +5413,7 @@ compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
+ capability is absent, userspace can still query this msr's value.
+ 
+ 8.13 KVM_CAP_S390_AIS_MIGRATION
++-------------------------------
+ 
+ Architectures: s390
+ Parameters: none
+@@ -5265,12 +5423,14 @@ AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
+ to discover this without having to create a flic device.
+ 
+ 8.14 KVM_CAP_S390_PSW
++---------------------
+ 
+ Architectures: s390
+ 
+ This capability indicates that the PSW is exposed via the kvm_run structure.
+ 
+ 8.15 KVM_CAP_S390_GMAP
++----------------------
+ 
+ Architectures: s390
+ 
+@@ -5279,6 +5439,7 @@ be anywhere in the user memory address space, as long as the memory slots are
+ aligned and sized to a segment (1MB) boundary.
+ 
+ 8.16 KVM_CAP_S390_COW
++---------------------
+ 
+ Architectures: s390
+ 
+@@ -5287,6 +5448,7 @@ use copy-on-write semantics as well as dirty pages tracking via read-only page
+ tables.
+ 
+ 8.17 KVM_CAP_S390_BPB
++---------------------
+ 
+ Architectures: s390
+ 
+@@ -5295,6 +5457,7 @@ reset, migration and nested KVM for branch prediction blocking. The stfle
+ facility 82 should not be provided to the guest without this capability.
+ 
+ 8.18 KVM_CAP_HYPERV_TLBFLUSH
++----------------------------
+ 
+ Architectures: x86
+ 
+@@ -5304,6 +5467,7 @@ HvFlushVirtualAddressSpace, HvFlushVirtualAddressSpaceEx,
+ HvFlushVirtualAddressList, HvFlushVirtualAddressListEx.
+ 
+ 8.19 KVM_CAP_ARM_INJECT_SERROR_ESR
++----------------------------------
+ 
+ Architectures: arm, arm64
+ 
+@@ -5316,14 +5480,18 @@ CPU when the exception is taken. If this virtual SError is taken to EL1 using
+ AArch64, this value will be reported in the ISS field of ESR_ELx.
+ 
+ See KVM_CAP_VCPU_EVENTS for more details.
++
+ 8.20 KVM_CAP_HYPERV_SEND_IPI
++----------------------------
+ 
+ Architectures: x86
+ 
+ This capability indicates that KVM supports paravirtualized Hyper-V IPI send
+ hypercalls:
+ HvCallSendSyntheticClusterIpi, HvCallSendSyntheticClusterIpiEx.
++
+ 8.21 KVM_CAP_HYPERV_DIRECT_TLBFLUSH
++-----------------------------------
+ 
+ Architecture: x86
+ 

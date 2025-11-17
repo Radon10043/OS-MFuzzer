@@ -2,39 +2,39 @@
 Author       : Radon
 Date         : 2025-02-12 20:23:29
 LastEditors  : Radon
-LastEditTime : 2025-02-19 14:08:06
-Description  : 提示两个LLM进行MR识别和校对
+LastEditTime : 2025-07-31 14:46:25
+Description  : Prompt iden llm & cali llm to identify and calibrate metamorphic relation.
 """
 
 import argparse
+import json
 import os
 import shutil
-import json
+
+from langchain_chroma import Chroma
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from utils import *
-from wrappers.openai import OpenAI
 from wrappers.anthropic import Anthropic
 from wrappers.googleai import GoogleAI
+from wrappers.openai import OpenAI
 
 
 def check_config(args: argparse.Namespace):
-    """检查配置文件是否合法
+    """Check the validity of the configuration file and prepare the output directory.
 
     Parameters
     ----------
     args : argparse.Namespace
-        命令行参数集
+        Command line arguments containing the path of the configuration file.
     """
-    # 检查配置文件是否存在
     if not os.path.exists(args.config):
         FATAL(f"File not found: {args.config}")
-
-    # 读取配置文件
     config = dict()
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    # 如果config中没有temperature字段, 使用默认值0.5
+    # If the key temperature is not exist, use default value 0.5
     if "temperature" not in config["identifier"].keys():
         WARNF('Key "temperature" not found in config file for "identifier", using default value: 0.5')
         config["identifier"]["temperature"] = 0.5
@@ -42,7 +42,7 @@ def check_config(args: argparse.Namespace):
         WARNF('Key "temperature" not found in config file for "calibrator", using default value: 0.5')
         config["calibrator"]["temperature"] = 0.5
 
-    # 如果config中没有stream字段, 使用默认值False
+    # If the key stream is not exist, use default value False
     if "stream" not in config["identifier"].keys():
         WARNF('Key "stream" not found in config file for "identifier", using default value: False')
         config["identifier"]["stream"] = False
@@ -50,33 +50,30 @@ def check_config(args: argparse.Namespace):
         WARNF('Key "stream" not found in config file for "calibrator", using default value: False')
         config["calibrator"]["stream"] = False
 
-    # 检查输出目录是否存在, 如果存在则报错, 提示用户需要先删掉该目录
+    # Check the output directory
     out_dir = config["output"]
-    shutil.rmtree(out_dir, ignore_errors=True)  # NOTE: Just for testing ...
-    if os.path.exists(out_dir):
+    if args.remove_exist_outdir:
+        shutil.rmtree(out_dir, ignore_errors=True)
+    elif os.path.exists(out_dir):
         FATAL(f"Output directory already exists: {out_dir}, please remove it first.")
-    os.makedirs(out_dir)
-
-    # 将用户的输入配置文件复制到输出目录下
-    shutil.copy(args.config, os.path.join(out_dir, "config.json"))
 
 
 def setup_openai(config: dict, role: str) -> OpenAI:
-    """初始化以OpenAI为框架的聊天对象, 主要是GPT, DeepSeek等系列模型
+    """Initialize an OpenAI chat object
 
     Parameters
     ----------
     config : dict
-        用户输入的配置信息
+        Configuration provided by user
     role : str
-        GPT模型的角色, 可以是identifier或calibrator
+        Role of llm, which is identifier or calibrator
 
     Returns
     -------
     OpenAI
-        封装的OpenAI聊天对象
+        OpenAI chat object
     """
-    # 初始化以OpenAI为框架的聊天对象
+    # Initialize OpenAI chat object
     openai_obj = OpenAI(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
@@ -85,10 +82,10 @@ def setup_openai(config: dict, role: str) -> OpenAI:
         stream=config[role]["stream"],
     )
 
-    driver_name = config["driver_name"]  # 待测驱动程序名称
-    spec = read_file(config["specification"])  # 规约说明文件的内容
+    driver_name = config["driver_name"]
+    spec = read_file(config["specification"])   # Specification content
 
-    # 设置模型的系统提示信息
+    # Set system prompt
     fn = config[role]["prompts"]["system"]
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
@@ -101,21 +98,21 @@ def setup_openai(config: dict, role: str) -> OpenAI:
 
 
 def setup_anthropic(config: dict, role: str) -> Anthropic:
-    """初始化以Anthropic为框架的聊天对象, 主要是Claude系列模型
+    """Initialize an Anthropic chat object
 
     Parameters
     ----------
     config : dict
-        用户输入的配置信息
+        Configuration provided by user
     role : str
-        以Anthropic为框架的角色, 可以是identifier或calibrator
+        Role of llm, which is identifier or calibrator
 
     Returns
     -------
     Anthropic
-        封装的Anthropic聊天对象
+        Anthropic chat object
     """
-    # 初始化以Anthropic为框架的聊天对象
+    # Initialize Anthropic chat object
     anthropic_obj = Anthropic(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
@@ -124,10 +121,10 @@ def setup_anthropic(config: dict, role: str) -> Anthropic:
         stream=config[role]["stream"],
     )
 
-    driver_name = config["driver_name"]  # 待测驱动程序名称
-    spec = read_file(config["specification"])  # 规约说明文件的内容
+    driver_name = config["driver_name"]
+    spec = read_file(config["specification"])   # Specification content
 
-    # 设置模型的系统提示信息
+    # Set system prompt
     fn = config[role]["prompts"]["system"]
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
@@ -140,22 +137,21 @@ def setup_anthropic(config: dict, role: str) -> Anthropic:
 
 
 def setup_googleai(config: dict, role: str) -> GoogleAI:
-    """初始化以GoogleAI为框架的聊天对象, 主要是调用Gemini等模型
-    官方库名为google.genai
+    """Initialize a GoogleAI chat object
 
     Parameters
     ----------
     config : dict
-        用户输入的配置信息
+        Configuration provided by user
     role : str
-        对象的角色, 可以是identifier或calibrator
+        Role of llm, which is identifier or calibrator
 
     Returns
     -------
     GoogleAI
-        封装的以GoogleAI为框架的聊天对象
+        GoogleAI chat object
     """
-    # 初始化Gemini聊天模型
+    # Initialize googleai chat model
     googleai_obj = GoogleAI(
         base_url=config[role]["base_url"],
         api_key=config[role]["api_key"],
@@ -164,10 +160,10 @@ def setup_googleai(config: dict, role: str) -> GoogleAI:
         stream=config[role]["stream"],
     )
 
-    driver_name = config["driver_name"]  # 待测驱动程序名称
-    spec = read_file(config["specification"])  # 规约说明文件的内容
+    driver_name = config["driver_name"]
+    spec = read_file(config["specification"])  # Specification content
 
-    # 设置模型的系统提示信息
+    # Set system prompt
     fn = config[role]["prompts"]["system"]
     sys_prompt = str()
     with open(fn, "r", encoding="utf-8") as f:
@@ -179,131 +175,172 @@ def setup_googleai(config: dict, role: str) -> GoogleAI:
     return googleai_obj
 
 
-def loop(identifier, calibrator, config: dict):
-    """迭代地让两个LLM进行讨论, 识别和校准蜕变关系
+def loop(
+    identifier: OpenAI | Anthropic | GoogleAI,
+    calibrator: OpenAI | Anthropic | GoogleAI,
+    config: dict,
+    vector_db: Chroma | None,
+):
+    """Prompt identifier & calibrator to identify and calibrate metamorphic relations (MRs).
 
     Parameters
     ----------
-    identifier : _type_
-        用于识别蜕变关系的LLM
-    calibrator : _type_
-        用于校准蜕变关系的LLM
+    identifier : OpenAI | Anthropic | GoogleAI
+        LLM used to identify metamorphic relations
+    calibrator : OpenAI | Anthropic | GoogleAI
+        LLM used to calibrate metamorphic relations
     config : dict
-        存储配置信息的字典
+        Configuration provided by user
     """
-    iden_prompts = list()  # identifier提示词列表
-    cali_prompts = list()  # calibrator提示词列表
-    idx_iden_prompt = 0  # identifier提示词索引
-    idx_cali_prompt = 0  # calibrator提示词索引
-    spec = read_file(config["specification"])  # 读取规格说明文件的内容
-    dirver_name = config["driver_name"]  # 驱动程序的名称
-    prev_mrc = str()  # 上一次的蜕变关系候选(Metamorphic Relation Candidate, MRC)内容
-    mrc = str()  # 当前的蜕变关系候选内容
-    iterations = 0  # 讨论轮数
-
-    # 读取identifier和calibrator的提示词
+    # Add user prompts to the list
+    iden_prompts = list()  # Prompt list for identifier
+    cali_prompts = list()  # Prompt list for calibrator
     for fn in config["identifier"]["prompts"]["user"]:
-        with open(fn, "r") as f:
-            iden_prompts.append(f.read())
+        iden_prompts.append(Path(fn).read_text(encoding="utf-8"))
     for fn in config["calibrator"]["prompts"]["user"]:
-        with open(fn, "r") as f:
-            cali_prompts.append(f.read())
+        cali_prompts.append(Path(fn).read_text(encoding="utf-8"))
 
-    # 迭代地让两个LLM进行讨论, 识别和校准蜕变关系
+    # Retrieve relevant documents from the external corpus if exists
+    spec = Path(config["specification"]).read_text(encoding="utf-8")
+    retrieved_prompt = str()
+    if vector_db is not None:
+        retrieved_docs = vector_db.similarity_search(query=spec)
+        docs_content = "\n\n---\n\n".join(doc.page_content for doc in retrieved_docs)
+        if len(docs_content) > 0:
+            retrieved_prompt = f"You can also refer to the following documents:\n\n{docs_content}"
+
+    # Prompt identifier and calibrator to identify and calibrate metamorphic relations iteratively
+    prev_mr = str()  # Previous metamorphic relation content
+    mr = str()  # Latest metamorphic relation
+    gen_success = False  # Whether the MR generation is successful
+    idx_iden_prompt = 0  # identifier prompt index
+    idx_cali_prompt = 0  # calibrator prompt index
+    iterations = 0
+    dirver_name = config["driver_name"]  # Driver name
     while iterations < config["max_iter"]:
         ACTF(f"Iterations: {iterations + 1}")
+        ACTF(f"Asking identifier ({config['identifier']['model']}) ...")
         iden_prompt = iden_prompts[idx_iden_prompt]
         iden_prompt = iden_prompt.replace("[Text from specification]", spec)
-        iden_prompt = iden_prompt.replace("[MR generated by calibrator]", mrc)
+        iden_prompt = iden_prompt.replace("[MR generated by calibrator]", mr)
         iden_prompt = iden_prompt.replace("[Driver name]", dirver_name)
+
+        # Add retrieved documents to the identifier prompt if exists
+        if len(retrieved_prompt) > 0:
+            iden_prompt += "\n\n" + retrieved_prompt
+
+        # Prompt identifier to generate an metamorphic relation
         iden_response = identifier.chat(iden_prompt)
 
-        # 如果输出的内容中不存在代码块, 认为identifier没有继续改进MRC, 跳出循环
-        prev_mrc = mrc
-        mrc = get_first_code_block(iden_response, {"markdown", "md"})
-        if len(mrc) == 0:
+        # If identifier's output does not contain a code block, or not further improved
+        # MR, break the loop
+        prev_mr = mr
+        mr = get_first_code_block(iden_response, {"markdown", "md"})
+        if len(mr) == 0:
             break
-        ACTF(f"Got the MRC generatd by identifier!")
+        OKF(f"Got the MR generated by identifier!")
 
+        ACTF(f"Asking calibrator ({config['calibrator']['model']}) ...")
         cali_prompt = cali_prompts[idx_cali_prompt]
-        cali_prompt = cali_prompt.replace("[MR generated by identifier]", mrc)
+        cali_prompt = cali_prompt.replace("[MR generated by identifier]", mr)
         cali_prompt = cali_prompt.replace("[Driver name]", dirver_name)
         cali_response = calibrator.chat(cali_prompt)
 
-        # 如果calibrator的输出内容中不存在代码块, 或输出的是"correct", 视作calibrator认为MRC正确反应了待测对象的属性, 跳出循环
-        prev_mrc = mrc
-        mrc = get_first_code_block(cali_response, {"markdown", "md"})
-        if len(mrc) == 0 or cali_response.lower() == "correct":
+        # If calibrator's output does not contain a code block, or its output is "correct",
+        # then we consider the MR is successfully generated
+        prev_mr = mr
+        mr = get_first_code_block(cali_response, {"markdown", "md"})
+        if len(mr) == 0 or cali_response.lower() == "correct":
+            gen_success = True
             break
-        ACTF("Got the MRC generated by calibrator!")
+        OKF("Got the MR generated by calibrator!")
 
-        # 更新identifier和calibrator的提示词索引, 如果索引超出范围, 则不再更新
+        # Update prompt index of iden llm & cali llm for the next iteration
         if idx_iden_prompt < len(config["identifier"]["prompts"]["user"]) - 1:
             idx_iden_prompt += 1
         if idx_cali_prompt < len(config["calibrator"]["prompts"]["user"]) - 1:
             idx_cali_prompt += 1
 
-        # 更新迭代轮数计数
+        # Update iteration count
         iterations += 1
 
-    # 将和identifier及calibrator的对话记录保存至markdown和json文件, 并将两个LLM的最终讨论结果保存至output下的mrc_final.md
-    identifier.save_messages(os.path.join(config["output"], "iden_messages.md"))
-    identifier.save_messages(os.path.join(config["output"], "iden_messages.json"))
-    calibrator.save_messages(os.path.join(config["output"], "cali_messages.md"))
-    calibrator.save_messages(os.path.join(config["output"], "cali_messages.json"))
-    with open(os.path.join(config["output"], "mrc_final.md"), "w") as f:
-        f.write(f"### FINAL DISCUSSIN RESULT\n\n{prev_mrc}\n\nITERATIONS: {iterations + 1}")
-    OKF(f"Discussion finished! Check the output directory {config["output"]} for details.")
+    # Save chat messages of iden llm & cali llm to the output directory
+    # Save the final MR to the output directory
+    outdir = config["output"]
+    os.makedirs(outdir, exist_ok=True)
+    identifier.save_messages(os.path.join(outdir, "iden_messages.md"))
+    identifier.save_messages(os.path.join(outdir, "iden_messages.json"))
+    calibrator.save_messages(os.path.join(outdir, "cali_messages.md"))
+    calibrator.save_messages(os.path.join(outdir, "cali_messages.json"))
+    if gen_success:
+        with open(os.path.join(outdir, "mr_final.md"), "w") as f:
+            f.write("### FINAL DISCUSSION RESULT\n\n")
+            f.write(prev_mr + "\n\n")
+            f.write(f"IDENTIFIER: {config['identifier']['model']}\n\n")
+            f.write(f"CALIBRATOR: {config['calibrator']['model']}\n\n")
+            f.write(f"ITERATIONS: {iterations + 1}\n\n")
+        OKF(f"Discussion finished! Check the output directory {config['output']} for details.")
+    else:
+        WARNF(f"{identifier.model} (identifier) and {calibrator.model} (calibrator) did not reach the consistent!")
 
 
-def main(args: argparse.Namespace):
-    """主函数, 初始化identifier和calibrator, 然后让两个模型进行讨论, 识别和校准蜕变关系
+def main(config: dict):
+    """Initialize the identifier and calibrator, then let the two models discuss to identify and calibrate metamorphic relations.
 
     Parameters
     ----------
-    args : argparse.Namespace
-        命令行参数集
+    config : dict
+        Configuration provided by user
     """
-    # 检查命令行参数是否合法
-    ACTF("Checking arguments...")
-    check_config(args)
-    OKF("Arguments are valid.")
-
-    # 读取配置文件
-    config = dict()
-    with open(args.config, "r") as f:
-        config = json.load(f)
-
-    # 初始化模型字典, 用于根据配置文件中framework的值初始化相应的模型
+    # Dictionary to map framework names to setup functions
     setup_func_dict = {
         "openai": setup_openai,
         "anthropic": setup_anthropic,
         "googleai": setup_googleai,
     }
 
-    # 初始化identifier模型, 该模型主要用于识别蜕变关系
-    ACTF("Initializing identifier model ...")
+    # Initialize identification llm
+    ACTF(f"Initializing identifier model ({config['identifier']['model']}) ...")
     framework = config["identifier"]["framework"].lower()
     if framework not in setup_func_dict.keys():
         FATAL(f"Unsupported model: {framework}\n\nSupported models: {setup_func_dict.keys()}")
     identifier = setup_func_dict[framework](config, "identifier")
     OKF("Identifier model successfully initialized!")
 
-    # 初始化calibrator模型, 该模型主要用于校准蜕变关系
-    ACTF("Initializing calibrator model ...")
+    # Initialize calibration llm
+    ACTF(f"Initializing calibrator model ({config['calibrator']['model']}) ...")
     framework = config["calibrator"]["framework"].lower()
     if framework not in setup_func_dict.keys():
         FATAL(f"Unsupported model: {framework}\n\nSupported models: {setup_func_dict.keys()}")
     calibrator = setup_func_dict[framework](config, "calibrator")
     OKF("Calibrator model successfully initialized!")
 
-    # 开始通过两个模型之间的讨论来识别和校准蜕变关系
+    # Load the external corpus if exists
+    vector_db = None
+    if "corpus" in config.keys():
+        chroma_dir = os.path.join(config["corpus"], "chroma")
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+        vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
+
+    # Prompt iden llm & cali llm to identify and calibrate metamorphic relations
     ACTF("Let identifier and calibrator discuss ...")
-    loop(identifier, calibrator, config)
+    loop(identifier, calibrator, config, vector_db)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path of configuration json file.")
+    parser.add_argument("--remove-exist-outdir", action="store_true", help="Remove the output directory if it exists.")
     args = parser.parse_args()
-    main(args)
+
+    # Check validity of arguments
+    ACTF("Checking arguments...")
+    check_config(args)
+    OKF("Arguments are valid.")
+
+    # Read the configuration file
+    config = dict()
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    main(config)

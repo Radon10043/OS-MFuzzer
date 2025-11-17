@@ -1,0 +1,95 @@
+diff --git a/healer_core/Cargo.toml b/healer_core/Cargo.toml
+index eaba0d4..584ce1f 100644
+--- a/healer_core/Cargo.toml
++++ b/healer_core/Cargo.toml
+@@ -12,5 +12,5 @@ log = "0.4"
+ pest = "2.1"
+ pest_derive = "2.1"
+ hex = "0.4"
+-tch = "0.7.0"
++tch = "0.20.0"
+ reqwest = { version="0.11.10", features = ["blocking"] }
+\ No newline at end of file
+diff --git a/healer_core/src/lang_mod/model.rs b/healer_core/src/lang_mod/model.rs
+index 95ca383..3c9f0de 100644
+--- a/healer_core/src/lang_mod/model.rs
++++ b/healer_core/src/lang_mod/model.rs
+@@ -87,9 +87,9 @@ impl Model {
+             None
+         }
+         else {
+-            let length = Tensor::of_slice(&[inputs.len() as u8]).to_device(self.device.unwrap());
++            let length = Tensor::from_slice(&[inputs.len() as i64]).to_device(self.device.unwrap());
+             let inputs_i32 = inputs.into_iter().map(|i| *i as i32).collect::<Vec<i32>>();
+-            let inputs_i32 = Tensor::stack(&[Tensor::of_slice(&inputs_i32)], 0).to_device(self.device.unwrap());
++            let inputs_i32 = Tensor::stack(&[Tensor::from_slice(&inputs_i32)], 0).to_device(self.device.unwrap());
+             let outputs = self.model.as_ref().unwrap().forward_ts(&[inputs_i32, length]).unwrap().softmax(-1, tch::Kind::Float);
+             Some(outputs)
+         }
+diff --git a/healer_core/src/lang_mod/mutate.rs b/healer_core/src/lang_mod/mutate.rs
+index 0053ef7..ade65cc 100644
+--- a/healer_core/src/lang_mod/mutate.rs
++++ b/healer_core/src/lang_mod/mutate.rs
+@@ -4,6 +4,8 @@ use std::{collections::HashMap};
+ use rand::{prelude::SliceRandom};
+ use tch::Tensor;
+ 
++use std::convert::TryFrom;
++
+ use crate::{
+     context::Context, 
+     RngType, 
+@@ -64,8 +66,8 @@ pub fn select_call_to_lang(ctx: &mut Context, rng: &mut RngType, idx: usize) ->
+ // generate `topk` candidates for given distribution
+ pub fn top_k(pred: &Tensor, topk: i64) -> HashMap<usize, f64>{
+     let (pred_val, pred_indexes) = pred.topk(topk, 1, true, true);
+-    let pred_val: Vec<f64> = Vec::from(pred_val);
+-    let pred_indexes: Vec<i16> = Vec::from(pred_indexes);
++    let pred_val = Vec::<f64>::try_from(pred_val).unwrap();
++    let pred_indexes = Vec::<i16>::try_from(pred_indexes).unwrap();
+     let candidates: HashMap<SyscallId, f64> = pred_indexes.into_iter()
+             .map(|i| i as SyscallId)
+             .zip(pred_val.into_iter())
+diff --git a/healer_core/src/lang_mod/utils.rs b/healer_core/src/lang_mod/utils.rs
+index 0d6cbbf..40a0cb7 100644
+--- a/healer_core/src/lang_mod/utils.rs
++++ b/healer_core/src/lang_mod/utils.rs
+@@ -22,11 +22,12 @@ pub fn accuracy(predict: &Tensor, labels: &Tensor, topk: Vec<i64>) -> Vec<f64>{
+     let correct = pred_indexes.eq_tensor(&labels.view([1,-1]).expand_as(&pred_indexes));
+     let correct = correct.logical_and(&pad_mask);
+ 
+-    let total = f64::from(pad_mask.sum(tch::Kind::Float));
++    let total = pad_mask.sum(tch::Kind::Float).f_double_value(&[]).unwrap();
+     let mut ret: Vec<f64> = Vec::new();
+     for k in topk {
+         let correct_k = correct.i(0..k).reshape(&[1,-1]).sum(tch::Kind::Float);
+-        let val = f64::trunc(f64::from(correct_k*100.0*100.0/total))/100.0;
++        let correct_k_val = (correct_k * 100.0 * 100.0).f_double_value(&[]);
++        let val = f64::trunc(correct_k_val.unwrap() / total) / 100.0;
+         ret.push(val);
+     }
+     ret
+diff --git a/syz_wrapper/Cargo.toml b/syz_wrapper/Cargo.toml
+index 272f25d..18b2131 100644
+--- a/syz_wrapper/Cargo.toml
++++ b/syz_wrapper/Cargo.toml
+@@ -15,6 +15,7 @@ shared_memory = "0.12"
+ timeout-readwrite = "0.3.1"
+ nix = "0.22"
+ log = "0.4"
++serde_json = "1.0.145"
+ 
+ [dependencies.simd-json]
+ version = "0.4"
+diff --git a/syz_wrapper/src/repro.rs b/syz_wrapper/src/repro.rs
+index be6e657..9043c67 100644
+--- a/syz_wrapper/src/repro.rs
++++ b/syz_wrapper/src/repro.rs
+@@ -1,6 +1,6 @@
+ use crate::exec::{ExecOpt, FLAG_INJECT_FAULT};
+ use healer_core::{prog::Prog, target::Target};
+-use simd_json::{json, to_string};
++use serde_json::{json, to_string};
+ use std::env::temp_dir;
+ use std::fmt::Write;
+ use std::fs::write;

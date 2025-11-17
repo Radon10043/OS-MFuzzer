@@ -116,6 +116,7 @@ class GoogleAI(Wrapper):
         tmp = self.client.models.list()
         for model in tmp.page:
             models.append(model.name.lstrip("models/"))
+        models.sort()
         return models
 
     def save_messages(self, path: str):
@@ -151,9 +152,13 @@ class GoogleAI(Wrapper):
         elif ext_name == ".md" or ext_name == ".markdown":
             with open(os.path.join(path), "w") as f:
                 for msg in messages:
-                    f.write(f"### {msg["role"]}\n\n{msg["content"]}\n")
+                    f.write(f"### {msg['role']}\n\n{msg['content']}\n")
                     f.write("\n")
 
         # 不支持的文件后缀名
         else:
             FATAL(f"Unsupported file extension: {ext_name}")
+
+    def clear_messages(self):
+        """清除聊天记录, 但不清除系统提示"""
+        self.inst._curated_history.clear()

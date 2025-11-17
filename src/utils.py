@@ -1,6 +1,10 @@
+import os
+import subprocess
 import time
-import marko
+from pathlib import Path
+from typing import Tuple
 
+import marko
 from marko.md_renderer import MarkdownRenderer
 
 
@@ -51,7 +55,7 @@ def BADF(msg: str):
 
 
 def FATAL(msg: str):
-    SAYF(TerminalColors.cLRD + "[-] PROGRAM ABORT :  " + TerminalColors.cRST + msg + "\n")
+    SAYF(TerminalColors.cLRD + "[-] PROGRAM ABORT : " + TerminalColors.cRST + msg + "\n")
     exit(1)
 
 
@@ -63,67 +67,189 @@ def PFATAL(msg: str):
 ###############################
 ### Miscellaneous functions ###
 ###############################
-def read_file(path: str) -> str:
-    """读取指定文件的内容
+def read_file(filepath: str) -> str:
+    """Read the content of filepath
 
     Parameters
     ----------
-    path : str
-        文件路径
+    filepath : str
+        The path to the file
 
     Returns
     -------
     str
-        文件的内容
+        Content of the file
     """
-    content = str()
-    with open(path, "r") as f:
-        content = f.read()
-    return content
-
-
-def get_cur_time() -> str:
-    """获取当前时间
-
-    Returns
-    -------
-    str
-        返回当前时间, 格式为"年月日时分秒"
-
-    Notes
-    -----
-    _description_
-    """
-    cur_time = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
-    return cur_time
+    return Path(filepath).read_text(encoding="utf-8")
 
 
 def get_first_code_block(md_text: str, langs: set) -> str:
-    """从markdown文本中获取第一个指定语言(langs中存在的语言)的代码块内容
+    """Get the first code block in markdown text that matches the specified languages.
 
     Parameters
     ----------
     md_text : str
-        markdown文本
+        markdown text
     langs: set
-        指定语言集合
+        specified language set
 
     Returns
     -------
     str
-        makrdonw中代码块的内容, 包含表示代码块开头和结尾的标志
+        The content of the code block in markdown, including the fences
     """
-    # 初始化markdown解析器, 将markdown文本解析为AST
+    # Initialize markdown parser, parser markdown text to AST
     md_instance = marko.Markdown(renderer=MarkdownRenderer)
     md_ast = md_instance.parse(md_text)
     code_list = list()
 
-    # 遍历AST, 获取代码块内容, 存入代码列表中, 获取到第一个指定语言的代码块后就退出
+    # Traverse AST, get content of code block. We only return the content of the
+    # first code block
     for child in md_ast.children:
         child_type = child.get_type()
-        if child_type == "FencedCode" and child.lang in langs:
-            code_list.extend(md_instance.render(child).split("\n"))
+        if child_type == "FencedCode" and child.lang in langs:  # type: ignore
+            code_list.extend(md_instance.render(child).split("\n"))  # type: ignore
             break
 
-    # 返回代码块内容, 包含开头的```xxx和结尾的```
+    # Return content of the code block, including fences
     return "\n".join(code_list)
+
+
+def build_syzkaller(syzkaller: str) -> Tuple[int, str, str]:
+    """Run `make generate -j` and `make clean all -j` to build the syzkaller.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory
+
+    Returns
+    -------
+    Tuple[int, str, str]
+        The return code, stderr, and stdout of the build process.
+    """
+    res = subprocess.run(
+        ["make", "generate", "-j"],
+        cwd=syzkaller,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if res.returncode != 0:
+        return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
+
+    res = subprocess.run(
+        ["make", "clean", "all", "-j"],
+        cwd=syzkaller,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return res.returncode, res.stderr.decode("utf-8"), res.stdout.decode("utf-8")
+
+
+def add_pseudo_syscall(syzkaller: str, csource: str, syzlang_desc: str, func: str):
+    """Add pseudo-syscall to syzkaller, including:
+    - Insert C source to syzkaller/executor/common_linux.h;
+    - Create metamorphic.txt under syzkaller/sys/linux and write syzlang description;
+    - Modify syzkaller/pkg/vminfo/linux_syscalls.go to add corresponding syscall.
+
+    Parameters
+    ----------
+    syzkaller : str
+        Path to the syzkaller directory, must be commit 4b25d554
+    csource : str
+        C source code of the pseudo-syscall
+    syzlang_desc : str
+        syzlang description of the pseudo-syscall
+    func : str
+        Name of the pseudo-syscall function, used to modify linux_syscalls.go
+    """
+    linux_syscall_file = os.path.join(syzkaller, "pkg", "vminfo", "linux_syscalls.go")
+    linux_syscall_content = str()
+    common_linux_file = os.path.join(syzkaller, "executor", "common_linux.h")
+
+    # Add syzlang description to syzkaller
+    syzlang_fn = os.path.join(syzkaller, "sys", "linux", "metamorphic.txt")
+    with open(syzlang_fn, "w", encoding="utf-8") as f:
+        f.write(syzlang_desc)
+
+    # Add C source code to common_linux.h
+    with open(common_linux_file, "a", encoding="utf-8") as f:
+        f.write("#if SYZ_EXECUTOR || __NR_syz_mr\n")
+        f.write(csource)
+        f.write("\n#endif\n")
+
+    # Add syscall to linux_syscalls.go
+    with open(linux_syscall_file, "r", encoding="utf-8") as f:
+        linux_syscall_content = f.readlines()
+    with open(linux_syscall_file, "w", encoding="utf-8") as f:
+        linux_syscall_content[104] += f'"{func}": alwaysSupported,'
+        f.writelines(linux_syscall_content)
+
+
+def clean_repo(path: str):
+    """Clean the repository by checking out and removing untracked files.
+
+    Parameters
+    ----------
+    path : str
+        Path to the repository to clean.
+    """
+    res = subprocess.run(
+        "git checkout . && git clean -fdx",
+        cwd=path,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if res.returncode != 0:
+        FATAL(f"Failed to clean repository: {res.stderr.decode('utf-8')}")
+
+
+def patch_repo(repo: str, patch: str):
+    """Patch git repository.
+
+    Parameters
+    ----------
+    repo : str
+        Path to the repository.
+    patch : str
+        Path to the patch file to apply to repo.
+    """
+    try:
+        subprocess.run(
+            ["git", "apply", patch],
+            cwd=repo,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+    except BaseException as e:
+        FATAL(f"Failed to apply patch {patch} to repo: {e}")
+
+
+def get_commit(dir: str) -> str:
+    """Get the current commit hash of the given directory.
+
+    Parameters
+    ----------
+    dir : str
+        The directory to get the commit hash from.
+
+    Returns
+    -------
+    str
+        The current commit hash of the given directory.
+    """
+    try:
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=dir,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+    except Exception as e:
+        FATAL(f"Failed to get commit hash: {e}")
+    return commit

@@ -2,64 +2,64 @@
 Author       : Radon
 Date         : 2025-02-12 21:30:59
 LastEditors  : Radon
-LastEditTime : 2025-02-19 14:09:19
+LastEditTime : 2025-08-02 15:29:23
 Description  : 提示LLM用C语言实现指定的MR
 """
 
 import argparse
-import os
 import json
+import os
 import shutil
 import subprocess
 
-from typing import Tuple
+from clang.cindex import Config, CursorKind, Index
+
 from utils import *
-from wrappers.openai import OpenAI
 from wrappers.anthropic import Anthropic
 from wrappers.googleai import GoogleAI
+from wrappers.openai import OpenAI
 
 
-def check_config(args: argparse.Namespace):
-    """检查命令行参数是否合法, 并读取配置文件
+def check_args(args: argparse.Namespace):
+    """Check validity of command line arguments
 
     Parameters
     ----------
     args : argparse.Namespace
-        命令行参数集
+        Command line arguments
     """
-    # 检查配置文件是否存在
+    # Check if config file exists
     if not os.path.exists(args.config):
         FATAL(f"File not found: {args.config}")
 
-    # 读取配置文件
+    # Read config file
     config = dict()
     with open(args.config, "r") as f:
         config = json.load(f)
 
-    # 检查存储MRC(MR候选)描述的文件是否存在
-    if not os.path.exists(config["mrc_desc"]):
-        FATAL(f"File not found: {config["mrc_desc"]}")
+    # Check if config file contains required keys
+    if not os.path.exists(config["mr_desc"]):
+        FATAL(f"File not found: {config['mr_desc']}")
 
-    # 检查指定的编译器是否存在
+    # Check if compiler exists
     compiler = config["compiler"]
     res = subprocess.run([compiler, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if res.returncode != 0:
         FATAL(f"Compiler not found: {compiler}")
 
-    # 检查cflags是否合法
-    cflags = config["cflags"]
-    ret_code, _ = build_c_program("int main() { return 0; }", compiler, cflags)
-    if ret_code != 0:
-        FATAL(f"Invalid cflags: {cflags}")
-
-    # 检查输出目录是否存在, 如果存在则报错, 提示用户需要先删掉该目录
+    # Check if output directory exists, if it does, prompt user to remove it
     out_dir = config["output"]
     shutil.rmtree(out_dir, ignore_errors=True)  # NOTE: Just for testing ...
     if os.path.exists(out_dir):
         FATAL(f"Output directory already exists: {out_dir}, please remove it first.")
-    os.makedirs(config["output"])
 
-    # 将用户的输入配置文件复制到输出目录下
+    # Check if syzkaller directory exists
+    syzkaller = config["syzkaller"]
+    if not os.path.exists(syzkaller):
+        FATAL(f"Syzkaller directory not found: {syzkaller}")
+
+    # Copy config file to output directory
+    # TODO: This may leak sensitive information, should be removed in the future
     shutil.copy(args.config, os.path.join(out_dir, "config.json"))
 
 
@@ -85,14 +85,7 @@ def setup_openai(config: dict) -> OpenAI:
         stream=config["stream"],
     )
 
-    # 设置模型的系统提示信息
-    fn = config["prompts"]["system"]
-    sys_prompt = str()
-    with open(fn, "r", encoding="utf-8") as f:
-        sys_prompt = f.read()
-    openai_obj.set_sys_prompt(sys_prompt)
-
-    # 返回初始化后的GPT模型
+    # 返回初始化后的OpenAI对象
     return openai_obj
 
 
@@ -118,14 +111,7 @@ def setup_anthropic(config: dict) -> Anthropic:
         stream=config["stream"],
     )
 
-    # 设置模型的系统提示信息
-    fn = config["prompts"]["system"]
-    sys_prompt = str()
-    with open(fn, "r", encoding="utf-8") as f:
-        sys_prompt = f.read()
-    anthropic_obj.set_sys_prompt(sys_prompt)
-
-    # 返回初始化后的Claude模型
+    # 返回初始化后的Anthropic对象
     return anthropic_obj
 
 
@@ -152,173 +138,296 @@ def setup_googleai(config: dict) -> GoogleAI:
         stream=config["stream"],
     )
 
-    # 设置模型的系统提示信息
-    fn = config["prompts"]["system"]
-    sys_prompt = str()
-    with open(fn, "r", encoding="utf-8") as f:
-        sys_prompt = f.read()
-    googleai_obj.set_sys_prompt(sys_prompt)
-
-    # 返回初始化后的Gemini模型
+    # 返回初始化后的GoogleAI对象
     return googleai_obj
 
 
-def build_c_program(c_code: str, compiler: str, cflags: str) -> Tuple[int, str]:
-    """编译构建C代码
+def get_params(input: str, func: str, input_file: bool = True) -> list:
+    """从C代码中提取指定函数的形参列表, 仅包含形参名称
 
     Parameters
     ----------
-    c_code : str
-        C代码
-    compiler : str
-        编译器
-    cflags : str
-        编译选项
+    input : str
+        C代码或C代码文件路径
+    func : str
+        _description_
+    input_file : bool, optional
+        True表示input是文件路径, 否则表示代码内容, by default True
 
     Returns
     -------
-    Tuple[int, str]
-        返回值和错误信息
+    list
+        形参名称列表
     """
-    # 将C代码写入临时文件并进行编译, 返回编译结果和错误信息
-    sfn = "/tmp/GQuuuuuuX.c"
-    binary = "/tmp/GQuuuuuuX"
-    with open(sfn, mode="w", encoding="utf-8") as f:
-        f.write(c_code)
-    res = subprocess.run([compiler, cflags, "-o", binary, sfn], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return res.returncode, res.stderr.decode("utf-8")
+    params = list()  # 函数的形参列表
 
+    # 加载libclang.so
+    if not Config.loaded:
+        libclang_path = subprocess.run("llvm-config --libdir", shell=True, stdout=subprocess.PIPE).stdout.decode().strip()
+        Config.set_library_path(libclang_path)
 
-def loop(programmer, config: dict):
-    """迭代地让programmer生成用C语言实现的MRC
+    # 分析获得C代码的AST
+    index = Index.create()
+    tu = None
+    if input_file:
+        tu = index.parse(input)
+    else:
+        tu = index.parse("fake.c", unsaved_files=[("fake.c", input)])
+    cursor = tu.cursor
 
-    Parameters
-    ----------
-    programmer : _type_
-        programmer模型
-    config : dict
-        配置文件
-    """
-    gen_success = False  # 代码生成成功标志
-    index = 0  # 提示词下标
-    iterations = 0  # 迭代次数
-    usr_prompts = list()  # 用户提示列表
-    err_msgs = str()  # 编译器报告的错误信息
-    mrc_code = str()  # 实现MRC的C代码
-
-    # 读取包含MRC自然语言描述的markdown文件
-    md_text = str()
-    with open(config["mrc_desc"], "r", encoding="utf-8") as f:
-        md_text = f.read()
-
-    # 读取所有用户提示, 存入usr_prompts中
-    for fn in config["prompts"]["user"]:
-        with open(fn, "r", encoding="utf-8") as f:
-            usr_prompts.append(f.read())
-
-    # 从markdown文本中提取MRC的描述, MRC的描述需要放入markdown或md代码块中才能成功提取, 对应了前一步MR识别与校对的最终输出
-    mrc_desc = get_first_code_block(md_text, {"markdown", "md"})
-
-    # 如果没有找到MRC描述, 报错退出
-    if len(mrc_desc) == 0:
-        FATAL(f"No MRC description found in the {config["mrc_desc"]}!")
-
-    # 进行多轮对话, 持续迭代, 直到MRC对应的代码成功生成并编译不报错, 或者达到最大迭代次数
-    while not gen_success and iterations < config["max_iter"]:
-        prompt = usr_prompts[index]
-        prompt = prompt.replace("[MR rendered in markdown]", mrc_desc)
-        prompt = prompt.replace("[Errors reported by compiler]", err_msgs)
-
-        # 与programmer模型进行对话, 生成MRC的C代码
-        ACTF(f"Iter {iterations + 1}: Prompting {config["model"]} to generate C code implementation of MRC ...")
-        response = programmer.chat(prompt)
-        mrc_code = get_first_code_block(response, {"c"})
-        mrc_code = mrc_code.lstrip("```c\n").rstrip("```\n")
-
-        # 如果生成的C代码为空, 认为生成失败
-        if len(mrc_code) == 0:
-            FATAL(f"{config["model"]} generated empty C code implementation of MRC.")
-
-        # 加一段main函数调用MR(void)的代码, 与MRC代码结合形成完整C代码
-        # 编译构建C代码, 同时获取错误信息
-        c_code = f"{mrc_code}\n\nint main() {{ MR(); return 0; }}"
-        ret_code, err_msgs = build_c_program(c_code, config["compiler"], config["cflags"])
-        if ret_code == 0:  # 如果编译成功, 跳出循环
-            gen_success = True
+    # 遍历AST, 获得参数列表
+    for child in cursor.get_children():
+        if child.location.is_in_system_header:  # 跳过系统头文件
+            continue
+        if child.kind == CursorKind.FUNCTION_DECL and child.spelling == func:
+            # 遍历函数参数
+            for param in child.get_arguments():
+                params.append(f"{param.spelling}")
             break
 
-        # 更新迭代次数和提示词下标
-        iterations += 1
-        if index < len(usr_prompts) - 1:
-            index += 1
-
-    # 如果代码未生成成功, 报错
-    if not gen_success:
-        FATAL(f"Failed to generate C code implementation of MRC after {iterations} iterations.")
-
-    # 保存交互记录
-    programmer.save_messages(os.path.join(config["output"], "messages.json"))
-    programmer.save_messages(os.path.join(config["output"], "messages.md"))
-
-    # 将MRC的描述(作为头部注释)和LLM生成的C代码写入文件
-    with open(os.path.join(config["output"], "mrc.h"), "w", encoding="utf-8") as f:
-        header_comments = mrc_desc
-        header_comments = header_comments.lstrip("```markdown\n").rstrip("```\n")
-        header_comments = f"/*\nCode generated by {config["model"]}\n" + header_comments + "\n*/\n"
-        f.write(header_comments)
-        f.write(mrc_code)
-    OKF(f"Successfully generated C code implementation of MRC after {iterations + 1} iterations.")
+    return params
 
 
-def main(args: argparse.Namespace):
-    """主函数, 初始化programmer, 迭代地让模型生成用C语言实现的蜕变关系
+def generate_c(c_pgmr: OpenAI | Anthropic | GoogleAI, mr_desc: str, config: dict) -> Tuple[bool, str, int, str]:
+    # Get user prompts
+    c_prompts = list()
+    for fn in config["c"]["prompts"]["user"]:
+        c_prompts.append(Path(fn).read_text(encoding="utf-8"))
+
+    # Chating iteratively, until stop condition is satisfied
+    gen_succ = False
+    cm = config["c"]["model"]  # C code generation model
+    err_msgs = str()  # Errors reported by compiler
+    iter = 0
+    mr_code = str()
+    err = str() # Errors of generation failed
+    while not gen_succ and iter < config["max_iter"]:
+        # Prompt C programmer to generate C code implementation of MR
+        cp = c_prompts[min(iter, len(c_prompts) - 1)]  # C code generation prompt
+        cp = cp.replace("[MR rendered in markdown]", mr_desc)
+        cp = cp.replace("[Errors reported by syzkaller]", err_msgs)
+        ACTF(f"Iter {iter + 1}: Prompting {cm} to generate C code implementation of MR ...")
+        response = c_pgmr.chat(cp)
+        mr_code = get_first_code_block(response, {"c"})
+        mr_code = mr_code.lstrip("`c\n").rstrip("`\n")
+
+        # In some cases, llm may failed to generate code
+        if len(mr_code) == 0:
+            err = "empty c code"
+            break
+
+        # We first use a fake desc to verify whether the generated C code is valid
+        ACTF("Integrating pseudo-syscall into syzkaller ...")
+        func = "syz_mr"
+        params = get_params(mr_code, func, input_file=False)
+        fake_desc = func + "(" + ", ".join([f"{param} int32" for param in params]) + ")"
+        syzkaller = config["syzkaller"]
+        clean_repo(syzkaller)
+        add_pseudo_syscall(syzkaller, mr_code, fake_desc, func)
+        ret_code, stderr, stdout = build_syzkaller(syzkaller)
+        if ret_code == 0:
+            gen_succ = True
+            break
+
+        # Update error messages and retry
+        err_msgs = stderr + "\n\n" + stdout
+        WARNF(f"Oops, some errors occured during C program building, try to prompt {cm} to regenerate.")
+        iter += 1
+
+    if not gen_succ:
+        err = "exceeding max iterations"
+
+    return gen_succ, mr_code, iter + 1, err
+
+
+def generate_syz(syz_pgmr: OpenAI | Anthropic | GoogleAI, csource: str, config: dict) -> Tuple[bool, str, int, str]:
+    syz_prompts = list()  # Syzlang description generation prompts
+    for fn in config["syzlang"]["prompts"]["user"]:
+        syz_prompts.append(Path(fn).read_text(encoding="utf-8"))
+
+    # Preprocessing
+    gen_succ = False
+    iter = 0
+    syz_desc = str()
+    sm = config["syzlang"]["model"]
+    err_msgs = str()
+    err = ""
+
+    # Chating iteratively, until stop condition is satisfied
+    while not gen_succ and iter < config["max_iter"]:
+        # Prompt Syzlang programmer to generate Syzlang description
+        ACTF(f"Iter {iter + 1}: Prompting {sm} to generate Syzlang description ...")
+        sp = syz_prompts[min(iter, len(syz_prompts) - 1)]  # Syzlang description prompt
+        sp = sp.replace("[MR code]", csource)
+        sp = sp.replace("[Errors reported by syzkaller]", err_msgs)
+        response = syz_pgmr.chat(sp)
+        syz_desc = get_first_code_block(response, {"syzlang", "syz"})
+        syz_desc = syz_desc.removeprefix("```syz\n").rstrip("\n`")
+
+        # In some cases, llm may failed to generate description
+        if len(syz_desc) == 0:
+            err = "empty syz code"
+            break
+
+        # Integrated to syzkaller to verify
+        ACTF("Integrating pseudo-syscall into syzkaller ...")
+        func = "syz_mr"
+        syzkaller = config["syzkaller"]
+        clean_repo(syzkaller)
+        add_pseudo_syscall(syzkaller, csource, syz_desc, func)
+        ret_code, stderr, stdout = build_syzkaller(syzkaller)
+
+        if ret_code == 0:
+            gen_succ = True
+            break
+
+        # Update error messages and retry
+        err_msgs = stderr + "\n\n" + stdout
+        WARNF(f"Oops, some errors occured during C program building, try to prompt {sm} to regenerate.")
+        iter += 1
+
+    if not gen_succ:
+        err = "exceeding max iterations"
+
+    return gen_succ, syz_desc, iter + 1, err
+
+
+def generate(c_pgmr: OpenAI | Anthropic | GoogleAI, syz_pgmr: OpenAI | Anthropic | GoogleAI, config: dict):
+    """Prompt programmer to generate C code implementation of MR, as well as
+    the corresponding syzlang description.
 
     Parameters
     ----------
-    args : argparse.Namespace
-        命令函参数集
+    c_pgmr : OpenAI | Anthropic | GoogleAI
+        llm wrapper object, for c code generation
+    syz_pgmr : OpenAI | Anthropic | GoogleAI
+        llm wrapper object, for syzlang description generation
+    config : dict
+        Configuration
     """
-    ACTF("Checking arguments ...")
-    check_config(args)
-    ACTF("Arguments are valid.")
+    # Set system prompt for llms
+    fn = config["c"]["prompts"]["system"]
+    sys_prompt = Path(fn).read_text(encoding="utf-8")
+    c_pgmr.set_sys_prompt(sys_prompt)
+    fn = config["syzlang"]["prompts"]["system"]
+    sys_prompt = Path(fn).read_text(encoding="utf-8")
+    syz_pgmr.set_sys_prompt(sys_prompt)
 
-    # 读取配置文件, 创建输出文件夹
-    config = dict()
-    with open(args.config, "r") as f:
-        config = json.load(f)
+    # Read MR description
+    md_text = Path(config["mr_desc"]).read_text(encoding="utf-8")
+    mr_desc = get_first_code_block(md_text, {"markdown", "md"})
 
-    # 检查配置文件中是否包含temperature字段, 如果没有则使用默认值0.5
-    if "temperature" not in config.keys():
-        WARNF('Key "temperature" not found in config file, using default value: 0.5')
-        config["temperature"] = 0.5
+    syzlang_prompts = list()  # Syzlang description generation prompts
+    for fn in config["syzlang"]["prompts"]["user"]:
+        syzlang_prompts.append(Path(fn).read_text(encoding="utf-8"))
 
-    # 检查配置文件中是否包含stream字段, 如果没有则使用默认值False
-    if "stream" not in config.keys():
-        WARNF('Key "stream" not found in config file, using default value: False')
-        config["stream"] = False
+    # Extract identifier and calibrator model names from markdown text, default to unknown if not found
+    identifier, calibrator, iden_iter = "unknown", "unknown", "unknown"
+    for line in md_text.split("\n"):
+        content = line.upper()
+        if content.startswith("IDENTIFIER: "):
+            identifier = content.split(": ")[1].strip().lower()
+        elif content.startswith("CALIBRATOR: "):
+            calibrator = content.split(": ")[1].strip().lower()
+        elif content.startswith("ITERATIONS: "):
+            iden_iter = content.split(": ")[1].strip()
 
-    # 根据配置文件中的framework字段的值选择对应的框架初始化函数
+    # Generate C code & save chat messages
+    # TODO: May be we should set max_iter for C code generation & syzlang description generation respectively
+    os.makedirs(config["output"], exist_ok=True)
+    gen_succ, mr_code, c_iter, err = generate_c(c_pgmr, mr_desc, config)
+    c_pgmr.save_messages(os.path.join(config["output"], "c_messages.json"))
+    c_pgmr.save_messages(os.path.join(config["output"], "c_messages.md"))
+    if not gen_succ:
+        BADF(f"Failed to generate C code implementation of MR after {c_iter} iterations, err: {err}")
+        return
+    else:
+        OKF(f"Successfully generated C code implementation of MR after {c_iter} iteration.")
+
+    # Chating iteratively to generate syzlang description
+    gen_succ, syz_desc, syz_iter, err = generate_syz(syz_pgmr, mr_code, config)
+    syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.json"))
+    syz_pgmr.save_messages(os.path.join(config["output"], "syzlang_messages.md"))
+    if not gen_succ:
+        BADF(f"Failed to generate syzlang description of MR after {c_iter} iterations, err: {err}")
+        return
+    else:
+        OKF(f"Successfully generated syzlang description of MR after {syz_iter} iterations.")
+
+    # Save C code implementation & syzlang description
+    cm = config["c"]["model"]
+    sm = config["c"]["model"]
+    c_comments = mr_desc
+    c_comments = c_comments.lstrip("`markdown\n").rstrip("`\n")
+    c_comments = "// " + c_comments.replace("\n", "\n// ") + "\n\n"
+    c_comments = f"// MR identified by {identifier} and calibrated by {calibrator} after {iden_iter} iterations\n" + c_comments
+    c_comments = f"// Code generated by {cm} after {c_iter} iterations\n" + c_comments
+    Path(os.path.join(config["output"], "mr.h")).write_text(c_comments + "\n" + mr_code, encoding="utf-8")
+    syz_comments = f"# Syzlang description generated by {sm} after {syz_iter} iterations\n"
+    Path(os.path.join(config["output"], "syzlang.txt")).write_text(syz_comments + syz_desc, encoding="utf-8")
+    OKF("We're done here!")
+
+
+def main(config: dict):
+    """Main function, initialize c programmer & syzlang programmer, prompt
+    them to generate encoded MR and corresponding syzlang description.
+
+    Parameters
+    ----------
+    config : dict
+        User-provided configuration information
+    """
+    # Preprocessing configs
+    langs = ["c", "syzlang"]
+    for lang in langs:
+        if not lang in config.keys():
+            FATAL(f'Key "{lang}" not found in config file!')
+        if "temperature" not in config[lang].keys():
+            WARNF(f'Key "temperature" not found in config of {lang}, using default value: 0.5')
+            config[lang]["temperature"] = 0.5
+        if "stream" not in config[lang].keys():
+            WARNF(f'Key "stream" not found in config of {lang}, using default value: False')
+            config[lang]["stream"] = False
+
+    # Mapping setup functions for different frameworks
     setup_func_dict = {
         "openai": setup_openai,
         "anthropic": setup_anthropic,
         "googleai": setup_googleai,
     }
 
-    # 初始化programmer模型, 该模型用于将MRC的自然语言描述转换为C语言实现
-    ACTF("Initializing programmer model ...")
-    framework = config["framework"].lower()
+    # Initialize c programmer & syzlang programmer, the former is used to
+    # generate C code implementation of MR, the latter is used to generate
+    # corresponding syzlang description.
+    ACTF("Initializing c programmer & syzlang programmer ...")
+    framework = config["c"]["framework"].lower()
     if framework not in setup_func_dict:
-        FATAL(f"Unsupported model: {framework}, Supported models: {setup_func_dict.keys()}")
-    programmer = setup_func_dict[framework](config)
-    OKF("Programmer model successfully initislized!.")
+        FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
+    c_pgmr = setup_func_dict[framework](config["c"])
+    framework = config["syzlang"]["framework"].lower()
+    if framework not in setup_func_dict:
+        FATAL(f"Unsupported framework: {framework}, Supported frameworks: {setup_func_dict.keys()}")
+    syz_pgmr = setup_func_dict[framework](config["syzlang"])
+    OKF(f"Programmer model ({config['syzlang']['model']}) successfully initialized!.")
 
-    # 让programmer模型迭代地生成用C语言实现的MRC
-    ACTF("Generating C code implementation of MRC ...")
-    loop(programmer, config)
+    # Prompt llms to generate C code & syzlang description
+    ACTF("Generating C code implementation of MR ...")
+    generate(c_pgmr, syz_pgmr, config)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path of configuration file")
     args = parser.parse_args()
-    main(args)
+
+    # Check whether argument is valid
+    ACTF("Checking arguments ...")
+    check_args(args)
+    OKF("Arguments are valid.")
+
+    # Read config file
+    config = dict()
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    main(config)
