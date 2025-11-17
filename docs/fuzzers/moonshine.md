@@ -1,17 +1,18 @@
 # MoonShine
 
-Original repositopry link: [https://github.com/shankarapailoor/moonshine](https://github.com/shankarapailoor/moonshine).
+**Original Repository:** [https://github.com/shankarapailoor/moonshine](https://github.com/shankarapailoor/moonshine)
 
 ## Prerequisites
 
-Build the image first, command:
+First, build the Docker image.
 
+Command:
 ```bash
 docker build -t moonshine:latest -f $OSMFUZZER/docker/Dockerfile.moonshine $OSMFUZZER/docker
-docker up -v volume:/vol --cpus 16 --privileged --name moonshine-container moonshine:latest bash
+docker run -v volume:/vol --cpus 16 --privileged --name moonshine-container moonshine:latest bash
 ```
 
-Download and build MoonShine.
+Next, download and build MoonShine.
 
 Command:
 ```bash
@@ -28,18 +29,19 @@ make
 
 ## Run
 
-Download `sampletraces.tar.gz` from Generate corpus.db for syzkaller.
+First, download `sampletraces.tar.gz` to generate the `corpus.db` for Syzkaller.
 
 Command:
 ```bash
 cd moonshine
 cp /home/sampletraces.tar.gz .
-tar -xzvf ../sampletraces.tar.gz
+tar -xzvf sampletraces.tar.gz
 ./bin/moonshine -dir sampletraces/ -distill getting-started/distill.json
 ```
 
-Copy corpus.db to the workdir of syzkllaer to start fuzzing.
+Finally, copy `corpus.db` to the Syzkaller work directory to start fuzzing.
 
+Command:
 ```bash
 cd $SYZKALLER
 mkdir -p workdir/moonshine-out

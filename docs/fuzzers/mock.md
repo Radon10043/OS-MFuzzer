@@ -1,18 +1,18 @@
 # MOCK
 
-Original repositopry link: [https://github.com/m0ck1ng/mock/tree/main](https://github.com/m0ck1ng/mock/tree/main).
+**Original Repository:** [https://github.com/m0ck1ng/mock/tree/main](https://github.com/m0ck1ng/mock/tree/main)
 
-## Prerequsits
+## Prerequisites
 
-Build the image for MOCK first.
+First, build the Docker image for MOCK.
 
 Command:
 ```bash
 docker build -t mock:latest -f $OSMFUZZER/docker/Dockerfile.mock $OSMFUZZER/docker
-docker up -v volume:/vol --cpus 16 --privileged --name mock-container mock:latest bash
+docker run -v volume:/vol --cpus 16 --privileged --name mock-container mock:latest bash
 ```
 
-Download, patch, and build MOCK.
+Next, download, patch, and build MOCK.
 
 Command:
 ```bash
@@ -26,16 +26,16 @@ cargo build --release
 ## Run
 
 > [!NOTE]
-> Mock cannot process --syz-dir correctly, we have to run MOCK under $MOCK/target/release.
+> MOCK does not handle the `--syz-dir` argument correctly. Therefore, you must run MOCK from the `$MOCK/target/release` directory.
 
-Run following command to fuzz linux kernel via MOCK.
+Use the following commands to fuzz the Linux kernel with MOCK.
 
 Command:
 ```bash
 cd $MOCK/tools/model_manager
 python3 manage.py runserver &
 cd $MOCK/target/release
-./healer
+./mock \
   -k $KERNEL/arch/x86/boot/bzImage \
   -d $IMAGE/bullseye.img \
   --ssh-key $IMAGE/bullseye.id_rsa \

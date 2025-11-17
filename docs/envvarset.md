@@ -1,17 +1,17 @@
-# Environment variables set
+# Environment Variables
 
-Create a `.env` file under the root of repository, program will read some environment variables during running. Here are involved environment variables:
+Create a `.env` file in the root of the repository. The program will read these environment variables at runtime. The following variables are supported:
 
-| Environment Variable Name |                      Description                      |
-| :-----------------------: | :---------------------------------------------------: |
-|      OPENAI_API_KEY       |        API key to query LLM provided by OpenAI        |
-|      OPENAI_API_BASE      |          Base url of LLM provided by OpenAI           |
-|        CA_API_KEY         |     API key to query LLM provided by third-party      |
-|    CA_OPENAI_API_BASE     |        Base url of LLM provided by third-party        |
-|  GOOGLE_OPENAI_API_BASE   |          Google's openai compatible base url          |
-|      GOOGLE_API_KEY       |        API key to query LLM provided by Google        |
-|          PROJECT          |            Absolute path of the repository            |
-|        EMAIL_HOST         |       Email-related environment variables, host       |
-|        EMAIL_PORT         |       Email-related environment variables, port       |
-|       EMAIL_SENDER        |  Email-related environment variables, sender's email  |
-|      EMAIL_PASSWORD       | Email-related environment variables, email's password |
+| Variable Name            | Description                                           |
+| :----------------------- | :---------------------------------------------------- |
+| `OPENAI_API_KEY`         | API key for the OpenAI LLM.                           |
+| `OPENAI_API_BASE`        | Base URL for the OpenAI LLM.                          |
+| `CA_API_KEY`             | API key for a third-party LLM.                        |
+| `CA_OPENAI_API_BASE`     | Base URL for a third-party LLM.                       |
+| `GOOGLE_OPENAI_API_BASE` | Google's OpenAI-compatible base URL.                  |
+| `GOOGLE_API_KEY`         | API key for the Google LLM.                           |
+| `PROJECT`                | The absolute path to the repository.                  |
+| `EMAIL_HOST`             | Host for the email server.                            |
+| `EMAIL_PORT`             | Port for the email server.                            |
+| `EMAIL_SENDER`           | Sender's email address.                               |
+| `EMAIL_PASSWORD`         | Password for the sender's email account.              |

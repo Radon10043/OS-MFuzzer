@@ -1,23 +1,23 @@
-# docker-compose
+# Docker Compose Services
 
-This document details services in docker-compose files. We use `docker-compose/compose.linux-v6.12.40.yaml` as example.
+This document details the services defined in the Docker Compose files. We use `docker-compose/compose.linux-v6.12.40.yaml` as an example.
 
-|  Service   |                              Description                              |
-| :--------: | :-------------------------------------------------------------------: |
-|    iden    |                          Kernel MR synthesis                          |
-|    impl    |                          Kernel MR encoding                           |
-|    eval    |              Trial run kernel MRs for qulaity evaluation              |
-|   myfuzz   |                  Fuzzing linux kernel via OS-MFuzzer                  |
-| syzkaller  |                  Fuzzing linux kernel via syzkaller                   |
-| moonshine  |                  Fuzzing linux kernel via moonshine                   |
-|   healer   |                    Fuzzing linux kernel via healer                    |
-|    mock    |                     Fuzzing linux kernel via mock                     |
-|   actor    |                    Fuzzing linux kernel via actor                     |
-| myfuzz-E-  |        Fuzzing linux kernel via myfuzz-E- (Trial run disabled)        |
-| myfuzz-R-  |           Fuzzing linux kernel via myfuzz-R- (RAG disabled)           |
-| myfuzz-RE- | Fuzzing linux kernel via myfuzz-RE- (Both RAG and trial run disbaled) |
+| Service      | Description                                                   |
+| :----------- | :------------------------------------------------------------ |
+| `iden`       | Kernel MR Synthesis                                           |
+| `impl`       | Kernel MR Encoding                                            |
+| `eval`       | Trial run of Kernel MRs for quality evaluation                |
+| `myfuzz`     | Fuzzing the Linux kernel with OS-MFuzzer                      |
+| `syzkaller`  | Fuzzing the Linux kernel with Syzkaller                       |
+| `moonshine`  | Fuzzing the Linux kernel with MoonShine                       |
+| `healer`     | Fuzzing the Linux kernel with HEALER                          |
+| `mock`       | Fuzzing the Linux kernel with MOCK                            |
+| `actor`      | Fuzzing the Linux kernel with ACTOR                           |
+| `myfuzz-E-`  | Fuzzing with OS-MFuzzer (Trial Run disabled)                  |
+| `myfuzz-R-`  | Fuzzing with OS-MFuzzer (RAG disabled)                        |
+| `myfuzz-RE-` | Fuzzing with OS-MFuzzer (Both RAG and Trial Run disabled)     |
 
-You can also fuzzing linux kenrel in parallel, for exmaple:
+You can also run fuzzing tasks in parallel. For example:
 
 Command:
 ```bash

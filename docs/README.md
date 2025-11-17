@@ -1,14 +1,14 @@
 # OS-MFuzzer
 
-OS-MFuzzer is an issue-driven LLM-enabled metamorphic fuzzing approach for operating system kernels, implemented based on syzkaller.
+OS-MFuzzer is an issue-driven, LLM-enabled metamorphic fuzzing framework for operating system kernels, built upon [syzkaller](https://github.com/google/syzkaller).
 
-This document detailes the steps of setting up OS-MFuzzer and using it for metamorphic fuzzing.
+This document details the setup process for OS-MFuzzer and provides instructions for its use in metamorphic fuzzing.
 
 ## Prerequisites
 
-We recommend to use docker:
+We recommend using Docker for a streamlined setup.
 
-Build image for OS-MFuzzer:
+First, build the Docker image for OS-MFuzzer:
 ```bash
 mkdir volume && cd volume
 mkdir docker
@@ -19,15 +19,15 @@ wget -P volume/OS-MFuzzer/docker https://github.com/google/flatbuffers/archive/r
 docker build -t os-mfuzzer:latest -f volume/OS-MFuzzer/docker/Dockerfile.myfuzz volume/OS-MFuzzer/docker
 ```
 
-Let's start a container with a mounted volume so that we can save the data presistently.
+Next, start a container with a mounted volume to ensure data persistence.
 
 Command:
 ```bash
-docker up -d -v volume:/vol --cpus 16 --privileged --name os-mfuzzer-container os-mfuzzer:latest tail -f /dev/null
+docker run -d -v ./volume:/vol --cpus 16 --privileged --name os-mfuzzer-container os-mfuzzer:latest tail -f /dev/null
 docker exec -it os-mfuzzer-container bash
 ```
 
-In the container, let's build linux kernel first, we use v6.12.40 as an example.
+Inside the container, let's begin by building the Linux kernel. We will use v6.12.40 as an example.
 
 Command:
 ```bash
@@ -38,7 +38,7 @@ cp -r stable v6.12.40
 git -C v6.12.40 checkout v6.12.40
 ```
 
-Let's build linux kernel using syzbot's config, you can get config file from OS-MFuzzer's repository,
+Now, build the Linux kernel using syzbot's configuration. You can find the necessary config files in the OS-MFuzzer repository.
 
 Command:
 ```bash
@@ -48,20 +48,20 @@ make CC=clang olddefconfig
 make CC=clang -j16
 ```
 
-We also need to build image to run kernel.
+We also need to create an image to run the kernel.
 
 Command:
 ```bash
 cd /vol
 mkdir -p images/Debian
 cd images/Debian
-cp $OSMFUZZER/scripts/create-image.sh
+cp $OSMFUZZER/scripts/create-image.sh .
 ./create-image.sh
 ```
 
-# Usage (Simplified)
+## Run (Simplified)
 
-Let's build OS-MFuzzer for metamorphic fuzzing. We need integrated generated EKMRs for metamorphic fuzzing, you can integrate it by patches provided by us. Use following command to integrate EKMRs generate based on part of documents from v6.12.40. Additionally, there are many patches for using, check them [here](/docs/Patch.md).
+To begin metamorphic fuzzing, we need to build OS-MFuzzer and integrate the generated Encoded Kernel Metamorphic Relations (EKMRs). You can integrate them using the patches we provide. The following command integrates EKMRs that were generated from the Linux v6.12.40 documentation. For additional patches, please refer to our [Patch Documentation](/docs/patch.md).
 
 Command:
 ```bash
@@ -70,7 +70,7 @@ make restore patch PATCH=patch/pseudo-syscall/linux.v6.12.40.patch
 make -C syzkaller clean generate all -j16
 ```
 
-EKMRs of linux v6.12.40 has integrated into OS-MFuzzer/syzkaller, you can run it as normal syzkaller.
+With the EKMRs for Linux v6.12.40 now integrated into OS-MFuzzer/syzkaller, you can run it just like a standard syzkaller instance.
 
 ```bash
 mkdir workdir
@@ -83,17 +83,17 @@ cat configs/fuzz/linux.cfg | envsubst > workdir/test.cfg
 $OSMFUZZER/syzkaller/bin/syz-manager -config=workdir/test.cfg
 ```
 
-[Click me](/docs/fuzzers/README.md) to check baseline fuzzer's installation.
+For instructions on installing baseline fuzzers, please see the [Fuzzer Documentation](/docs/fuzzers/README.md).
 
-## Usage (Completed)
+## Advanced Usage
 
-This section details how to use OS-MFuzzer for kernel MR synthesizing, encoding, integrating, and metamorphic fuzzing.
+This section provides a comprehensive guide to synthesizing, encoding, integrating, and metamorphic fuzzing with Kernel Metamorphic Relations (KMRs) using OS-MFuzzer.
 
-### kernel MR Synthesis
+### Kernel MR Synthesis
 
-#### External corpus construction
+#### External Corpus Construction
 
-Extract all CVE announcements and create a chroma database.
+Extract all CVE announcements from the linux-cve-announcement and create a ChromaDB database.
 
 ```bash
 git clone --mirror https://lore.kernel.org/linux-cve-announce/0 linux-cve-announce/git/0.git
@@ -101,9 +101,9 @@ python3 src/corpus.py get_kernel_cves --git_obj linux-cve-announce/git/0.git --o
 python3 src/corpus.py create_chroma_db --input workdir/external-corpus
 ```
 
-#### Kernel documents preprocessing
+#### Kernel Documentation Processing
 
-Split documents to documents chunks for better targeted manner. We use `Documentation/kvm/api.rst` as an example. Folders will be created for each document chunk, under the folder, `content.txt` saves section's content.
+Split the kernel documentation into smaller, more manageable chunks for a targeted analysis. For example, to process `Documentation/virt/kvm/api.rst`:
 
 Command:
 ```bash
@@ -111,10 +111,11 @@ python3 src/rst_analyzer.py \
         --file /vol/linux/v6.12.40/Documentation/virt/kvm/api.rst \
         --outdir workdir/kernel-docs/v6.12.40/kvm/api
 ```
+This will create a directory for each document chunk, containing a `content.txt` file with the section's content.
 
-#### Synthesize kernel MR batchlly
+#### Batch Synthesize Kernel MRs
 
-You can run `src/experiment.py` to synthesize kernel MRs batchlly. The program will travese all `content.txt` to synthesize MRs.
+You can run `src/experiment.py` to synthesize Kernel MRs in batches. The script will traverse all `content.txt` files to generate the MRs.
 
 Command:
 ```bash
@@ -124,19 +125,19 @@ python3 $OSMFUZZER/src/experiment.py \
             --corpus $OSMFUZZER/workdir/external-corpus
 ```
 
-#### Synthesize kernel MR one by one
+#### Synthesize Kernel MRs Individually
 
-Create a json file (e.g. `MRSynt.cfg.json`), write the following content:
+Create a JSON configuration file (e.g., `MRSynt.cfg.json`) with the following content:
 
 ```json
 {
     "identifier": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key": "xxx",
+        "api_key": "YOUR_API_KEY",
         "framework": "openai",
         "model": "gemini-2.5-pro",
-        "temperature": 0.5,     // Optional, default as 0.5
-        "stream": true,         // Optional, default as false
+        "temperature": 0.5,
+        "stream": true,
         "prompts": {
             "system": "/vol/OS-MFuzzer/data/prompts/identifier/system.md",
             "user": [
@@ -147,11 +148,11 @@ Create a json file (e.g. `MRSynt.cfg.json`), write the following content:
     },
     "calibrator": {
         "base_url": "https://api.openai.com/v1/chat/completions",
-        "api_key": "xxx",
+        "api_key": "YOUR_API_KEY",
         "framework": "openai",
         "model": "o3",
-        "temperature": 0.2,     // Optional, default as 0.5
-        "stream": true,         // Optional, default as false
+        "temperature": 0.2,
+        "stream": true,
         "prompts": {
             "system": "/vol/OS-MFuzzer/data/prompts/calibrator/system.md",
             "user": [
@@ -160,42 +161,43 @@ Create a json file (e.g. `MRSynt.cfg.json`), write the following content:
         }
     },
     "max_iter": 10,
-    "output": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/v6.12.40/kvm/api/1.-General-description/iden",
-    "specification": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/v6.12.40/kvm/api/1.-General-description/content.txt",
+    "output": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/1.-General-description/iden",
+    "specification": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/1.-General-description/content.txt",
     "driver_name": "kvm"
 }
 ```
 
-MRIden.py is used to identify and calibrate MR via LLMs. Explanation of each parameters is as follows:
+The `MRIden.py` script uses LLMs to identify and calibrate MRs. The parameters are explained below:
 
-- identifier: store the settings of identifier model, specifically:
-  - base_url: base URL for access model, such as DeepSeek.
-  - api_key: your API key for accessing model, usally prefix with "sk-".
-  - base_model: based on which series of models to query, such as DeepSeek, GPT (case insensitive).
-  - temperature: the temperature wanna used, the lower temperature, the more stable and accurate the LLM's response.
-  - stream: whether to enable streaming response. If enabled, the output of LLM will be printed in streaming mode.
-  - prompts: prompts that will send to LLM, categorized into system prompt and user prompt. This project supports one system prompt and multi user prompts. Each prompt is stored in a markdown file and its path is presented in the json file, the script will read and load each prompt's content.
-- calibrator: store the settings of calibrator model, its content is same as identifier.
-- max_iter: maximum iteration for discussing.
-- output: output directory that stores query messages, discussion result, etc.
-- specification: path of specification file that used in the LLM query.
-- driver_name: Name of corresponding driver or subsystem.
+- `identifier`: Stores settings for the identifier model.
+  - `base_url`: The base URL for accessing the model API.
+  - `api_key`: Your API key for the service.
+  - `framework`: The API framework to use (e.g., `openai`).
+  - `model`: The specific model to query.
+  - `temperature`: Controls the randomness of the output. Lower values result in more deterministic responses.
+  - `stream`: Enables or disables streaming responses from the LLM.
+  - `prompts`: Specifies the paths to system and user prompts. Multiple user prompts can be provided.
+- `calibrator`: Stores settings for the calibrator model, with a structure identical to `identifier`.
+- `max_iter`: The maximum number of iterations for the discussion phase.
+- `output`: The directory where query messages and results will be stored.
+- `specification`: The path to the specification file used for the LLM query.
+- `driver_name`: The name of the corresponding driver or subsystem.
 
-### Encode kernel MR
+### Encode Kernel MRs
 
-We need clone syzkaller and check it to `4b25d554`.
+First, clone the appropriate version of Syzkaller.
 
 Command:
 ```bash
 cd /vol
 git clone https://github.com/google/syzkaller
 git -C syzkaller checkout 4b25d554
-cd OS-MFuzzer
+cd $OSMFUZZER
 ```
 
-#### Batchlly
+#### Batch Encoding
 
-Also run `src/experiment.py` to encode kernel MR batchlly. Program will traverse each `iden` folder and create `impl` folder under the same root.
+Use `src/experiment.py` to encode Kernel MRs in batches. The script will traverse each `iden` directory and create a corresponding `impl` directory.
 
 Command:
 ```bash
@@ -205,60 +207,59 @@ python3 $OSMFUZZER/src/experiment.py \
             --syzkaller /vol/syzkaller
 ```
 
-##### One by one
+#### Individual Encoding
 
-Create a json file (e.g. `MREncode.json`), write the following content:
+Create a JSON configuration file (e.g., `MREncode.json`) with the following content:
 
 ```json
 {
     "c_programmer": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key": "xxx",
+        "api_key": "YOUR_API_KEY",
         "framework": "openai",
         "model": "gemini-2.5-pro",
         "temperature": 0.5,
         "stream": true,
         "prompts": {
-            "system": "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/c/system.md",
+            "system": "/vol/OS-MFuzzer/data/prompts/c-programmer/system.md",
             "user": [
-                "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/c/init.md",
-                "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/c/follow.md"
+                "/vol/OS-MFuzzer/data/prompts/c-programmer/init.md",
+                "/vol/OS-MFuzzer/data/prompts/c-programmer/follow.md"
             ]
         }
     },
     "syzlang_programmer": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "api_key": "xxx",
+        "api_key": "YOUR_API_KEY",
         "framework": "openai",
         "model": "gemini-2.5-pro",
         "temperature": 0.5,
         "stream": true,
         "prompts": {
-            "system": "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/syzlang/system.md",
+            "system": "/vol/OS-MFuzzer/data/prompts/syzlang-programmer/system.md",
             "user": [
-                "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/syzlang/init.md",
-                "/vol/OS-MFuzzer/tools/syz-meta/data/prompts/programmer/syzlang/follow.md"
+                "/vol/OS-MFuzzer/data/prompts/syzlang-programmer/init.md",
+                "/vol/OS-MFuzzer/data/prompts/syzlang-programmer/follow.md"
             ]
         }
     },
-    "mr_desc": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/v6.12.40/kvm/api/1.-General-description/iden/mr_final.md",
+    "mr_desc": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/1.-General-description/iden/mr_final.md",
     "max_iter": 10,
-    "output": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/v6.12.40/kvm/api/1.-General-description/impl",
+    "output": "/vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/1.-General-description/impl",
     "compiler": "gcc",
     "syzkaller": "/vol/syzkaller"
 }
 ```
 
-MRImpl.py is used to generate C code and corresponding syzlang description of an MR. Explanation of each parameters is as follows:
+The `MRImpl.py` script generates C code and the corresponding Syzlang description for an MR. Key parameters include:
 
-- Meaning of base_url, api_key, framework, temperature, prompts, stream, and max_iter are same as MR Identification.
-- mr_desc: path of markdown file that store the description of an MR. Note the MR should be placed in a markdown code block.
-- compiler: specificed compiler that used to compile the generated C code, e.g. gcc.
-- syzkaller: path of syzkaller, which used to verify whether the generated MR implementation and syzlang description can be successfully integrated into it.
+- `mr_desc`: Path to the Markdown file containing the MR description.
+- `compiler`: The compiler used to validate the generated C code (e.g., `gcc`).
+- `syzkaller`: The path to the Syzkaller repository, used to verify the integration of the generated MR.
 
-### Trial run encoded kernel MRs
+### Trial Run Encoded Kernel MRs
 
-Also use `src/experiment.py` to trial run encoded kernel MRs batchlly or use `src/MREval.py` to specify want to trail run ones.
+Use `src/experiment.py` for batch trial runs or `src/MREval.py` for individual trials.
 
 Command:
 ```bash
@@ -270,9 +271,9 @@ python3 src/experiment.py \
             --image_obj /vol/images/Debian
 ```
 
-### Integrate encoded kernel MRs
+### Integrate Encoded Kernel MRs
 
-Also use `src/experiment.py` to integrate batchlly or use `src/MRIntg.py` to specify which EKMRs want to integrate. If using `src/experiment.py`, program will traverse and get `mr.h` under `--impl_root`. Further, only high-quality will be integrated into syzkaller default, use `--allin` option to integrate all encode kernel MRs.
+Use `src/experiment.py` for batch integration or `src/MRIntg.py` to specify which EKMRs to integrate. By default, only high-quality MRs are integrated. Use the `--allin` option to include all of them.
 
 Command:
 ```bash
@@ -283,29 +284,29 @@ python3 src/experiment.py \
             --clean
 ```
 
-Or use `src/MRIntg.py` to integrate specifically encode kernel MRs.
+Alternatively, use `src/MRIntg.py` for specific integrations:
 
 Command:
 ```bash
-python3 src/MRIntg.py
-            --syzkaller $OSMFUZZER/syzkaller
-            --impls /vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/v6.12.40/kvm/api/1.-General-description/impl/mr.h
+python3 src/MRIntg.py \
+            --syzkaller $OSMFUZZER/syzkaller \
+            --impls /vol/OS-MFuzzer/workdir/kernel-docs/v6.12.40/kvm/api/1.-General-description/impl/mr.h \
             ...
 ```
 
-Build syzkaller, which is integrated encoded kernel MRs.
+Finally, build syzkaller with the newly integrated EKMRs.
 
 Command:
 ```bash
-make -C syzkaller clean generate all -j16
+make -C $OSMFUZZER/syzkaller clean generate all -j16
 ```
 
 > [!NOTE]
-> We cannot guarantee that collisions among encoded kernel MRs will be completely eliminated after integration. Some collisions may need to be resolved manually based on error messages.
+> While we strive to eliminate them, collisions between encoded kernel MRs may still occur after integration. Some of these may require manual resolution based on the error messages.
 
 ### Metamorphic Fuzzing
 
-Just as mentioned in [Usage (Simplified)](#usage-simplified).
+As mentioned in the [Simplified Usage](#usage-simplified) section, you can now start fuzzing.
 
 Command:
 ```bash

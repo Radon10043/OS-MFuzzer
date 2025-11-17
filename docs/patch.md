@@ -1,16 +1,24 @@
-# Patch description
+# Patch Descriptions
 
-- release.patch: Only add support for metamorphic fuzzing
-- debug.patch: Modify Makefile and targets.go for debugging.
-- create-image.patch: build a disk image without `mount` and `umount`, which can be used in `docker build`
-- offline.patch: add support for syzkaller or SyzMeta offline running (if they are built first time, they will donwload mockery from internet automatically).
-- Patches under fuzzers:
-  - mock.patch: Patch mock for normally running.
-- Patches under kernel:
-  - linux.v*.actor.patch: Patch for kernel to run ACTOR on different versions of linux kernels.
-  - linux.v5.4.296.myfuzz.patch: Patch for kernel to run documents processing on linux v5.4.296.
-- Patches under pseudo-syscalls:
-  - linux.v*.patch: Encoded kernel MRs generated based on docs of linux (only high-quality).
-  - variant.E-.linux.v*.patch: Encoded kernel MRs generated based on docs of linux v5.4.296 (Trial run disabled).
-  - variant.R-.linux.v*.patch: Encoded kernel MRs generated based on docs of linux v5.4.296 (RAG disabled).
-  - variant.RE-.linux.v*.patch: Encoded kernel MRs generated based on docs of linux v5.4.296 (Both RAG and trial run disabled).
+This document provides an overview of the patches available in this repository.
+
+- `release.patch`: Enables support for metamorphic fuzzing.
+- `debug.patch`: Modifies `Makefile` and `targets.go` for debugging purposes.
+- `create-image.patch`: Builds a disk image without `mount` and `umount`, allowing it to be used within a `docker build` process.
+- `offline.patch`: Adds support for running Syzkaller or SyzMeta in an offline environment. If run for the first time, they will automatically download `mockery`.
+
+### Fuzzer Patches
+
+- `fuzzers/mock.patch`: A patch to ensure `mock` runs correctly.
+
+### Kernel Patches
+
+- `kernel/linux.v*.actor.patch`: Patches for running ACTOR on various Linux kernel versions.
+- `kernel/linux.v5.4.296.myfuzz.patch`: A patch for processing documentation on Linux v5.4.296.
+
+### Pseudo-Syscall Patches
+
+- `pseudo-syscalls/linux.v*.patch`: High-quality encoded kernel MRs generated from Linux documentation.
+- `pseudo-syscalls/variant.E-.linux.v*.patch`: Encoded kernel MRs from Linux documentation (trial run disabled).
+- `pseudo-syscalls/variant.R-.linux.v*.patch`: Encoded kernel MRs from Linux documentation (RAG disabled).
+- `pseudo-syscalls/variant.RE-.linux.v*.patch`: Encoded kernel MRs from Linux documentation (both RAG and trial run disabled).
