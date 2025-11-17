@@ -29,7 +29,73 @@ x-base: &base
 name: linux-6_12_40
 
 services:
+  iden:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 2
+    network_mode: host
+    environment:
+      <<: *env
+      EMAIL: "radon@xs.ustb.edu.cn"
+      CORPUS: /vol/SyzMeta/workdir/external-corpus
+      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          iden \
+          --specdir $$MRDIR \
+          --corpus $$CORPUS > iden-linux.v6.12.40.log 2>&1
+      '
+
   impl:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+      http_proxy: ""
+      https_proxy: ""
+    command: >
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          impl \
+          --idendir $$MRDIR \
+          --syzkaller $$SYZKALLER > impl-linux.v6.12.40.log 2>&1
+      '
+
+  eval:
+    <<: *base
+    image: syzmeta:latest
+    cpus: 16
+    network_mode: host
+    environment:
+      <<: *env
+      SYZKALLER: /vol/syzkaller-dirty
+      EMAIL: "radon@xs.ustb.edu.cn"
+      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+    command: |
+      bash -c '
+        cd $$SYZMETA &&
+        python3 -u src/experiment.py \
+          --email $$EMAIL \
+          eval \
+          --impldir $$MRDIR \
+          --syzkaller $$SYZKALLER \
+          --kernel_obj $$KERNEL \
+          --kernel_typ linux \
+          --image_obj $$IMAGE > eval-linux.v6.12.40.log 2>&1
+      '
+
+
+  impl-woRAG:
     <<: *base
     image: syzmeta:latest
     cpus: 16
@@ -51,7 +117,7 @@ services:
           --syzkaller $$SYZKALLER > impl-woRAG-linux.v6.12.40.log 2>&1
       '
 
-  eval:
+  eval-woRAG:
     <<: *base
     image: syzmeta:latest
     cpus: 16
