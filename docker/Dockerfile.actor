@@ -46,13 +46,3 @@ RUN wget -nc https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.
     make install && \
     popd && \
     rm -rf v2.0.8.tar.gz
-
-# Download ACTOR && build ACTOR
-RUN git clone https://github.com/ucsb-seclab/actor && \
-    cd actor && \
-    git checkout 918665bf05acb2663a4b3f48a98e48f7f09aa908
-RUN cd actor/semantic-inference && \
-    echo 'clang-14 -g -fexperimental-new-pass-manager -fpass-plugin=/home/actor/semantic-inference/build/libktypesPass.so "$@"' > clang-ktypes-14 && \
-    echo 'clang-15 -g -fexperimental-new-pass-manager -fpass-plugin=/home/actor/semantic-inference/build/libktypesPass.so "$@"' > clang-ktypes-15 && \
-    ln -s /home/actor/semantic-inference/clang-ktypes-14 /usr/local/bin/clang-ktypes-14 && \
-    ln -s /home/actor/semantic-inference/clang-ktypes-15 /usr/local/bin/clang-ktypes-15

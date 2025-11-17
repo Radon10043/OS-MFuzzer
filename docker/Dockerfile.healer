@@ -45,10 +45,3 @@ RUN wget -nc https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.
 # Install rust 1.90.0
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN rustup default 1.90.0
-
-# Download HEALER & build HEALER
-RUN git clone https://github.com/SunHao-0/healer && \
-    cd healer && \
-    git checkout 2efbb44c7dfaaa6749cd1541949b26fd1d2143fa
-RUN cd healer && \
-    cargo build --release

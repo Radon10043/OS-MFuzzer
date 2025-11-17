@@ -54,12 +54,3 @@ RUN wget -nc https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.
 # Install rust 1.90.0
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN rustup default 1.90.0
-
-# Download, patch, and build MOCK
-RUN git clone https://github.com/m0ck1ng/mock && \
-    cd mock && \
-    git checkout 8f68fe365d7eb17ce354c8fc8ec7ff9a320080df
-RUN cd mock && \
-    git apply /home/mock.patch
-RUN cd mock && \
-    cargo build --release
