@@ -80,7 +80,7 @@ services:
     environment:
       <<: *env
       SYZKALLER: /vol/SyzMeta/syzkaller
-      WORKDIR: /vol2/SyzMeta
+      OUT_ROOT: /vol2/SyzMeta
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
@@ -214,7 +214,7 @@ services:
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.R-.log 2>&1
       '
 
   SyzMeta-RE-:
@@ -230,5 +230,5 @@ services:
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
         cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.RE-.log 2>&1
       '
