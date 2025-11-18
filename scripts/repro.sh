@@ -68,7 +68,7 @@ for LOG in "${LOGS[@]}"; do
         --cpuset-cpus=$CPUSET \
         --cpus=2 \
         --privileged \
-        syzmeta:latest \
+        myfuzz:latest \
         bash -c "
             mkdir -p $WORKDIR && \
             cp /tmp/repro-$suffix.cfg $WORKDIR/repro.cfg && \
