@@ -11,7 +11,7 @@ x-base: &base
     KERNEL: /vol/linux/v6.12.40
     IMAGE: /vol/images/Debian
     VMCOUNT: 1
-    SYZMETA: /vol/SyzMeta
+    MYFUZZ: /vol/myfuzz
     SYZKALLER: /vol/syzkaller
     MOONSHINE: /vol/moonshine
     HEALER: /vol/healer
@@ -31,17 +31,17 @@ name: linux-6_12_40
 services:
   iden:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     cpus: 2
     network_mode: host
     environment:
       <<: *env
-      EMAIL: "radon@xs.ustb.edu.cn"
-      CORPUS: /vol/SyzMeta/workdir/external-corpus
-      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+      EMAIL: ""
+      CORPUS: /vol/myfuzz/workdir/external-corpus
+      MRDIR: /vol/myfuzz/workdir/MRs/linux/v6.12.40
     command: |
       bash -c '
-        cd $$SYZMETA &&
+        cd $$MYFUZZ &&
         python3 -u src/experiment.py \
           --email $$EMAIL \
           iden \
@@ -51,19 +51,19 @@ services:
 
   impl:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     cpus: 16
     network_mode: host
     environment:
       <<: *env
       SYZKALLER: /vol/syzkaller-dirty
-      EMAIL: "radon@xs.ustb.edu.cn"
-      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+      EMAIL: ""
+      MRDIR: /vol/myfuzz/workdir/MRs/linux/v6.12.40
       http_proxy: ""
       https_proxy: ""
     command: >
       bash -c '
-        cd $$SYZMETA &&
+        cd $$MYFUZZ &&
         python3 -u src/experiment.py \
           --email $$EMAIL \
           impl \
@@ -73,17 +73,17 @@ services:
 
   eval:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     cpus: 16
     network_mode: host
     environment:
       <<: *env
       SYZKALLER: /vol/syzkaller-dirty
-      EMAIL: "radon@xs.ustb.edu.cn"
-      MRDIR: /vol/SyzMeta/workdir/MRs/linux/v6.12.40
+      EMAIL: ""
+      MRDIR: /vol/myfuzz/workdir/MRs/linux/v6.12.40
     command: |
       bash -c '
-        cd $$SYZMETA &&
+        cd $$MYFUZZ &&
         python3 -u src/experiment.py \
           --email $$EMAIL \
           eval \
@@ -94,66 +94,20 @@ services:
           --image_obj $$IMAGE > eval-linux.v6.12.40.log 2>&1
       '
 
-
-  impl-woRAG:
+  myfuzz:
     <<: *base
-    image: syzmeta:latest
-    cpus: 16
-    network_mode: host
+    image: myfuzz:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/syzkaller-dirty
-      EMAIL: "radon@xs.ustb.edu.cn"
-      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v6.12.40
-      http_proxy: ""
-      https_proxy: ""
-    command: >
-      bash -c '
-        cd $$SYZMETA &&
-        python3 -u src/experiment.py \
-          --email $$EMAIL \
-          impl \
-          --idendir $$MRDIR \
-          --syzkaller $$SYZKALLER > impl-woRAG-linux.v6.12.40.log 2>&1
-      '
-
-  eval-woRAG:
-    <<: *base
-    image: syzmeta:latest
-    cpus: 16
-    network_mode: host
-    environment:
-      <<: *env
-      SYZKALLER: /vol/syzkaller-dirty
-      EMAIL: "radon@xs.ustb.edu.cn"
-      MRDIR: /vol/SyzMeta/workdir/MRs-woRAG/linux/v6.12.40
-    command: |
-      bash -c '
-        cd $$SYZMETA &&
-        python3 -u src/experiment.py \
-          --email $$EMAIL \
-          eval \
-          --impldir $$MRDIR \
-          --syzkaller $$SYZKALLER \
-          --kernel_obj $$KERNEL \
-          --kernel_typ linux \
-          --image_obj $$IMAGE > eval-woRAG-linux.v6.12.40.log 2>&1
-      '
-
-  SyzMeta:
-    <<: *base
-    image: syzmeta:latest
-    environment:
-      <<: *env
-      SYZKALLER: /vol/SyzMeta/syzkaller
-      OUT_ROOT: /vol2/SyzMeta
+      SYZKALLER: /vol/myfuzz/syzkaller
+      OUT_ROOT: /vol2/myfuzz
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZMETA/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.log 2>&1
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$MYFUZZ/syzkaller/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/myfuzz.log 2>&1
       '
 
   syzkaller:
@@ -167,7 +121,7 @@ services:
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/syzkaller.log 2>&1
       '
 
@@ -181,7 +135,7 @@ services:
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
         mkdir -p $$WORKDIR &&
         cp $$MOONSHINE/corpus.db $$WORKDIR/ &&
         timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/moonshine.log 2>&1
@@ -244,55 +198,55 @@ services:
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cp $$SYZMETA/data/actor/ptrs.v6.12.40.txt $$WORKDIR/ptrs.txt &&
-        cat $$SYZMETA/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
+        cp $$MYFUZZ/data/actor/ptrs.v6.12.40.txt $$WORKDIR/ptrs.txt &&
+        cat $$MYFUZZ/configs/fuzz/linux.actor.cfg | envsubst > /home/linux.cfg &&
         timeout -s KILL 24h $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
       '
 
-  SyzMeta-E-:
+  myfuzz-E-:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta-variants/v6.12.40.E-/syzkaller
-      OUT_ROOT: /vol2/SyzMeta-E-
+      SYZKALLER: /vol/myfuzz-variants/v6.12.40.E-/syzkaller
+      OUT_ROOT: /vol2/myfuzz-E-
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.E-.log 2>&1
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/myfuzz.E-.log 2>&1
       '
 
-  SyzMeta-R-:
+  myfuzz-R-:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta-variants/v6.12.40.R-/syzkaller
-      OUT_ROOT: /vol2/SyzMeta-R-
+      SYZKALLER: /vol/myfuzz-variants/v6.12.40.R-/syzkaller
+      OUT_ROOT: /vol2/myfuzz-R-
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.R-.log 2>&1
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/myfuzz.R-.log 2>&1
       '
 
-  SyzMeta-RE-:
+  myfuzz-RE-:
     <<: *base
-    image: syzmeta:latest
+    image: myfuzz:latest
     environment:
       <<: *env
-      SYZKALLER: /vol/SyzMeta-variants/v6.12.40.RE-/syzkaller
-      OUT_ROOT: /vol2/SyzMeta-RE-
+      SYZKALLER: /vol/myfuzz-variants/v6.12.40.RE-/syzkaller
+      OUT_ROOT: /vol2/myfuzz-RE-
     command: |
       bash -c '
         export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
         export WORKDIR=$$OUT_ROOT/out-$$suffix
         mkdir -p $$WORKDIR &&
-        cat $$SYZMETA/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
-        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/SyzMeta.RE-.log 2>&1
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > /home/linux.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config /home/linux.cfg > $$WORKDIR/myfuzz.RE-.log 2>&1
       '
