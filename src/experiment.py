@@ -227,10 +227,10 @@ def iden(args: argparse.Namespace):
                 continue
             perf_iden(cfg)
     if len(args.email) > 0:  # Send email notification if email is provided
-        subject = "SyzMeta MR Identification Completed"
+        subject = "myfuzz MR Identification Completed"
         body = "Hi,\n\n"
         body += "The MR identification experiment is completed.\n\n"
-        body += "Best regards,\nSyzMeta Experiment Runner"
+        body += "Best regards,\nmyfuzz Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
     OKF("We're done here!")
@@ -304,10 +304,10 @@ def impl(args: argparse.Namespace):
             continue
         perf_impl(cfg)
     if len(args.email) > 0:  # Send email notification if email is provided
-        subject = "SyzMeta MR Implementation Completed"
+        subject = "myfuzz MR Implementation Completed"
         body = "Hi,\n\n"
         body += "The MR Implementation experiment is completed.\n\n"
-        body += "Best regards,\nSyzMeta Experiment Runner"
+        body += "Best regards,\nmyfuzz Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
     shutil.rmtree(syzkaller)  # Remove the temporary syzkaller directory
@@ -370,10 +370,10 @@ def eval(args: argparse.Namespace):
         )
         perf_eval(subargs)
     if len(args.email) > 0:  # Send email notification if email is provided
-        subject = "SyzMeta MR Evaluation Completed"
+        subject = "myfuzz MR Evaluation Completed"
         body = "Hi,\n\n"
         body += "The MR Evaluation experiment is completed.\n\n"
-        body += "Best regards,\nSyzMeta Experiment Runner"
+        body += "Best regards,\nmyfuzz Experiment Runner"
         send_email(subject, body, args.email)
         OKF("Successfully send email notification to " + args.email)
     shutil.rmtree(syzkaller)  # Remove the temporary syzkaller directory
@@ -427,7 +427,7 @@ def integrate(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SyzMeta Experiment Runner")
+    parser = argparse.ArgumentParser(description="myfuzz Experiment Runner")
     parser.add_argument("--email", type=str, default="", help="Email address to receive notifications")
 
     subparser = parser.add_subparsers(title="experiment", required=True)
@@ -470,12 +470,12 @@ if __name__ == "__main__":
         tb = traceback.format_exception(exc_type, exc_value, exc_traceback)
         error_message = "".join(tb)
         if len(args.email) > 0:  # Send email notification if email is provided
-            subject = "SyzMeta Experiment Error"
+            subject = "myfuzz Experiment Error"
             body = "Hi,\n\n"
             body += "An error occurred during the experiment:\n\n"
             body += error_message + "\n\n"
             body += "Program args: " + " ".join(sys.argv) + "\n\n"
-            body += "Best regards,\nSyzMeta Experiment Runner"
+            body += "Best regards,\nmyfuzz Experiment Runner"
             send_email(subject, body, args.email)
             OKF("Successfully send email notification to " + args.email)
         else:
