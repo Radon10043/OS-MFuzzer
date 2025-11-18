@@ -46,25 +46,3 @@ RUN tar -xzvf v2.0.8.tar.gz && \
     make install && \
     popd && \
     rm -rf v2.0.8.tar.gz
-
-# Download syzkaller & SyzMeta
-# RUN git clone https://github.com/google/syzkaller && \
-#     cd syzkaller && \
-#     git checkout 4b25d554e5643186ba6a09429089ac0275f7573b
-# RUN --mount=type=secret,id=github_token \
-#     SECRET_CONTENT=$(cat /run/secrets/github_token) && \
-#     git clone -b dev --recurse-submodules https://Radon10043:${SECRET_CONTENT}@github.com/Radon10043/SyzMeta.git
-
-# # Build fuzzers
-# RUN make -C syzkaller generate -j`nproc` && \
-#     make -C syzkaller clean all -j`nproc`
-# RUN make -C SyzMeta/syzkaller generate -j`nproc` && \
-#     make -C SyzMeta/syzkaller clean all -j`nproc`
-
-# # Build image
-# RUN mkdir Debian && \
-#     cp /home/SyzMeta/scripts/create-image.sh Debian/ && \
-#     cd Debian && \
-#     ./create-image.sh
-
-# WORKDIR /home
