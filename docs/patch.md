@@ -5,7 +5,7 @@ This document provides an overview of the patches available in this repository.
 - `release.patch`: Enables support for metamorphic fuzzing.
 - `debug.patch`: Modifies `Makefile` and `targets.go` for debugging purposes.
 - `create-image.patch`: Builds a disk image without `mount` and `umount`, allowing it to be used within a `docker build` process.
-- `offline.patch`: Adds support for running Syzkaller or SyzMeta in an offline environment. If run for the first time, they will automatically download `mockery`.
+- `offline.patch`: Adds support for running OS-MFuzzer in an offline environment. If run for the first time, they will automatically download `mockery`.
 
 ### Fuzzer Patches
 
