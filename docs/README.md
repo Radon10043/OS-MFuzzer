@@ -85,7 +85,7 @@ $OSMFUZZER/syzkaller/bin/syz-manager -config=workdir/test.cfg
 
 For instructions on installing baseline fuzzers, please see the [Fuzzer Documentation](/docs/fuzzers/README.md).
 
-## Advanced Usage
+## Run (Advanced)
 
 This section provides a comprehensive guide to synthesizing, encoding, integrating, and metamorphic fuzzing with Kernel Metamorphic Relations (KMRs) using OS-MFuzzer.
 
@@ -306,7 +306,7 @@ make -C $OSMFUZZER/syzkaller clean generate all -j16
 
 ### Metamorphic Fuzzing
 
-As mentioned in the [Simplified Usage](#usage-simplified) section, you can now start fuzzing.
+As mentioned in the [Simplified Usage](#run-simplified) section, you can now start fuzzing.
 
 Command:
 ```bash
