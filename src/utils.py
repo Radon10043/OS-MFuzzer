@@ -107,9 +107,10 @@ def get_first_code_block(md_text: str, langs: set) -> str:
     # first code block
     for child in md_ast.children:
         child_type = child.get_type()
-        if child_type == "FencedCode" and child.lang in langs:  # type: ignore
-            code_list.extend(md_instance.render(child).split("\n"))  # type: ignore
-            break
+        if child_type == "FencedCode":
+            if child.lang in langs or len(langs) == 0:  # type: ignore
+                code_list.extend(md_instance.render(child).split("\n"))  # type: ignore
+                break
 
     # Return content of the code block, including fences
     return "\n".join(code_list)
