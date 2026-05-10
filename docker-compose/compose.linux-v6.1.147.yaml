@@ -203,6 +203,40 @@ services:
         timeout -s KILL 24h $$ACTOR/src/github.com/google/syzkaller/bin/syz-manager -config=/home/linux.cfg > $$WORKDIR/actor.log 2>&1
       '
 
+  syzgpt:
+    <<: *base
+    image: syzgpt:latest
+    environment:
+      <<: *env
+      OUT_ROOT: /vol2/syzgpt
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        export SYZKALLER=$$SYZGPT/SyzGPT-fuzzer
+        mkdir -p $$WORKDIR &&
+        cp $$SYZGPT/corpus/SyzGPT-full_corpus.db $$WORKDIR/corpus.db &&
+        mkdir -p $$WORKDIR &&
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > $$WORKDIR/fuzz.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config $$WORKDIR/fuzz.cfg -bench $$WORKDIR/bench.log -statcall -backup 24h -enrich $$WORKDIR/generated_corpus -period 1h -repair > $$WORKDIR/fuzz.log 2>&1
+      '
+
+  kernelgpt:
+    <<: *base
+    image: kernelgpt:latest
+    environment:
+      <<: *env
+      OUT_ROOT: /vol2/kernelgpt
+    command: |
+      bash -c '
+        export suffix=$$(cat /proc/sys/kernel/random/uuid | cut -d- -f1)
+        export WORKDIR=$$OUT_ROOT/out-$$suffix
+        export SYZKALLER=$$KERNELGPT/syzkaller
+        mkdir -p $$WORKDIR &&
+        cat $$MYFUZZ/configs/fuzz/linux.cfg | envsubst > $$WORKDIR/fuzz.cfg &&
+        timeout -s KILL 24h $$SYZKALLER/bin/syz-manager -config $$WORKDIR/fuzz.cfg > $$WORKDIR/fuzz.log 2>&1
+      '
+
   myfuzz-E-:
     <<: *base
     image: myfuzz:latest
