@@ -8,12 +8,6 @@ ENV LLVM_HOME=/home/LLVM-19.1.7-Linux-X64
 ENV PATH=$GOPATH:${LLVM_HOME}/bin:$PATH
 ENV TZ=Asia/Shanghai
 
-# Download following files to the docker/ and build the image by COPY command will save time:
-# wget -P docker https://go.dev/dl/go1.23.6.linux-amd64.tar.gz
-# wget -P docker https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz
-# wget -P docker https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz
-COPY go1.23.6.linux-amd64.tar.gz LLVM-19.1.7-Linux-X64.tar.xz v2.0.8.tar.gz /home/
-
 # Install basic packages
 # TODO: Some packages can be removed to reduce image size
 RUN apt-get update
@@ -31,14 +25,17 @@ RUN pip install langchain-google-genai langchain-chroma docutils anthropic plotl
 RUN plotly_get_chrome -y
 
 # Install golang-1.23.6
+RUN wget https://go.dev/dl/go1.23.6.linux-amd64.tar.gz
 RUN tar -C /usr/local -xzf go1.23.6.linux-amd64.tar.gz && \
     rm go1.23.6.linux-amd64.tar.gz
 
 # Install LLVM-19.1.7 (binary)
+RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz
 RUN tar -xvf LLVM-19.1.7-Linux-X64.tar.xz && \
     rm LLVM-19.1.7-Linux-X64.tar.xz
 
 # Install flatbuffers-2.0.8
+RUN wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.8.tar.gz
 RUN tar -xzvf v2.0.8.tar.gz && \
     pushd flatbuffers-2.0.8 && \
     cmake -G "Unix Makefiles" && \
