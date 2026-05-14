@@ -34,7 +34,7 @@ for i, fuzzer in enumerate(FUZZERS):
             y=[subdf[subdf["version"] == ver]["crashes"].mean() for ver in VERS],
             name=fuzzer,
             marker=dict(
-                pattern=dict(shape=PATTERNS[i % len(PATTERNS)], fgcolor="black", size=4, solidity=0.6),
+                pattern=dict(shape=PATTERNS[i % len(PATTERNS)], fgcolor="black", size=5, solidity=0.5),
                 color="white",
                 line=dict(color="black", width=1),
             ),
@@ -66,7 +66,7 @@ fig.update_yaxes(
     linecolor="black",
     gridcolor="lightgray",
     range=[0, 40],
-    title_text="Number of Explicit Issues",
+    title_text="Number of Detected Issues",
 )
 
 outdir = Path(__file__).parent.parent / "viz" / "output"
