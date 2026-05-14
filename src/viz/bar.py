@@ -4,8 +4,8 @@ import pandas as pd
 import plotly.graph_objects as go
 
 VERS = ["v5.4.296", "v5.10.240", "v5.15.189", "v6.1.147", "v6.6.100", "v6.12.40"]
-FUZZERS = ["OS-MFuzzer", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK"] # Actually I prefer SyzMeta or SyzMorphic :)
-PATTERNS = ["", "\\", "-", "|", ".", "/"]
+FUZZERS = ["OS-MFuzzer", "syzkaller", "MoonShine", "ACTOR", "HEALER", "MOCK", "KernelGPT", "SyzGPT"] # Actually I prefer SyzMeta or SyzMorphic :)
+PATTERNS = ["", "\\", "-", "|", ".", "/", "+", "x"]
 COLORS = [
     "rgba(78,121,167,0.8)",
     "rgba(242,142,43,0.8)",
@@ -34,7 +34,7 @@ for i, fuzzer in enumerate(FUZZERS):
             y=[subdf[subdf["version"] == ver]["crashes"].mean() for ver in VERS],
             name=fuzzer,
             marker=dict(
-                pattern=dict(shape=PATTERNS[i % len(PATTERNS)], fgcolor="black", size=5, solidity=0.3),
+                pattern=dict(shape=PATTERNS[i % len(PATTERNS)], fgcolor="black", size=4, solidity=0.6),
                 color="white",
                 line=dict(color="black", width=1),
             ),

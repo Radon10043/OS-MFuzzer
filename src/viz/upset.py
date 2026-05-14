@@ -3,7 +3,7 @@ from plotly_upset.plotting import plot_upset
 from pathlib import Path
 
 # Actually I prefer SyzMeta or SyzMorphic :)
-fuzzers = ["HEALER", "MOCK", "ACTOR", "MoonShine", "syzkaller", "OS-MFuzzer"]
+fuzzers = ["HEALER", "MOCK", "ACTOR", "SyzGPT", "KernelGPT", "MoonShine", "syzkaller", "OS-MFuzzer"]
 
 # Get all issues
 d = Path(__file__).parent.parent.parent / "data" / "experiments" / "explicits"
@@ -29,8 +29,8 @@ for fuzzer in fuzzers:
 # Plotting
 fig = plot_upset(
     dataframes=[df],
-    legendgroups=["Number of Explicit Issues"],
-    marker_size=12,
+    legendgroups=["Number of Detected Issues"],
+    marker_size=8,
     exclude_zeros=True,
     sorted_x="d",
     marker_colors=["gray"],
@@ -40,7 +40,7 @@ fig = plot_upset(
 fig.update_layout(
     width=1000,
     height=400,
-    font=dict(size=16, color="black"),
+    font=dict(size=14, color="black"),
     margin=dict(l=10, r=10, t=10, b=10),
 )
 
